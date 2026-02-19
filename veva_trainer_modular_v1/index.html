@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>VEVA Trainer</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="topPills">
+    <div id="versionPill" class="pill">v—</div>
+    <div id="studentPill" class="pill">Student: —</div>
+    <div id="voiceStatus" class="pill">Voice: ready</div>
+    <div id="debugPill" class="pill debug" hidden>Debug: —</div>
+  </div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brandTitle">VEVA Checkpoint</div>
+        <div class="brandSub">Ingang/Uitgang Trainer</div>
+      </div>
+
+      <button id="btnReturn" class="sideBtn">Return</button>
+      <button id="btnPersonSearch" class="sideBtn">Go to Person Search</button>
+      <button id="btnSignIn" class="sideBtn">Go to sign-in office</button>
+      <button id="btnDeny" class="sideBtn danger">Deny entrance</button>
+      <button id="btnNewScenario" class="sideBtn">Start new scenario</button>
+      <button id="btnReset" class="sideBtn ghost">Reset</button>
+    </aside>
+
+    <main class="main">
+      <div class="content">
+        <section class="chatArea">
+          <div id="chatSlots" class="chatSlots"></div>
+        </section>
+
+        <section class="rightPanel">
+          <div class="panelHeader">
+            <div class="panelTitle" id="panelTitle">Visitor</div>
+            <div class="panelSub" id="panelSub">—</div>
+          </div>
+
+          <div class="panelBody">
+            <div class="portraitRow">
+              <img id="portraitPhoto" class="portraitPhoto" alt="Visitor portrait" />
+              <div>
+                <div id="portraitMood" class="portraitMood"></div>
+                <div id="portraitDesc" class="portraitDesc"></div>
+              </div>
+            </div>
+
+            <div id="panelStack" class="panelStack">
+              <div id="idCardWrap" class="card" hidden>
+                <div class="cardTop">
+                  <div>
+                    <div class="cardTitle">VEVA Visitor Credential</div>
+                    <div class="cardSub">TRAINING USE ONLY · NOT A REAL DOCUMENT</div>
+                  </div>
+                  <div class="chips">
+                    <span class="chip">LEVEL: <span id="idLevel">STANDARD</span></span>
+                    <span class="chip">SCENARIO: <span id="idScenario">Gate</span></span>
+                  </div>
+                </div>
+                <div class="cardBody">
+                  <div class="idPhotoWrap">
+                    <img id="idPhoto" class="idPhoto" alt="ID photo" />
+                    <div class="watermark">FICTIONAL</div>
+                  </div>
+                  <div class="idFields">
+                    <div class="row"><span class="k">Name</span><span id="idName" class="v"></span></div>
+                    <div class="row"><span class="k">Surname</span><span id="idSurname" class="v"></span></div>
+                    <div class="row"><span class="k">Date of birth</span><span id="idDob" class="v"></span></div>
+                    <div class="row"><span class="k">Nationality</span><span id="idNat" class="v"></span></div>
+                    <div class="row"><span class="k">Visitor ID</span><span id="idNo" class="v mono"></span></div>
+                  </div>
+                </div>
+                <div class="cardBottom">
+                  <div class="barcode mono" id="idBarcode">VEVA|…</div>
+                  <button id="btnReturnId" class="sideBtn small" type="button">Return ID</button>
+                </div>
+              </div>
+
+              <div id="supervisorPanel" class="card" hidden>
+                <div class="cardTop">
+                  <div>
+                    <div class="cardTitle">Supervisor Check — Report (NL)</div>
+                    <div class="cardSub">Vul de 5W/H in en verstuur je report.</div>
+                  </div>
+                  <div class="chips"><span class="chip">SUPERVISOR</span></div>
+                </div>
+                <div class="cardBody">
+                  <div class="superRow">
+                    <img id="supervisorPhoto" class="supervisorPhoto" alt="Supervisor" />
+                    <div class="superGrid">
+                      <label>Wie? <input id="sv_wie" type="text" placeholder="Wie is bij de poort?" /></label>
+                      <label>Wat? <input id="sv_wat" type="text" placeholder="Wat wil hij?" /></label>
+                      <label>Waar? <input id="sv_waar" type="text" placeholder="Waar is de afspraak?" /></label>
+                      <label>Wanneer? <input id="sv_wanneer" type="text" placeholder="Tijdstip / datum" /></label>
+                      <label>Waarom? <input id="sv_waarom" type="text" placeholder="Reden / doel" /></label>
+                      <label>Hoe? <input id="sv_hoe" type="text" placeholder="Procedure / actie" /></label>
+                    </div>
+                  </div>
+                </div>
+                <div class="cardBottom">
+                  <button id="btnSupervisorSend" class="sideBtn primary small" type="button">Send report</button>
+                  <button id="btnSupervisorBack" class="sideBtn small" type="button">Back to visitor</button>
+                </div>
+              </div>
+
+              <div id="personSearchPanel" class="card" hidden>
+                <div class="cardTop">
+                  <div>
+                    <div class="cardTitle">Person Search — Items</div>
+                    <div class="cardSub">Cards represent what the visitor has.</div>
+                  </div>
+                  <div class="chips"><span class="chip" id="psRiskChip">RISK: —</span></div>
+                </div>
+                <div class="cardBody">
+                  <div id="psOutfit" class="psOutfit"></div>
+                  <div class="cards" id="psCards"></div>
+                </div>
+              </div>
+
+              <div id="signInPanel" class="card" hidden>
+                <div class="cardTop">
+                  <div>
+                    <div class="cardTitle">Sign-in Register</div>
+                    <div class="cardSub">Fill in the entry log.</div>
+                  </div>
+                  <div class="chips"><span class="chip">REGISTER</span></div>
+                </div>
+                <div class="cardBody">
+                  <div class="superGrid">
+                    <label>Name <input id="si_name" type="text" /></label>
+                    <label>Company <input id="si_company" type="text" placeholder="e.g., Acme Ltd." /></label>
+                    <label>POC (who) <input id="si_poc" type="text" /></label>
+                    <label>Time <input id="si_time" type="text" placeholder="HH:MM" /></label>
+                    <label>Location <input id="si_loc" type="text" placeholder="Building / office" /></label>
+                    <label>Signature (type name) <input id="si_sig" type="text" /></label>
+                  </div>
+                </div>
+                <div class="cardBottom">
+                  <button id="btnSignInIssue" class="sideBtn primary small" type="button">Issue visitor pass</button>
+                </div>
+              </div>
+
+              <div id="passPanel" class="card" hidden>
+                <div class="cardTop">
+                  <div>
+                    <div class="cardTitle">Visitor Pass</div>
+                    <div class="cardSub">Must be worn visibly at all times.</div>
+                  </div>
+                  <div class="chips"><span class="chip" id="passNo">PASS: —</span></div>
+                </div>
+                <div class="cardBody">
+                  <div class="idFields">
+                    <div class="row"><span class="k">Name</span><span id="passName" class="v"></span></div>
+                    <div class="row"><span class="k">Valid until</span><span id="passUntil" class="v"></span></div>
+                    <div class="row"><span class="k">Rules</span><span class="v">Wear visible · Show on request · Return on exit</span></div>
+                    <div class="row"><span class="k">Alarm</span><span class="v">Go to assembly area (green sign with white arrows)</span></div>
+                    <div class="row"><span class="k">Base closes</span><span class="v">Last visitor out by 16:00</span></div>
+                  </div>
+                </div>
+                <div class="cardBottom">
+                  <button id="btnPassReturn" class="sideBtn small" type="button">Return pass (end)</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div id="hintBand" class="hintBand" hidden>
+          <div class="dividerLine"></div>
+          <div id="hintBandText" class="hintText"></div>
+          <div class="dividerLine"></div>
+        </div>
+
+        <div class="inputBar">
+          <input id="textInput" type="text" placeholder="Type or speak your English…" />
+          <button id="holdToTalk" type="button">Hold</button>
+          <button id="btnSend" type="button">Send</button>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <div id="loginModal" class="modal" hidden>
+    <div class="modalCard">
+      <div class="modalTitle">Start training</div>
+
+      <label>Surname
+        <input id="studentSurname" type="text" />
+      </label>
+
+      <label>Group
+        <select id="studentGroup">
+          <option value="">Select…</option>
+          <option>Alpha</option>
+          <option>Bravo</option>
+        </select>
+      </label>
+
+      <label>Difficulty
+        <select id="studentDifficulty">
+          <option value="basic">Basic</option>
+          <option value="standard" selected>Standard</option>
+          <option value="advanced">Advanced</option>
+        </select>
+      </label>
+
+      <div id="loginError" class="loginError" style="display:none">Please fill surname + group.</div>
+      <button id="btnStartTraining" type="button" class="primary">Start</button>
+      <div class="modalFine">Tip: run via https (GitHub Pages) for voice.</div>
+    </div>
+  </div>
+
+  <script src="boot.js"></script>
+</body>
+</html>
