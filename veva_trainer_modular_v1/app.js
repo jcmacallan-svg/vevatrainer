@@ -240,7 +240,8 @@
   function renderChat(){
     if (!chatSlots) return;
     chatSlots.innerHTML="";
-    for (const m of history.slice(-18)){
+    // Keep the UI clean: show at most 4 chat bubbles.
+    for (const m of history.slice(-4)){
       const row=document.createElement("div");
       row.className="chatRow "+(m.side==="visitor"?"left":"right");
       const img=document.createElement("img");
