@@ -65,7 +65,6 @@
   const sv_waar = $("#sv_waar");
   const sv_wanneer = $("#sv_wanneer");
   const sv_waarom = $("#sv_waarom");
-  const sv_hoe = $("#sv_hoe");
 
   const personSearchPanel = $("#personSearchPanel");
   const psOutfit = $("#psOutfit");
@@ -330,6 +329,9 @@
 
   function showSupervisor(){
     hideAllPanels();
+    // Always start empty: student must fill everything themselves.
+    for (const el of [sv_wie, sv_wat, sv_waar, sv_wanneer, sv_waarom]){ if (el) el.value = ""; }
+    if (sv_note) sv_note.textContent = "";
     supervisorPanel.hidden=false;
     if (supervisorPhoto) supervisorPhoto.src = supervisorAvatar.src || soldierAvatar.src;
     state.ui.supervisorVisible=true;
@@ -524,7 +526,9 @@
         state.flags.evasiveUsed=true;
         enqueueVisitor("Someone inside."); showHint(PRESS_HINT_TEXT); return;
       }
-      enqueueVisitor(`I’m meeting ${state.visitor.contact.full}.`); updateHint(); return;
+      enqueueVisitor(phrase("gate","who_meeting",state, state.flags.forcedCoop ? "open":null));
+      updateHint();
+      return;
     }
     if (intent==="time_meeting"){ state.facts.time="known"; enqueueVisitor(`My appointment is at ${getMeetingTime(state)}.`); updateHint(); return; }
     if (intent==="about_meeting"){ state.facts.about="known"; enqueueVisitor(phrase("gate","about_meeting",state, state.flags.forcedCoop ? "open":null)); updateHint(); return; }
@@ -626,6 +630,67 @@
 
     if (intent==="deny"){ enqueueVisitor(phrase("shared","deny_why",state)); return; }
 
+    // --- Global identity / control questions (available in any gate stage) ---
+    if (intent === "ask_name"){
+      state.facts.name = true;
+      enqueueVisitor(`My name is ${state.visitor.first}.`);
+      return;
+    }
+    if (intent === "ask_surname"){
+      state.facts.surname = true;
+      enqueueVisitor(`My last name is ${state.visitor.last}.`);
+      return;
+    }
+    if (intent === "spell_last_name"){
+      const letters = String(state.visitor.last || "")
+        .replace(/[^A-Za-z]/g, "")
+        .toUpperCase()
+        .split("");
+      const spelled = letters.length ? letters.join("-") : String(state.visitor.last || "").toUpperCase();
+      enqueueVisitor(spelled || `My surname is ${state.visitor.last}.`);
+      return;
+    }
+    if (intent === "ask_age" || intent === "confirm_age"){
+      const dobStr = String(state.visitor.dob || "");
+      const m = dobStr.match(/^(\d{2})\s+([A-Za-z]{3})\s+(\d{4})$/);
+      const months = {Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+      let age = null;
+      if (m){
+        const d = parseInt(m[1], 10);
+        const mon = months[m[2]];
+        const y = parseInt(m[3], 10);
+        if (mon !== undefined){
+          const now = new Date();
+          let a = now.getFullYear() - y;
+          const bdThisYear = new Date(now.getFullYear(), mon, d);
+          if (now < bdThisYear) a--;
+          age = a;
+        }
+      }
+      if (age === null){
+        enqueueVisitor("I\'d rather not share that.");
+        return;
+      }
+
+      if (intent === "ask_age"){
+        enqueueVisitor(`I am ${age} years old.`);
+        return;
+      }
+
+      const n = txt.match(/\b(\d{1,3})\b/);
+      const said = n ? parseInt(n[1], 10) : null;
+      if (said === null){
+        enqueueVisitor(`I am ${age} years old.`);
+        return;
+      }
+      if (said === age){
+        enqueueVisitor("That\'s correct.");
+        return;
+      }
+      enqueueVisitor(`Not quite. I am ${age} years old.`);
+      return;
+    }
+
     if (state.stage.startsWith("gate_")) return handleGate(intent, txt);
     if (state.stage.startsWith("ps_")) return handlePS(intent);
     if (state.stage.startsWith("si_")) return handleSI(intent);
@@ -661,7 +726,6 @@
       waar:(sv_waar?.value||"").trim(),
       wanneer:(sv_wanneer?.value||"").trim(),
       waarom:(sv_waarom?.value||"").trim(),
-      hoe:(sv_hoe?.value||"").trim(),
     };
     window.VEVA_LOG?.({type:"supervisor_report", stage:state.stage, report, visitor:{name:state.visitor.name,idNo:state.visitor.idNo}, student:session});
     addMsg("student","[Report sent to supervisor]","NL 5W/H logged");
