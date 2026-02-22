@@ -249,3 +249,6 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 
 /* v1.6.1 checklist visibility fallback */
 .checklistPanel{display:block !important;}
+
+.checklistPanel .panelTitle{display:block;}
+.checklistPanel .panelBody{display:block;}

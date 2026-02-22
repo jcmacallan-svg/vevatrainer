@@ -453,12 +453,40 @@
     updateChecklist();
   }
 
+  function ensureChecklistMarkup(){
+    const panel = document.getElementById("checklistPanel");
+    const list = document.getElementById("checklistList");
+    if (!panel || !list) return;
+    panel.style.display = "";
+    if (list.children.length) return;
+    list.innerHTML = `
+      <div class="clGroup">
+        <div class="clGroupTitle">Gate (5W/H + ID)</div>
+        <label class="clItem" id="cl_gate_name"><input type="checkbox" disabled> <span>Name</span></label>
+        <label class="clItem" id="cl_gate_purpose"><input type="checkbox" disabled> <span>Reason for visit</span></label>
+        <label class="clItem" id="cl_gate_appt"><input type="checkbox" disabled> <span>Appointment</span></label>
+        <label class="clItem" id="cl_gate_who"><input type="checkbox" disabled> <span>With whom</span></label>
+        <label class="clItem" id="cl_gate_time"><input type="checkbox" disabled> <span>Time</span></label>
+        <label class="clItem" id="cl_gate_about"><input type="checkbox" disabled> <span>About</span></label>
+        <label class="clItem" id="cl_gate_where"><input type="checkbox" disabled> <span>Where</span></label>
+        <label class="clItem" id="cl_gate_id"><input type="checkbox" disabled> <span>ID checked & returned</span></label>
+        <label class="clItem" id="cl_gate_supervisor"><input type="checkbox" disabled> <span>Supervisor report (NL)</span></label>
+        <label class="clItem" id="cl_gate_rules"><input type="checkbox" disabled> <span>Rules explained</span></label>
+        <label class="clItem" id="cl_gate_send_ps"><input type="checkbox" disabled> <span>Sent to person search</span></label>
+      </div>`;
+    // rebind references if cache delivered old HTML
+    checklistEls.gate_name = $("#cl_gate_name"); checklistEls.gate_purpose=$("#cl_gate_purpose"); checklistEls.gate_appt=$("#cl_gate_appt");
+    checklistEls.gate_who=$("#cl_gate_who"); checklistEls.gate_time=$("#cl_gate_time"); checklistEls.gate_about=$("#cl_gate_about"); checklistEls.gate_where=$("#cl_gate_where");
+    checklistEls.gate_id=$("#cl_gate_id"); checklistEls.gate_supervisor=$("#cl_gate_supervisor"); checklistEls.gate_rules=$("#cl_gate_rules"); checklistEls.gate_send_ps=$("#cl_gate_send_ps");
+  }
+
   function setChecklistDone(el, done){
     if (!el) return;
     el.classList.toggle("done", !!done);
   }
 
   function updateChecklist(){
+    ensureChecklistMarkup();
     if (!state) return;
     const f = state.facts || {};
     const fl = state.flags || {};
@@ -946,4 +974,5 @@
   if(supervisorPhoto) supervisorPhoto.src=supervisorAvatar.src||soldierAvatar.src;
   hideAllPanels();
   renderChat();
+updateChecklist();
 })();
