@@ -242,13 +242,15 @@
 
   function detectIntent(raw){
     const n = normalize(raw);
-    if (/(with\s+who(m)?|appointment\s+with|who\s+are\s+you\s+(meeting|seeing))/i.test(n)) return "who_meeting";
-    if ((/what\s+time/i.test(n) || /when/i.test(n)) && /(appointment|meeting)/i.test(n)) return "time_meeting";
-    if (/what/i.test(n) && /(appointment|meeting)/i.test(n) && /about/i.test(n)) return "about_meeting";
+    // Priority disambiguation for 5W appointment questions
+    if (/\b(with\s+who(m)?|appointment\s+with|who\s+are\s+you\s+(meeting|seeing))\b/i.test(n)) return "who_meeting";
+    if ((/\bwhat\s+time\b/i.test(n) || /\bwhen\b/i.test(n)) && /\b(appointment|meeting)\b/i.test(n)) return "time_meeting";
+    if (/\bwhat\b/i.test(n) && /\b(appointment|meeting)\b/i.test(n) && /\babout\b/i.test(n)) return "about_meeting";
     const list = Array.isArray(window.VEVA_INTENTS) ? window.VEVA_INTENTS : [];
     for (const it of list){ try{ if (it?.rx?.test(raw)) return it.key; }catch{} }
     return "unknown";
   }
+
 
   // chat
   let history=[];
@@ -303,21 +305,33 @@
   function renderTyping(){
     if (!chatSlots) return;
     chatSlots.innerHTML="";
-    for (const m of history.slice(-18)){
+    const view = history.slice(-4);
+    for (const m of view){
       const row=document.createElement("div");
-      row.className="chatRow left";
+      row.className="chatRow "+((m.side==="visitor")?"left":"right");
       const img=document.createElement("img");
-      img.className="avatar"; img.src=(state?.visitor?.photoSrc||TRANSPARENT_PX);
+      img.className="avatar";
+      img.alt = m.side==="visitor" ? "Visitor" : (m.side==="supervisor" ? "Supervisor" : "Soldier");
+      if (m.side==="visitor") img.src = state?.visitor?.photoSrc||TRANSPARENT_PX;
+      else if (m.side==="supervisor") img.src = supervisorAvatar.src||soldierAvatar.src||TRANSPARENT_PX;
+      else img.src = soldierAvatar.src||TRANSPARENT_PX;
       const bubble=document.createElement("div"); bubble.className="bubble";
-      const t=document.createElement("div");
-      if (m.typing) t.innerHTML='<span class="typingDots"><span></span><span></span><span></span></span>';
-      else t.textContent=m.text||"";
+      const t=document.createElement("div"); t.textContent=m.text||"";
       bubble.appendChild(t);
+      if (m.meta){ const meta=document.createElement("div"); meta.className="meta"; meta.textContent=m.meta; bubble.appendChild(meta); }
       row.appendChild(img); row.appendChild(bubble);
       chatSlots.appendChild(row);
     }
+    if (typingVisitor){
+      const row=document.createElement("div"); row.className="chatRow left";
+      const img=document.createElement("img"); img.className="avatar"; img.alt="Visitor"; img.src=state?.visitor?.photoSrc||TRANSPARENT_PX;
+      const bubble=document.createElement("div"); bubble.className="bubble";
+      const t=document.createElement("div"); t.innerHTML='<span class="typingDots"><span></span><span></span><span></span></span>';
+      bubble.appendChild(t); row.appendChild(img); row.appendChild(bubble); chatSlots.appendChild(row);
+    }
     chatSlots.scrollTop = chatSlots.scrollHeight;
   }
+
 
   function hideAllPanels(){
     if (idCardWrap) idCardWrap.hidden=true;

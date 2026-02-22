@@ -245,3 +245,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
   color: rgba(255, 210, 210, 0.95);
   font-size: 12px;
 }
+
+
+/* v1.6.1 checklist visibility fallback */
+.checklistPanel{display:block !important;}
