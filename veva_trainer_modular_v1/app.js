@@ -110,6 +110,28 @@
     si_close: $("#cl_si_close"),
   };
 
+
+  // Editable checklist labels (change these texts later if you want)
+  const CHECKLIST_LABELS = {
+    gate_name: "Name asked",
+    gate_purpose: "Reason / purpose",
+    gate_appt: "Appointment (yes/no)",
+    gate_who: "With whom",
+    gate_time: "Time",
+    gate_about: "About",
+    gate_where: "Where",
+    gate_id: "ID checked",
+    gate_report_nl: "Reported to supervisor (NL)",
+    gate_rules: "Rules explained",
+    gate_to_ps: "Sent to person search",
+    ps_started: "Pockets / items on table",
+    ps_position: "Positioning instructions",
+    ps_resolved: "Search resolved",
+    si_pass: "Visitor pass issued",
+    si_rules: "Pass/rules explained",
+    si_returned: "Visitor pass returned"
+  };
+
   // Login
   const loginModal = $("#loginModal");
   const studentSurnameInput = $("#studentSurname");
@@ -572,6 +594,7 @@
       facts:{ name:"", purpose:"", appt:"yes", who:"", time:"", about:"", location:"", meetingTime:"", locationCode:"" },
       flags:{ idChecked:false, reportedSupervisor:false, rulesDone:false, sentToPersonSearch:false, psStarted:false, psPositioned:false, psResolved:false, siIssued:false },
       ui:{ idVisible:false, supervisorVisible:false },
+      missed:{},
       ps:null, pass:null,
       evasiveFor: pick(["purpose","who_meeting","about_meeting","where_meeting","time_meeting"])
     };
@@ -834,7 +857,40 @@ btnSend?.addEventListener("click", ()=>{
   });
   btnReset?.addEventListener("click", ()=>{ loginModal.hidden=false; history=[]; renderChat(); hideAllPanels(); if(textInput) textInput.value=""; });
 
-  btnPersonSearch?.addEventListener("click", ()=> handleStudent("Go to person search"));
+  function markGateMissesForChecklist(){
+    const f = state?.facts || {};
+    const fl = state?.flags || {};
+    state.missed = state.missed || {};
+    const needApptDetails = (f.appt === "yes" || !f.appt);
+    const mark = (key, condition) => { if (!condition) state.missed[key] = true; };
+    mark("gate_name", !!f.name);
+    mark("gate_purpose", !!f.purpose);
+    mark("gate_appt", !!f.appt);
+    if (needApptDetails){ mark("gate_who", !!f.who); mark("gate_time", !!f.time); mark("gate_about", !!f.about); }
+    mark("gate_where", !!f.where);
+    mark("gate_id", !!fl.idChecked);
+    mark("gate_report_nl", !!fl.reportedNL);
+    mark("gate_rules", !!fl.rulesExplained);
+    renderChecklist();
+  }
+
+  btnPersonSearch?.addEventListener("click", ()=> {
+    if (!state) return;
+    if (state.stage.startsWith("gate_")) {
+      markGateMissesForChecklist();
+      state.flags.sentToPS = true;
+      renderChecklist();
+      state.stage = "ps_arrival";
+      hideAllPanels();
+      updateVisuals();
+      enqueueVisitor("Okay. I will follow your colleague to the person search area.");
+      setTimeout(()=>{ if(state?.stage === "ps_arrival") enqueueVisitor("I am at person search."); }, 1200);
+      setDebug(`Intent: button_person_search · Stage: ${state.stage}`);
+      updateHint();
+      return;
+    }
+    handleStudent("Go to person search");
+  });
   btnSignIn?.addEventListener("click", ()=> handleStudent("Go to sign-in office"));
   btnDeny?.addEventListener("click", ()=> enqueueVisitor(phrase("shared","deny_why",state)));
   btnReturn?.addEventListener("click", ()=> enqueueVisitor("Return (placeholder)."));
@@ -879,6 +935,14 @@ btnSend?.addEventListener("click", ()=>{
     enqueueVisitor("Thank you. Have a good day.");
     state.stage="ended";
     setDebug("Intent: — · Stage: ended");
+  });
+
+  // Checklist pane toggle (collapse / expand)
+  const checklistToggle = document.getElementById("checklistToggle");
+  checklistToggle?.addEventListener("click", ()=>{
+    document.body.classList.toggle("checklist-collapsed");
+    const collapsed = document.body.classList.contains("checklist-collapsed");
+    checklistToggle.textContent = collapsed ? "◀ Checklist" : "Checklist ▶";
   });
 
   // Speech recognition
@@ -992,6 +1056,7 @@ btnSend?.addEventListener("click", ()=>{
     session={...session,...pre};
   }
   updateStudentPill();
+  applyChecklistLabels();
   setupSpeech();
   loginModal.hidden=false;
 
