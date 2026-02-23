@@ -329,6 +329,13 @@
       const t=document.createElement("div"); t.innerHTML='<span class="typingDots"><span></span><span></span><span></span></span>';
       bubble.appendChild(t); row.appendChild(img); row.appendChild(bubble); chatSlots.appendChild(row);
     }
+    if (typingStudent){
+      const row=document.createElement("div"); row.className="chatRow right";
+      const img=document.createElement("img"); img.className="avatar"; img.alt="Soldier"; img.src=soldierAvatar.src||TRANSPARENT_PX;
+      const bubble=document.createElement("div"); bubble.className="bubble";
+      const t=document.createElement("div"); t.innerHTML='<span class="typingDots"><span></span><span></span><span></span></span>';
+      bubble.appendChild(t); row.appendChild(img); row.appendChild(bubble); chatSlots.appendChild(row);
+    }
     chatSlots.scrollTop = chatSlots.scrollHeight;
   }
 
