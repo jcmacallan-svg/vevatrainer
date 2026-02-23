@@ -110,28 +110,6 @@
     si_close: $("#cl_si_close"),
   };
 
-
-  // Editable checklist labels (change these texts later if you want)
-  const CHECKLIST_LABELS = {
-    gate_name: "Name asked",
-    gate_purpose: "Reason / purpose",
-    gate_appt: "Appointment (yes/no)",
-    gate_who: "With whom",
-    gate_time: "Time",
-    gate_about: "About",
-    gate_where: "Where",
-    gate_id: "ID checked",
-    gate_report_nl: "Reported to supervisor (NL)",
-    gate_rules: "Rules explained",
-    gate_to_ps: "Sent to person search",
-    ps_started: "Pockets / items on table",
-    ps_position: "Positioning instructions",
-    ps_resolved: "Search resolved",
-    si_pass: "Visitor pass issued",
-    si_rules: "Pass/rules explained",
-    si_returned: "Visitor pass returned"
-  };
-
   // Login
   const loginModal = $("#loginModal");
   const studentSurnameInput = $("#studentSurname");
@@ -270,16 +248,17 @@
     if (/\bwhat\b/i.test(n) && /\b(appointment|meeting)\b/i.test(n) && /\babout\b/i.test(n)) return "about_meeting";
     const list = Array.isArray(window.VEVA_INTENTS) ? window.VEVA_INTENTS : [];
     for (const it of list){ try{ if (it?.rx?.test(raw)) return it.key; }catch{} }
+
+    // Defensive fallbacks for phrasing variants
+    if (/\b(check\s+with|contact|call|speak\s+to|talk\s+to)\s+(my\s+)?supervisor\b/i.test(n)) return "contact_supervisor";
+    if (/\b(go\s+to|proceed\s+to|walk\s+to|send\s+(him|her|the\s+visitor)\s+to)\b.*\b(person\s+search|search\s+area)\b/i.test(n)) return "go_person_search";
+
     return "unknown";
   }
 
 
   // chat
   let history=[];
-
-  // Typing dots state (drives the animated "…" bubbles)
-  let typingVisitor = false;
-  let typingStudent = false;
   function addMsg(side, text, meta){
     history.push({side,text,meta:meta||""});
     if (history.length>60) history.shift();
@@ -312,25 +291,19 @@
   const q=[]; let tmr=null; let approach=null;
   function enqueueVisitor(text){
     const t=String(text||"").trim(); if(!t) return;
-    q.push(t);
-    // show visitor typing dots as soon as a reply is queued
-    typingVisitor = true;
-    drain();
+    q.push(t); drain();
   }
   function drain(){
     if (tmr || !q.length) return;
-    // show dots while we wait for the delayed reply
-    typingVisitor = true;
-    renderTyping();
+    // typing dot
+    history.push({side:"visitor", text:"", typing:true}); renderTyping();
     tmr=setTimeout(()=>{
       tmr=null;
+      history = history.filter(x=>!x.typing);
       const next=q.shift();
       addMsg("visitor", next);
       window.VEVA_LOG?.({type:"visitor", stage: state.stage, text: next});
       speakVisitor(next);
-      // keep dots if more queued, otherwise stop
-      typingVisitor = q.length > 0;
-      renderTyping();
       if (q.length) drain();
     }, 850);
   }
@@ -357,13 +330,6 @@
     if (typingVisitor){
       const row=document.createElement("div"); row.className="chatRow left";
       const img=document.createElement("img"); img.className="avatar"; img.alt="Visitor"; img.src=state?.visitor?.photoSrc||TRANSPARENT_PX;
-      const bubble=document.createElement("div"); bubble.className="bubble";
-      const t=document.createElement("div"); t.innerHTML='<span class="typingDots"><span></span><span></span><span></span></span>';
-      bubble.appendChild(t); row.appendChild(img); row.appendChild(bubble); chatSlots.appendChild(row);
-    }
-    if (typingStudent){
-      const row=document.createElement("div"); row.className="chatRow right";
-      const img=document.createElement("img"); img.className="avatar"; img.alt="Soldier"; img.src=soldierAvatar.src||TRANSPARENT_PX;
       const bubble=document.createElement("div"); bubble.className="bubble";
       const t=document.createElement("div"); t.innerHTML='<span class="typingDots"><span></span><span></span><span></span></span>';
       bubble.appendChild(t); row.appendChild(img); row.appendChild(bubble); chatSlots.appendChild(row);
@@ -554,17 +520,17 @@
   function nextHint(){
     if (state.stage.startsWith("gate_")){
       const f=state.facts;
-      if (!f.name) return 'Ask: “Who are you?”';
-      if (!f.purpose) return 'Ask: “What are you doing here?”';
-      if (!f.appt) return 'Ask: “Do you have an appointment?”';
-      if (!f.who) return 'Ask: “With whom do you have an appointment?”';
-      if (!f.time) return 'Ask: “What time is the appointment?”';
-      if (!f.about) return 'Ask: “What is the appointment about?”';
-      if (!f.location) return 'Ask: “Where is the appointment?”';
-      if (!state.flags.idChecked) return 'Ask: “Can I see your ID, please?”';
-      if (!state.flags.reportedSupervisor) return 'Say: “I will contact my supervisor.”';
-      if (!state.flags.rulesDone) return "Explain: no drugs, alcohol or weapons. Everyone is searched.";
-      if (!state.flags.sentToPersonSearch) return "Say: proceed to person search.";
+      if (!f.name) return 'Example: "What is your full name?"';
+      if (!f.purpose) return 'Example: "What is the purpose of your visit today?"';
+      if (!f.appt) return 'Example: "Do you have an appointment?"';
+      if (!f.who) return 'Example: "With whom do you have an appointment?"';
+      if (!f.time) return 'Example: "What time is the appointment?"';
+      if (!f.about) return 'Example: "What is the appointment about?"';
+      if (!f.location) return 'Example: "Where is the appointment?"';
+      if (!state.flags.idChecked) return 'Example: "Can I see your ID, please?"';
+      if (!state.flags.reportedSupervisor) return 'Example: "I will contact my supervisor."';
+      if (!state.flags.rulesDone) return 'Example: "Drugs, alcohol and weapons are not allowed on base. Everyone is searched."';
+      if (!state.flags.sentToPersonSearch) return 'Example: "Please go to person search. My colleague will assist you."';
       return "Continue the procedure.";
     }
     if (state.stage.startsWith("ps_")){
@@ -594,7 +560,6 @@
       facts:{ name:"", purpose:"", appt:"yes", who:"", time:"", about:"", location:"", meetingTime:"", locationCode:"" },
       flags:{ idChecked:false, reportedSupervisor:false, rulesDone:false, sentToPersonSearch:false, psStarted:false, psPositioned:false, psResolved:false, siIssued:false },
       ui:{ idVisible:false, supervisorVisible:false },
-      missed:{},
       ps:null, pass:null,
       evasiveFor: pick(["purpose","who_meeting","about_meeting","where_meeting","time_meeting"])
     };
@@ -711,12 +676,17 @@
       if (!gateComplete()){ miss("Complete the 5W/H, check ID, contact supervisor, and explain rules."); return; }
       state.flags.sentToPersonSearch=true;
       enqueueVisitor("Okay.");
-      enqueueVisitor("The visitor follows your colleague to the person search.");
-      enterPersonSearch();
+      enqueueVisitor("Please follow my colleague to the person search area.");
+      if (panelTitle) panelTitle.textContent="Transition";
+      if (panelSub) panelSub.textContent="Moving visitor to Person Search…";
+      setTimeout(()=>{
+        enqueueVisitor("The visitor follows your colleague to the person search.");
+        enterPersonSearch();
+      }, 350);
       return;
     }
 
-    miss("Try a 5W question, ask for ID, or contact your supervisor.");
+    miss('Example: "What is the purpose of your visit today?" or "Can I see your ID, please?" or "I will contact my supervisor."');
   }
 
   function handlePS(intent){
@@ -855,42 +825,9 @@ btnSend?.addEventListener("click", ()=>{
     textInput.disabled=false; btnSend.disabled=false; holdToTalk.disabled=false;
     resetScenario();
   });
-  btnReset?.addEventListener("click", ()=>{ loginModal.hidden=false; history=[]; renderChat(); hideAllPanels(); if(textInput) textInput.value=""; });
+  btnReset?.addEventListener("click", ()=>{ if(loginModal){ loginModal.hidden=false; loginModal.style.display=""; } history=[]; renderChat(); hideAllPanels(); if(textInput) textInput.value=""; });
 
-  function markGateMissesForChecklist(){
-    const f = state?.facts || {};
-    const fl = state?.flags || {};
-    state.missed = state.missed || {};
-    const needApptDetails = (f.appt === "yes" || !f.appt);
-    const mark = (key, condition) => { if (!condition) state.missed[key] = true; };
-    mark("gate_name", !!f.name);
-    mark("gate_purpose", !!f.purpose);
-    mark("gate_appt", !!f.appt);
-    if (needApptDetails){ mark("gate_who", !!f.who); mark("gate_time", !!f.time); mark("gate_about", !!f.about); }
-    mark("gate_where", !!f.where);
-    mark("gate_id", !!fl.idChecked);
-    mark("gate_report_nl", !!fl.reportedNL);
-    mark("gate_rules", !!fl.rulesExplained);
-    renderChecklist();
-  }
-
-  btnPersonSearch?.addEventListener("click", ()=> {
-    if (!state) return;
-    if (state.stage.startsWith("gate_")) {
-      markGateMissesForChecklist();
-      state.flags.sentToPS = true;
-      renderChecklist();
-      state.stage = "ps_arrival";
-      hideAllPanels();
-      updateVisuals();
-      enqueueVisitor("Okay. I will follow your colleague to the person search area.");
-      setTimeout(()=>{ if(state?.stage === "ps_arrival") enqueueVisitor("I am at person search."); }, 1200);
-      setDebug(`Intent: button_person_search · Stage: ${state.stage}`);
-      updateHint();
-      return;
-    }
-    handleStudent("Go to person search");
-  });
+  btnPersonSearch?.addEventListener("click", ()=> handleStudent("Go to person search"));
   btnSignIn?.addEventListener("click", ()=> handleStudent("Go to sign-in office"));
   btnDeny?.addEventListener("click", ()=> enqueueVisitor(phrase("shared","deny_why",state)));
   btnReturn?.addEventListener("click", ()=> enqueueVisitor("Return (placeholder)."));
@@ -935,14 +872,6 @@ btnSend?.addEventListener("click", ()=>{
     enqueueVisitor("Thank you. Have a good day.");
     state.stage="ended";
     setDebug("Intent: — · Stage: ended");
-  });
-
-  // Checklist pane toggle (collapse / expand)
-  const checklistToggle = document.getElementById("checklistToggle");
-  checklistToggle?.addEventListener("click", ()=>{
-    document.body.classList.toggle("checklist-collapsed");
-    const collapsed = document.body.classList.contains("checklist-collapsed");
-    checklistToggle.textContent = collapsed ? "◀ Checklist" : "Checklist ▶";
   });
 
   // Speech recognition
@@ -1047,6 +976,17 @@ btnSend?.addEventListener("click", ()=>{
   btnStartTraining?.addEventListener("click", tryStart);
   studentSurnameInput?.addEventListener("keydown",(e)=>{ if(e.key==="Enter") tryStart(); });
 
+
+// Checklist collapse (UI)
+const btnChecklistCollapse = $("#btnChecklistCollapse");
+btnChecklistCollapse?.addEventListener("click", ()=>{
+  const panel = document.getElementById("checklistPanel");
+  if (!panel) return;
+  const collapsed = panel.classList.toggle("isCollapsed");
+  btnChecklistCollapse.textContent = collapsed ? "◂" : "▸";
+  btnChecklistCollapse.setAttribute("aria-label", collapsed ? "Expand checklist" : "Collapse checklist");
+});
+
   // boot
   const pre=loadStudent();
   if(pre && typeof pre==="object"){
@@ -1056,7 +996,6 @@ btnSend?.addEventListener("click", ()=>{
     session={...session,...pre};
   }
   updateStudentPill();
-  applyChecklistLabels();
   setupSpeech();
   loginModal.hidden=false;
 

@@ -291,15 +291,38 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 }
 
 
-/* Checklist panel improvements */
-.mainGrid{grid-template-columns:minmax(0,1fr) 340px;align-items:start;}
-.checkPane{position:relative;padding-left:8px;}
-.checkCard{position:sticky;top:54px;}
-.checklistToggle{position:sticky;top:12px;z-index:5;margin-left:auto;display:block;margin-bottom:8px;padding:6px 10px;border-radius:999px;border:1px solid rgba(77,139,255,.35);background:#0e1522;color:#cfe0ff;font-weight:700;cursor:pointer;}
-body.checklist-collapsed .mainGrid{grid-template-columns:minmax(0,1fr) 34px;}
-body.checklist-collapsed .checkCard{display:none;}
-body.checklist-collapsed .checkPane{padding-left:0;}
-.cl li.missed{border-color:rgba(255,96,96,.45);background:linear-gradient(180deg, rgba(80,22,22,.25), rgba(80,22,22,.10));}
-.cl li.missed .dot{border-color:#d26a6a;background:rgba(210,106,106,.14);}
-.cl li.missed .dot::after{content:"✕";color:#ff8c8c;font-size:12px;line-height:1;position:relative;top:-1px;}
-@media (max-width: 1200px){ .mainGrid{grid-template-columns:1fr;} .checkPane{order:2;padding-left:0;} .checkCard,.checklistToggle{position:static;} }
+/* Checklist collapse control */
+.panelHead{
+  display:grid;
+  grid-template-columns: 34px 1fr;
+  gap:8px;
+  align-items:center;
+}
+.checkCollapseBtn{
+  width:34px; height:34px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  background:var(--panel2);
+  color:var(--text);
+  cursor:pointer;
+  font-weight:700;
+  line-height:1;
+}
+.checkCollapseBtn:hover{ border-color: var(--accent); }
+.checklistPanel.isCollapsed{
+  width:56px;
+  padding:10px;
+  overflow:hidden;
+}
+.checklistPanel.isCollapsed .panelTitle,
+.checklistPanel.isCollapsed .panelSub,
+.checklistPanel.isCollapsed .checkSection{
+  display:none;
+}
+.checklistPanel.isCollapsed .panelHead{
+  grid-template-columns: 1fr;
+  margin-bottom:0;
+}
+.checklistPanel.isCollapsed .checkCollapseBtn{
+  width:100%;
+}

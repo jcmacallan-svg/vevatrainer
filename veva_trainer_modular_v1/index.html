@@ -38,15 +38,16 @@
         </section>
 
         <!-- TOP-RIGHT: checklist -->
-        <aside class="checklistPanel" aria-label="Checklist">
+        <aside id="checklistPanel" class="checklistPanel" aria-label="Checklist">
           <div class="panelHead">
+            <button id="btnChecklistCollapse" class="checkCollapseBtn" type="button" aria-label="Collapse checklist" title="Collapse checklist">▸</button>
             <div class="panelTitle">Checklist</div>
             <div class="panelSub">What you asked / what’s left</div>
           </div>
 
           <div class="checkSection">
             <div class="checkTitle">Gate (5W/H + ID)</div>
-            <ul class="checkList">
+            <ul id="checklistList" class="checkList">
               <li id="cl_gate_name">Name asked</li>
               <li id="cl_gate_purpose">Reason / purpose</li>
               <li id="cl_gate_appt">Appointment (yes/no)</li>

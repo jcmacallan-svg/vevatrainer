@@ -2,6 +2,8 @@
 window.BUILD = { version: "8.0.0-modular", name: "VEVA Ingang/Uitgang Trainer", date: "2026-02-18" };
 
 (function () {
+  // Safety stub for legacy cached patches
+  if (typeof window.applyChecklistLabels !== 'function') window.applyChecklistLabels = function(){ return null; };
   const qp = new URLSearchParams(location.search);
   const v = qp.get("v") || String(Date.now());
   window.__ASSET_VER__ = v;
