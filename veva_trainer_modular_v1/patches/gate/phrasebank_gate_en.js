@@ -18,6 +18,25 @@
     return_id: { open:["Thank you very much."], cautious:["Thank you."], evasive:["Finally."] },
     purpose: { open:["I have an appointment on base."], cautious:["I have an appointment."], evasive:["It’s personal.","Why do I need to tell you?"] },
     has_appointment_yes: { open:["Yes — it’s scheduled."], cautious:["Yes."], evasive:["Yes… can we move on?"] },
-    about_meeting: { open:["It’s about contractor access today."], cautious:["It’s about access today."], evasive:["It’s private.","I’d rather not say."] }
+    about_meeting: { open:["It’s about contractor access today."], cautious:["It’s about access today."], evasive:["It’s private.","I’d rather not say."] },
+
+    who_meeting: {
+      open: [
+        "I\'m meeting {pocFull}.",
+        "I\'m expected by {pocFull}.",
+        "My point of contact is {pocFull}.",
+        "I\'m here to see {pocFull}.",
+      ],
+      cautious: [
+        "I\'m meeting {pocRank} {pocLast}.",
+        "I\'m expected by {pocRank} {pocLast}.",
+        "A colleague inside — {pocRank} {pocLast}.",
+      ],
+      evasive: [
+        "Someone inside.",
+        "A contact at reception.",
+        "I\'d rather not say names out loud.",
+      ]
+    }
   };
 })();

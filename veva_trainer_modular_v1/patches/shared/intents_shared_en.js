@@ -15,5 +15,12 @@
   add("ask_id", /\b(can i see|show me|may i see).*(id|identification|passport)\b/i);
   add("return_id", /\b(return|here'?s).*(id|passport)\b/i);
 
+  // 5W/H identity / control questions
+  add("ask_name", /\b(who\s+are\s+you|what\s+is\s+your\s+name|may\s+i\s+have\s+your\s+name|your\s+name\?)\b/i);
+  add("ask_surname", /\b(what\s+is\s+your\s+(last\s+name|surname)|your\s+(last\s+name|surname)\?)\b/i);
+  add("spell_last_name", /\b(spell\s+(your\s+)?(last\s+name|surname)|how\s+do\s+you\s+spell\s+(your\s+)?(last\s+name|surname))\b/i);
+  add("ask_age", /\b(what\s+is\s+your\s+age|how\s+old\s+are\s+you)\b/i);
+  add("confirm_age", /\b(you\s+are|you\x27re|so\s+you\s+are|so\s+you\x27re)\s+\d{1,3}\b/i);
+
   add("deny", /\b(deny|refuse).*(entry|access)\b/i);
 })();
