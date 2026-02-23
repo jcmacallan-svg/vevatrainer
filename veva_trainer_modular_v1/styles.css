@@ -252,3 +252,40 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 
 .checklistPanel .panelTitle{display:block;}
 .checklistPanel .panelBody{display:block;}
+
+
+/* === v1.6.4 checklist vertical pane override === */
+.content{
+  grid-template-columns:minmax(0,1.1fr) minmax(320px,.9fr);
+  grid-template-rows:minmax(0,1fr) auto auto auto;
+  align-items:start;
+}
+.chatPanel{grid-column:1;grid-row:1;min-height:0;}
+.checklistPanel{
+  grid-column:2;
+  grid-row:1 / span 4;
+  display:flex;
+  flex-direction:column;
+  min-height:0;
+  max-height:calc(100vh - 54px - 32px);
+  position:sticky;
+  top:0;
+}
+.checklistPanel .panelHead{position:sticky;top:0;background:var(--panel);z-index:2;padding-bottom:10px;margin-bottom:6px;border-bottom:1px solid var(--border);}
+.checklistPanel .panelSub{line-height:1.35;}
+.checklistPanel .checkList{gap:7px;}
+.checklistPanel .checkList li{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+.checklistPanel .checkList li span{display:block;line-height:1.25;}
+.checklistPanel .checkList li::before{margin-right:6px;flex:0 0 auto;}
+.bottomPanel{grid-column:1;grid-row:2;}
+.hintBand{grid-column:1;grid-row:3;}
+.inputBar{grid-column:1;grid-row:4;}
+
+@media (max-width: 1100px){
+  .content{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto auto auto auto;}
+  .chatPanel{grid-column:1;grid-row:1;}
+  .checklistPanel{grid-column:1;grid-row:2;position:static;max-height:30vh;}
+  .bottomPanel{grid-column:1;grid-row:3;}
+  .hintBand{grid-column:1;grid-row:4;}
+  .inputBar{grid-column:1;grid-row:5;}
+}
