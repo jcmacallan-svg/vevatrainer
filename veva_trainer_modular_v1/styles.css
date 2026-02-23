@@ -22,14 +22,14 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 .content{
   flex:1;
   display:grid;
-  /* Single column layout: chat (top), hint (above bottom), bottom panel, input */
-  grid-template-columns:1fr;
-  grid-template-rows:1fr auto auto auto;
+  /* Two columns on top (chat + checklist), bottom panel spans full width */
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr auto auto auto;
   gap:12px;
   width:100%;
   min-height:0;
 }
-.chatArea{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:14px;overflow:hidden;min-height:0;display:flex;}
+.chatPanel{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:14px;overflow:hidden;min-height:0;display:flex;}
 .chatSlots{
   flex: 1;
   overflow: auto;
@@ -66,6 +66,39 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
   max-height:45vh;
   overflow:auto;
 }
+
+/* Place the bottom panel under both columns */
+.bottomPanel{grid-column: 1 / span 2;}
+
+/* Hint band + input should span full width */
+.hintBand{grid-column: 1 / span 2;}
+.inputBar{grid-column: 1 / span 2;}
+
+/* Checklist */
+.checklistPanel{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:14px;
+  min-height:0;
+  overflow:auto;
+}
+.panelHead{margin-bottom:10px;}
+.panelTitle{font-weight:800;letter-spacing:.2px;}
+.panelSub{color:var(--muted);font-size:12px;margin-top:2px;}
+.checkSection{margin-top:12px;}
+.checkTitle{font-weight:700;color:rgba(255,255,255,.88);margin:8px 0;}
+.checkList{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:8px;}
+.checkList li{
+  padding:10px 10px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:rgba(255,255,255,.02);
+  color:rgba(255,255,255,.86);
+}
+.checkList li::before{content:"○";color:rgba(255,255,255,.55);margin-right:8px;}
+.checkList li.done{border-color: rgba(58,167,255,.45);background: rgba(58,167,255,.08);}
+.checkList li.done::before{content:"✓";color:rgba(58,167,255,.95);}
 .panelHeader{display:flex;flex-direction:column;gap:2px;padding-bottom:10px;border-bottom:1px solid var(--border);}
 .panelTitle{font-weight:800;}
 .panelSub{color:var(--muted);font-size:12px;}
@@ -212,3 +245,10 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
   color: rgba(255, 210, 210, 0.95);
   font-size: 12px;
 }
+
+
+/* v1.6.1 checklist visibility fallback */
+.checklistPanel{display:block !important;}
+
+.checklistPanel .panelTitle{display:block;}
+.checklistPanel .panelBody{display:block;}

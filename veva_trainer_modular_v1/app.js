@@ -89,6 +89,27 @@
   const hintBand = $("#hintBand");
   const hintBandText = $("#hintBandText");
 
+  // Checklist (optional panel)
+  const checklistEls = {
+    gate_name: $("#cl_gate_name"),
+    gate_purpose: $("#cl_gate_purpose"),
+    gate_appt: $("#cl_gate_appt"),
+    gate_who: $("#cl_gate_who"),
+    gate_time: $("#cl_gate_time"),
+    gate_about: $("#cl_gate_about"),
+    gate_where: $("#cl_gate_where"),
+    gate_id: $("#cl_gate_id"),
+    gate_supervisor: $("#cl_gate_supervisor"),
+    gate_rules: $("#cl_gate_rules"),
+    gate_send_ps: $("#cl_gate_send_ps"),
+    ps_started: $("#cl_ps_started"),
+    ps_position: $("#cl_ps_position"),
+    ps_resolved: $("#cl_ps_resolved"),
+    si_issued: $("#cl_si_issued"),
+    si_rules: $("#cl_si_rules"),
+    si_close: $("#cl_si_close"),
+  };
+
   // Login
   const loginModal = $("#loginModal");
   const studentSurnameInput = $("#studentSurname");
@@ -221,13 +242,15 @@
 
   function detectIntent(raw){
     const n = normalize(raw);
-    if (/(with\s+who(m)?|appointment\s+with|who\s+are\s+you\s+(meeting|seeing))/i.test(n)) return "who_meeting";
-    if ((/what\s+time/i.test(n) || /when/i.test(n)) && /(appointment|meeting)/i.test(n)) return "time_meeting";
-    if (/what/i.test(n) && /(appointment|meeting)/i.test(n) && /about/i.test(n)) return "about_meeting";
+    // Priority disambiguation for 5W appointment questions
+    if (/\b(with\s+who(m)?|appointment\s+with|who\s+are\s+you\s+(meeting|seeing))\b/i.test(n)) return "who_meeting";
+    if ((/\bwhat\s+time\b/i.test(n) || /\bwhen\b/i.test(n)) && /\b(appointment|meeting)\b/i.test(n)) return "time_meeting";
+    if (/\bwhat\b/i.test(n) && /\b(appointment|meeting)\b/i.test(n) && /\babout\b/i.test(n)) return "about_meeting";
     const list = Array.isArray(window.VEVA_INTENTS) ? window.VEVA_INTENTS : [];
     for (const it of list){ try{ if (it?.rx?.test(raw)) return it.key; }catch{} }
     return "unknown";
   }
+
 
   // chat
   let history=[];
@@ -282,21 +305,33 @@
   function renderTyping(){
     if (!chatSlots) return;
     chatSlots.innerHTML="";
-    for (const m of history.slice(-18)){
+    const view = history.slice(-4);
+    for (const m of view){
       const row=document.createElement("div");
-      row.className="chatRow left";
+      row.className="chatRow "+((m.side==="visitor")?"left":"right");
       const img=document.createElement("img");
-      img.className="avatar"; img.src=(state?.visitor?.photoSrc||TRANSPARENT_PX);
+      img.className="avatar";
+      img.alt = m.side==="visitor" ? "Visitor" : (m.side==="supervisor" ? "Supervisor" : "Soldier");
+      if (m.side==="visitor") img.src = state?.visitor?.photoSrc||TRANSPARENT_PX;
+      else if (m.side==="supervisor") img.src = supervisorAvatar.src||soldierAvatar.src||TRANSPARENT_PX;
+      else img.src = soldierAvatar.src||TRANSPARENT_PX;
       const bubble=document.createElement("div"); bubble.className="bubble";
-      const t=document.createElement("div");
-      if (m.typing) t.innerHTML='<span class="typingDots"><span></span><span></span><span></span></span>';
-      else t.textContent=m.text||"";
+      const t=document.createElement("div"); t.textContent=m.text||"";
       bubble.appendChild(t);
+      if (m.meta){ const meta=document.createElement("div"); meta.className="meta"; meta.textContent=m.meta; bubble.appendChild(meta); }
       row.appendChild(img); row.appendChild(bubble);
       chatSlots.appendChild(row);
     }
+    if (typingVisitor){
+      const row=document.createElement("div"); row.className="chatRow left";
+      const img=document.createElement("img"); img.className="avatar"; img.alt="Visitor"; img.src=state?.visitor?.photoSrc||TRANSPARENT_PX;
+      const bubble=document.createElement("div"); bubble.className="bubble";
+      const t=document.createElement("div"); t.innerHTML='<span class="typingDots"><span></span><span></span><span></span></span>';
+      bubble.appendChild(t); row.appendChild(img); row.appendChild(bubble); chatSlots.appendChild(row);
+    }
     chatSlots.scrollTop = chatSlots.scrollHeight;
   }
+
 
   function hideAllPanels(){
     if (idCardWrap) idCardWrap.hidden=true;
@@ -413,8 +448,69 @@
     if (!shouldHints() || state.ui.supervisorVisible){ hideHint(); return; }
     const diff = session.difficulty||"standard";
     const can = (diff==="basic") || (diff==="standard" && (state.misses||0)>=2);
-    if (!can){ hideHint(); return; }
+    if (!can){ hideHint(); updateChecklist(); return; }
     showHint(nextHint());
+    updateChecklist();
+  }
+
+  function ensureChecklistMarkup(){
+    const panel = document.getElementById("checklistPanel");
+    const list = document.getElementById("checklistList");
+    if (!panel || !list) return;
+    panel.style.display = "";
+    if (list.children.length) return;
+    list.innerHTML = `
+      <div class="clGroup">
+        <div class="clGroupTitle">Gate (5W/H + ID)</div>
+        <label class="clItem" id="cl_gate_name"><input type="checkbox" disabled> <span>Name</span></label>
+        <label class="clItem" id="cl_gate_purpose"><input type="checkbox" disabled> <span>Reason for visit</span></label>
+        <label class="clItem" id="cl_gate_appt"><input type="checkbox" disabled> <span>Appointment</span></label>
+        <label class="clItem" id="cl_gate_who"><input type="checkbox" disabled> <span>With whom</span></label>
+        <label class="clItem" id="cl_gate_time"><input type="checkbox" disabled> <span>Time</span></label>
+        <label class="clItem" id="cl_gate_about"><input type="checkbox" disabled> <span>About</span></label>
+        <label class="clItem" id="cl_gate_where"><input type="checkbox" disabled> <span>Where</span></label>
+        <label class="clItem" id="cl_gate_id"><input type="checkbox" disabled> <span>ID checked & returned</span></label>
+        <label class="clItem" id="cl_gate_supervisor"><input type="checkbox" disabled> <span>Supervisor report (NL)</span></label>
+        <label class="clItem" id="cl_gate_rules"><input type="checkbox" disabled> <span>Rules explained</span></label>
+        <label class="clItem" id="cl_gate_send_ps"><input type="checkbox" disabled> <span>Sent to person search</span></label>
+      </div>`;
+    // rebind references if cache delivered old HTML
+    checklistEls.gate_name = $("#cl_gate_name"); checklistEls.gate_purpose=$("#cl_gate_purpose"); checklistEls.gate_appt=$("#cl_gate_appt");
+    checklistEls.gate_who=$("#cl_gate_who"); checklistEls.gate_time=$("#cl_gate_time"); checklistEls.gate_about=$("#cl_gate_about"); checklistEls.gate_where=$("#cl_gate_where");
+    checklistEls.gate_id=$("#cl_gate_id"); checklistEls.gate_supervisor=$("#cl_gate_supervisor"); checklistEls.gate_rules=$("#cl_gate_rules"); checklistEls.gate_send_ps=$("#cl_gate_send_ps");
+  }
+
+  function setChecklistDone(el, done){
+    if (!el) return;
+    el.classList.toggle("done", !!done);
+  }
+
+  function updateChecklist(){
+    ensureChecklistMarkup();
+    if (!state) return;
+    const f = state.facts || {};
+    const fl = state.flags || {};
+
+    setChecklistDone(checklistEls.gate_name, !!f.name);
+    setChecklistDone(checklistEls.gate_purpose, !!f.purpose);
+    setChecklistDone(checklistEls.gate_appt, !!f.appt);
+    setChecklistDone(checklistEls.gate_who, !!f.who);
+    setChecklistDone(checklistEls.gate_time, !!f.time);
+    setChecklistDone(checklistEls.gate_about, !!f.about);
+    setChecklistDone(checklistEls.gate_where, !!f.location);
+    setChecklistDone(checklistEls.gate_id, !!fl.idChecked);
+    setChecklistDone(checklistEls.gate_supervisor, !!fl.reportedSupervisor);
+    setChecklistDone(checklistEls.gate_rules, !!fl.rulesDone);
+    setChecklistDone(checklistEls.gate_send_ps, !!fl.sentToPersonSearch);
+
+    setChecklistDone(checklistEls.ps_started, !!fl.psStarted);
+    setChecklistDone(checklistEls.ps_position, !!fl.psPositioned);
+    setChecklistDone(checklistEls.ps_resolved, !!fl.psResolved);
+
+    setChecklistDone(checklistEls.si_issued, !!fl.siIssued);
+    // not implemented separately yet — best effort:
+    setChecklistDone(checklistEls.si_rules, !!fl.siIssued);
+    setChecklistDone(checklistEls.si_close, state.stage === "done");
   }
   function nextHint(){
     if (state.stage.startsWith("gate_")){
@@ -698,7 +794,17 @@
     enqueueVisitor("Okay.");
   }
 
-  btnSend?.addEventListener("click", ()=>{
+  textInput?.addEventListener("input", ()=>{
+  if (!textInput) return;
+  const hasText = !!textInput.value.trim();
+  if (typingStudent !== hasText){
+    typingStudent = hasText;
+    if (hasText) typingVisitor = false;
+    renderTyping();
+  }
+});
+
+btnSend?.addEventListener("click", ()=>{
     const t=(textInput?.value||"").trim();
     if (textInput) textInput.value="";
     handleStudent(t);
@@ -878,4 +984,5 @@
   if(supervisorPhoto) supervisorPhoto.src=supervisorAvatar.src||soldierAvatar.src;
   hideAllPanels();
   renderChat();
+updateChecklist();
 })();

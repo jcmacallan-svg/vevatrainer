@@ -31,9 +31,54 @@
 
     <main class="main">
       <div class="content">
-        <section class="chatArea">
+
+        <!-- TOP-LEFT: chat -->
+        <section class="chatPanel" aria-label="Chat">
           <div id="chatSlots" class="chatSlots"></div>
         </section>
+
+        <!-- TOP-RIGHT: checklist -->
+        <aside class="checklistPanel" aria-label="Checklist">
+          <div class="panelHead">
+            <div class="panelTitle">Checklist</div>
+            <div class="panelSub">What you asked / what’s left</div>
+          </div>
+
+          <div class="checkSection">
+            <div class="checkTitle">Gate (5W/H + ID)</div>
+            <ul class="checkList">
+              <li id="cl_gate_name">Name asked</li>
+              <li id="cl_gate_purpose">Reason / purpose</li>
+              <li id="cl_gate_appt">Appointment (yes/no)</li>
+              <li id="cl_gate_who">With whom</li>
+              <li id="cl_gate_time">Time</li>
+              <li id="cl_gate_about">About</li>
+              <li id="cl_gate_where">Where</li>
+              <li id="cl_gate_id">ID checked</li>
+              <li id="cl_gate_supervisor">Reported to supervisor (NL)</li>
+              <li id="cl_gate_rules">Rules explained</li>
+              <li id="cl_gate_send_ps">Sent to person search</li>
+            </ul>
+          </div>
+
+          <div class="checkSection">
+            <div class="checkTitle">Person search</div>
+            <ul class="checkList">
+              <li id="cl_ps_started">Pockets / items on table</li>
+              <li id="cl_ps_position">Positioning instructions</li>
+              <li id="cl_ps_resolved">Search resolved</li>
+            </ul>
+          </div>
+
+          <div class="checkSection">
+            <div class="checkTitle">Sign-in</div>
+            <ul class="checkList">
+              <li id="cl_si_issued">Visitor pass issued</li>
+              <li id="cl_si_rules">Pass rules explained</li>
+              <li id="cl_si_close">Closing time / assembly area</li>
+            </ul>
+          </div>
+        </aside>
 
 
         <div id="hintBand" class="hintBand" hidden>
@@ -42,7 +87,7 @@
           <div class="dividerLine"></div>
         </div>
 
-        <section class="rightPanel">
+        <section class="rightPanel bottomPanel" aria-label="Bottom panel">
           <div class="panelHeader">
             <div class="panelTitle" id="panelTitle">Visitor</div>
             <div class="panelSub" id="panelSub">—</div>
