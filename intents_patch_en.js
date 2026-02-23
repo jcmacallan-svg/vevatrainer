@@ -1,0 +1,25 @@
+// intents_patch_en.js (minimal)
+window.VEVA_INTENTS = [
+  { key:"greet", rx:/\b(hi|hello|good\s+(morning|afternoon|evening))\b/i },
+  { key:"help_open", rx:/\b(how\s+can\s+i\s+help|how\s+may\s+i\s+help|what\s+can\s+i\s+do\s+for\s+you)\b/i },
+  { key:"purpose", rx:/\b(what\s+are\s+you\s+(doing|here\s+for)|what\s+is\s+your\s+purpose|why\s+are\s+you\s+here)\b/i },
+  { key:"has_appointment", rx:/\b(do\s+you\s+have\s+an?\s+appointment|have\s+an?\s+appointment)\b/i },
+  { key:"who_meeting", rx:/\b(with\s+whom|who\s+are\s+you\s+(meeting|seeing)|appointment\s+with)\b/i },
+  { key:"time_meeting", rx:/\b(what\s+time|when\s+is\s+(the\s+)?(appointment|meeting))\b/i },
+  { key:"about_meeting", rx:/\b(what\s+is\s+(it\s+)?about|what\s+is\s+the\s+(appointment|meeting)\s+about)\b/i },
+  { key:"ask_id", rx:/\b(can\s+i\s+see\s+your\s+id|may\s+i\s+see\s+your\s+id|show\s+me\s+your\s+id|id\s+please)\b/i },
+  { key:"dob_q", rx:/\b(date\s+of\s+birth|birth\s*date|dob)\b/i },
+  { key:"nat_q", rx:/\b(nationality|citizenship)\b/i },
+  { key:"spell_last_name", rx:/\bspell\s+(your\s+)?(last\s+name|surname)\b/i },
+  { key:"return_id", rx:/\b(return\s+(the\s+)?id|here\s+is\s+your\s+id)\b/i },
+  { key:"we_search_you", rx:/\b(you\s+will\s+be\s+searched|we\s+will\s+search\s+you|security\s+check)\b/i },
+  { key:"everyone_searched", rx:/\b(routine\s+check|everyone\s+is\s+searched|standard\s+procedure)\b/i },
+  { key:"due_threat", rx:/\b(heightened\s+security|threat\s+level)\b/i },
+  { key:"illegal_items", rx:/\b(illegal\s+items|contraband|prohibited\s+items)\b/i },
+  { key:"illegal_clarify", rx:/\b(drugs|weapons|alcohol|knife|gun)\b/i },
+  { key:"go_person_search", rx:/\b(go\s+to\s+person\s+search|person\s+search|look\s+up\s+the\s+person)\b/i },
+  { key:"contact_supervisor", rx:/\b(contact|call|check\s+with)\s+(my\s+)?supervisor\b/i },
+  { key:"press_for_answer", rx:/\b(i\s+need\s+an?\s+answer|otherwise\s+entry\s+will\s+be\s+denied)\b/i },
+  { key:"insist_reason", rx:/\b(you\s+have\s+to\s+answer|answer\s+the\s+question)\b/i },
+  { key:"ultimatum_reason", rx:/\b(entry\s+will\s+be\s+denied|i\s+will\s+deny\s+entry)\b/i }
+];
