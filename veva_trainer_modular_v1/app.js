@@ -132,7 +132,11 @@
     if (!DEBUG_ENABLED){ debugPill.hidden = true; return; }
     debugPill.hidden = false;
     debugPill.textContent = text || "Debug: —";
-  }
+  
+  // Hotfix: legacy typing flags referenced by renderTyping/input handlers
+  let typingVisitor = false;
+  let typingStudent = false;
+}
 
   // student session
   const STUDENT_KEY = "veva.student.v3";
