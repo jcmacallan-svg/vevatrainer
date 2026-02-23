@@ -254,6 +254,10 @@
 
   // chat
   let history=[];
+
+  // Typing dots state (drives the animated "…" bubbles)
+  let typingVisitor = false;
+  let typingStudent = false;
   function addMsg(side, text, meta){
     history.push({side,text,meta:meta||""});
     if (history.length>60) history.shift();
@@ -286,19 +290,25 @@
   const q=[]; let tmr=null; let approach=null;
   function enqueueVisitor(text){
     const t=String(text||"").trim(); if(!t) return;
-    q.push(t); drain();
+    q.push(t);
+    // show visitor typing dots as soon as a reply is queued
+    typingVisitor = true;
+    drain();
   }
   function drain(){
     if (tmr || !q.length) return;
-    // typing dot
-    history.push({side:"visitor", text:"", typing:true}); renderTyping();
+    // show dots while we wait for the delayed reply
+    typingVisitor = true;
+    renderTyping();
     tmr=setTimeout(()=>{
       tmr=null;
-      history = history.filter(x=>!x.typing);
       const next=q.shift();
       addMsg("visitor", next);
       window.VEVA_LOG?.({type:"visitor", stage: state.stage, text: next});
       speakVisitor(next);
+      // keep dots if more queued, otherwise stop
+      typingVisitor = q.length > 0;
+      renderTyping();
       if (q.length) drain();
     }, 850);
   }
