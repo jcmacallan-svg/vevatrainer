@@ -794,7 +794,17 @@
     enqueueVisitor("Okay.");
   }
 
-  btnSend?.addEventListener("click", ()=>{
+  textInput?.addEventListener("input", ()=>{
+  if (!textInput) return;
+  const hasText = !!textInput.value.trim();
+  if (typingStudent !== hasText){
+    typingStudent = hasText;
+    if (hasText) typingVisitor = false;
+    renderTyping();
+  }
+});
+
+btnSend?.addEventListener("click", ()=>{
     const t=(textInput?.value||"").trim();
     if (textInput) textInput.value="";
     handleStudent(t);
