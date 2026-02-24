@@ -23,7 +23,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
   flex:1;
   display:grid;
   /* Two columns on top (chat + checklist), bottom panel spans full width */
-  grid-template-columns: 1fr 0.35fr;
+  grid-template-columns: 1fr 0.20fr;
   grid-template-rows: 1fr auto auto auto;
   gap:12px;
   width:100%;
@@ -131,12 +131,12 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 .barcode{padding:6px 10px;border:1px dashed rgba(255,255,255,.2);border-radius:12px;color:rgba(255,255,255,.85);background:rgba(255,255,255,.03);font-size:12px;}
 .superRow{display:flex;gap:12px;align-items:flex-start;}
 .supervisorPhoto{width:84px;height:84px;border-radius:18px;border:1px solid var(--border);background:#0b1220;object-fit:cover;flex:0 0 auto;}
-.superGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;}
+.superGrid{display:grid;grid-template-columns: 1fr 0.20fr;gap:10px;width:100%;}
 .superGrid label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted);}
 .superGrid input,.superGrid select{background:var(--field);color:var(--text);border:1px solid var(--border);border-radius:12px;padding:10px 10px;outline:none;}
 .superGrid input:focus,.superGrid select:focus{border-color:rgba(58,167,255,.55);}
 .psOutfit{color:var(--muted);font-size:13px;line-height:1.35;margin-bottom:10px;}
-.cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.cards{display:grid;grid-template-columns: 1fr 0.20fr;gap:10px;}
 .itemCard{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:14px;padding:10px;}
 .itemCard .t{font-weight:800;}
 .itemCard .s{color:var(--muted);font-size:12px;margin-top:4px;}
@@ -459,3 +459,27 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 .voiceSelect{background: rgba(255,255,255,.03); border:1px solid var(--border); color:var(--text); border-radius:10px; padding:6px 8px; font-size:12px;}
 .voiceGender{margin-left:6px; border:1px solid var(--border); background: rgba(255,255,255,.03); color:var(--text); border-radius:10px; padding:6px 8px; font-size:12px; cursor:pointer;}
 .voiceSelect--detail{margin-left:6px; max-width: 220px;}
+
+/* Voice pill controls */
+.pill--voice{display:flex; align-items:center; gap:8px}
+.pillLabel{font-size:12px; color:var(--muted)}
+.pillSelect{
+  appearance:none;
+  background: rgba(255,255,255,.03);
+  border:1px solid var(--border);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  outline:none;
+}
+.pillBtn{
+  border:1px solid var(--border);
+  background: rgba(255,255,255,.03);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor:pointer;
+}
+.pillBtn:hover,.pillSelect:hover{border-color: rgba(74,163,255,.45)}

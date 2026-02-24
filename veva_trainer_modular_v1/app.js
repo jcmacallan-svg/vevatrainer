@@ -625,7 +625,7 @@
       enqueueVisitor(phrase("gate","purpose",state, state.flags.forcedCoop ? "open":null));
       updateHint(); return;
     }
-    if (intent==="has_appointment"){ state.facts.appt="yes"; enqueueVisitor(phrase("gate","has_appointment_yes",state)); updateHint(); return; }
+    if (intent==="has_appointment"){ state.visitorDeclaredAppt = "yes"; /* info only */ enqueueVisitor(phrase("gate","has_appointment_yes",state)); updateHint(); return; }
 
     if (intent==="who_meeting"){
       state.facts.who="known";
@@ -1108,7 +1108,7 @@ btnChecklistCollapse?.addEventListener("click", ()=>{
   loginModal.hidden=false;
 
   // initial dummy
-  state={flowName:"Gate", stage:"idle", visitor:{...makeRandomVisitor(), contact:makeContact()}, facts:{}, flags:{}, ui:{idVisible:false,supervisorVisible:false}, misses:0};
+  state={flowName:"Gate", stage:"idle", visitor:{...makeRandomVisitor(), contact:makeContact()}, facts:{}, flags:{}, ui:{idVisible:false,supervisorVisible:false}, misses:0, visitorDeclaredAppt:null};
   if(portraitPhoto) portraitPhoto.src=state.visitor.photoSrc||TRANSPARENT_PX;
   if(supervisorPhoto) supervisorPhoto.src=supervisorAvatar.src||soldierAvatar.src;
   hideAllPanels();

@@ -11,6 +11,15 @@
     <div id="versionPill" class="pill">v—</div>
     <div id="studentPill" class="pill">Student: —</div>
     <div id="voiceStatus" class="pill">Voice: ready</div>
+    <div class="pill pill--voice">
+      <span class="pillLabel">TTS</span>
+      <select id="voiceLang" class="pillSelect" aria-label="TTS language">
+        <option value="en-GB">EN-GB</option>
+        <option value="en-US">EN-US</option>
+        <option value="en-AU">EN-AU</option>
+      </select>
+      <button id="voiceGender" class="pillBtn" type="button" title="Toggle male/female">Male</button>
+    </div>
     <div id="debugPill" class="pill debug" hidden>Debug: —</div>
   </div>
 
