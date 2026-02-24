@@ -23,7 +23,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
   flex:1;
   display:grid;
   /* Two columns on top (chat + checklist), bottom panel spans full width */
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 0.5fr;
   grid-template-rows: 1fr auto auto auto;
   gap:12px;
   width:100%;

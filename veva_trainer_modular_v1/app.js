@@ -454,7 +454,8 @@
   const PRESS_HINT_TEXT='Press for an answer: "I need an answer to that question, otherwise entry will be denied."';
   function updateHint(){
     if (!hintBand) return;
-    if (!shouldHints() || state.ui.supervisorVisible){ hideHint(); return; }
+    // Always keep checklist in sync, even when hints are disabled (Advanced)
+    if (!shouldHints() || state.ui.supervisorVisible){ hideHint(); updateChecklist(); return; }
     const diff = session.difficulty||"standard";
     const can = (diff==="basic") || (diff==="standard" && (state.misses||0)>=2);
     if (!can){ hideHint(); updateChecklist(); return; }
