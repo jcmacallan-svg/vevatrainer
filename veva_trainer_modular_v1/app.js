@@ -1026,10 +1026,6 @@ btnSend?.addEventListener("click", ()=>{
       cachedTTSVoice = chosen;
     }
   });
-    if(chosen){
-      cachedTTSVoice = chosen;
-    }
-  });
 
   function refreshVoices(){
     try{ cachedTTSVoice = pickVoice(); }catch{}
