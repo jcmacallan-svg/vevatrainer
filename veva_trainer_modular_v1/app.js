@@ -70,6 +70,7 @@
   const personSearchPanel = $("#personSearchPanel");
   const transitionModal = $("#transitionModal");
   const transitionText = $("#transitionText");
+  const transitionBanner = $("#transitionBanner");
   const psOutfit = $("#psOutfit");
   const psCards = $("#psCards");
   const psRiskChip = $("#psRiskChip");
@@ -255,10 +256,13 @@
     if (/\bwhat\b/i.test(n) && /\b(appointment|meeting)\b/i.test(n) && /\babout\b/i.test(n)) return "about_meeting";
     
     // Illegal items check
-    if (/\b(illegal\s+items?|weapons?|drugs?|alcohol)\b/i.test(n) && /\b(do\s+you\s+have|any|carrying|with\s+you)\b/i.test(n)) return "ask_illegal";
-    if (/\b(no|not)\s+(weapons?|drugs?|alcohol)\b/i.test(n) || /\bweapons?\s+are\s+not\s+allowed\b/i.test(n) || /\bdrugs?\s+are\s+not\s+allowed\b/i.test(n) || /\balcohol\s+is\s+not\s+allowed\b/i.test(n)) return "explain_illegal";
-    if (/\b(hand\s*(them)?\s*in|hand\s*it\s*in|please\s+hand|turn\s+it\s+in|surrender)\b/i.test(n)) return "request_handin";
-const list = Array.isArray(window.VEVA_INTENTS) ? window.VEVA_INTENTS : [];
+    if (/\b(illegal\s+items?|prohibited\s+items?|contraband|banned\s+items?)\b/i.test(n) && /\b(do\s+you\s+have|any|carrying|with\s+you|on\s+you|in\s+your\s+(bag|car|vehicle))\b/i.test(n)) return "ask_illegal";
+    if (/\b(weapons?|knife|knives|gun|firearm|ammo|drugs?|narcotics?|alcohol|booze)\b/i.test(n) && /\b(do\s+you\s+have|any|carrying|with\s+you|on\s+you)\b/i.test(n)) return "ask_illegal";
+    if (/\b(what\s+do\s+you\s+mean|what\s+does\s+that\s+mean|what\s+is\s+that\s+supposed\s+to\s+mean)\b/i.test(n)) return "illegal_clarify";
+    if (/\b(no|not)\s+(weapons?|drugs?|alcohol)\b/i.test(n) || /\b(weapons?|drugs?|alcohol)\b[^.]{0,40}\b(not\s+allowed|forbidden|prohibited)\b/i.test(n) || /\b(contraband|illegal\s+items?)\b[^.]{0,40}\b(not\s+allowed|forbidden|prohibited)\b/i.test(n)) return "explain_illegal";
+    if (/\b(hand\s*(them)?\s*in|hand\s*it\s*in|please\s+hand|turn\s+it\s+in|surrender|give\s+it\s+to\s+me|place\s+it\s+on\s+the\s+table)\b/i.test(n)) return "request_handin";
+
+    const list = Array.isArray(window.VEVA_INTENTS) ? window.VEVA_INTENTS : [];
     for (const it of list){ try{ if (it?.rx?.test(raw)) return it.key; }catch{} }
 
     // Defensive fallbacks for phrasing variants
@@ -500,11 +504,12 @@ const list = Array.isArray(window.VEVA_INTENTS) ? window.VEVA_INTENTS : [];
 
   function setChecklistDone(el, done, key){
     if (!el) return;
-    el.classList.toggle("done", !!done);
+    const doneVal = (locked && key && (key in snap)) ? !!snap[key] : !!done;
+    el.classList.toggle("done", doneVal);
 
     const fl = state?.flags || {};
     const afterAny = !!fl.reportedSupervisor || !!fl.sentToPersonSearch;
-    const missable = new Set(["gate_name","gate_purpose","gate_appt","gate_who","gate_time","gate_about","gate_where","gate_id","gate_rules"]);
+    const missable = new Set(["gate_name","gate_purpose","gate_appt","gate_who","gate_time","gate_about","gate_where","gate_id","gate_rules","ps_pockets","ps_position","ps_resolved"]);
     if (afterAny && key && missable.has(key) && !done){
       el.classList.add("missed");
     } else {
@@ -512,7 +517,24 @@ const list = Array.isArray(window.VEVA_INTENTS) ? window.VEVA_INTENTS : [];
     }
   }
 
-  function updateChecklist(){
+  
+  function lockGateNow(){
+    const f = state.facts || {};
+    const fl = state.flags || {};
+    state.flags.gateLocked = true;
+    state.lockedGate = {
+      gate_name: !!f.name,
+      gate_purpose: !!f.purpose,
+      gate_appt: !!fl.apptAsked,
+      gate_who: !!f.who,
+      gate_time: !!f.time,
+      gate_about: !!f.about,
+      gate_where: !!f.location,
+      gate_id: !!fl.idChecked
+    };
+  }
+
+function updateChecklist(){
     ensureChecklistMarkup();
     if (!state) return;
     const f = state.facts || {};
@@ -532,7 +554,7 @@ const list = Array.isArray(window.VEVA_INTENTS) ? window.VEVA_INTENTS : [];
 
     setChecklistDone(checklistEls.ps_started, !!fl.psStarted);
     setChecklistDone(checklistEls.ps_position, !!fl.psPositioned);
-    setChecklistDone(checklistEls.ps_resolved, !!fl.psResolved);
+    setChecklistDone(checklistEls.ps_resolved, !!fl.psResolved, "ps_resolved");
 
     setChecklistDone(checklistEls.si_issued, !!fl.siIssued);
     // not implemented separately yet — best effort:
@@ -723,10 +745,12 @@ const list = Array.isArray(window.VEVA_INTENTS) ? window.VEVA_INTENTS : [];
 
       // Show 5s transition popup instead of a visitor line
       if (transitionText) transitionText.textContent = "The visitor follows your colleague to the person search.";
+      if (transitionBanner){ transitionBanner.textContent = "The visitor is following you to the person search area."; transitionBanner.hidden=false; }
       if (transitionModal) transitionModal.hidden = false;
 
       setTimeout(()=>{
         if (transitionModal) transitionModal.hidden = true;
+        if (transitionBanner) transitionBanner.hidden = true;
         enterPersonSearch();
       }, 5000);
       return;
