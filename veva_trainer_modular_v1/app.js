@@ -68,6 +68,8 @@
   const sv_note = $("#sv_note");
 
   const personSearchPanel = $("#personSearchPanel");
+  const transitionModal = $("#transitionModal");
+  const transitionText = $("#transitionText");
   const psOutfit = $("#psOutfit");
   const psCards = $("#psCards");
   const psRiskChip = $("#psRiskChip");
@@ -251,7 +253,12 @@
     if (/\b(with\s+who(m)?|appointment\s+with|who\s+are\s+you\s+(meeting|seeing))\b/i.test(n)) return "who_meeting";
     if ((/\bwhat\s+time\b/i.test(n) || /\bwhen\b/i.test(n)) && /\b(appointment|meeting)\b/i.test(n)) return "time_meeting";
     if (/\bwhat\b/i.test(n) && /\b(appointment|meeting)\b/i.test(n) && /\babout\b/i.test(n)) return "about_meeting";
-    const list = Array.isArray(window.VEVA_INTENTS) ? window.VEVA_INTENTS : [];
+    
+    // Illegal items check
+    if (/\b(illegal\s+items?|weapons?|drugs?|alcohol)\b/i.test(n) && /\b(do\s+you\s+have|any|carrying|with\s+you)\b/i.test(n)) return "ask_illegal";
+    if (/\b(no|not)\s+(weapons?|drugs?|alcohol)\b/i.test(n) || /\bweapons?\s+are\s+not\s+allowed\b/i.test(n) || /\bdrugs?\s+are\s+not\s+allowed\b/i.test(n) || /\balcohol\s+is\s+not\s+allowed\b/i.test(n)) return "explain_illegal";
+    if (/\b(hand\s*(them)?\s*in|hand\s*it\s*in|please\s+hand|turn\s+it\s+in|surrender)\b/i.test(n)) return "request_handin";
+const list = Array.isArray(window.VEVA_INTENTS) ? window.VEVA_INTENTS : [];
     for (const it of list){ try{ if (it?.rx?.test(raw)) return it.key; }catch{} }
 
     // Defensive fallbacks for phrasing variants
@@ -491,9 +498,18 @@
     checklistEls.gate_id=$("#cl_gate_id"); checklistEls.gate_supervisor=$("#cl_gate_supervisor"); checklistEls.gate_rules=$("#cl_gate_rules"); checklistEls.gate_send_ps=$("#cl_gate_send_ps");
   }
 
-  function setChecklistDone(el, done){
+  function setChecklistDone(el, done, key){
     if (!el) return;
     el.classList.toggle("done", !!done);
+
+    const fl = state?.flags || {};
+    const afterAny = !!fl.reportedSupervisor || !!fl.sentToPersonSearch;
+    const missable = new Set(["gate_name","gate_purpose","gate_appt","gate_who","gate_time","gate_about","gate_where","gate_id","gate_rules"]);
+    if (afterAny && key && missable.has(key) && !done){
+      el.classList.add("missed");
+    } else {
+      el.classList.remove("missed");
+    }
   }
 
   function updateChecklist(){
@@ -502,17 +518,17 @@
     const f = state.facts || {};
     const fl = state.flags || {};
 
-    setChecklistDone(checklistEls.gate_name, !!f.name);
-    setChecklistDone(checklistEls.gate_purpose, !!f.purpose);
-    setChecklistDone(checklistEls.gate_appt, !!f.appt);
-    setChecklistDone(checklistEls.gate_who, !!f.who);
-    setChecklistDone(checklistEls.gate_time, !!f.time);
-    setChecklistDone(checklistEls.gate_about, !!f.about);
-    setChecklistDone(checklistEls.gate_where, !!f.location);
-    setChecklistDone(checklistEls.gate_id, !!fl.idChecked);
-    setChecklistDone(checklistEls.gate_supervisor, !!fl.reportedSupervisor);
-    setChecklistDone(checklistEls.gate_rules, !!fl.rulesDone);
-    setChecklistDone(checklistEls.gate_send_ps, !!fl.sentToPersonSearch);
+    setChecklistDone(checklistEls.gate_name, !!f.name, "gate_name");
+    setChecklistDone(checklistEls.gate_purpose, !!f.purpose, "gate_purpose");
+    setChecklistDone(checklistEls.gate_appt, !!fl.apptAsked, "gate_appt");
+    setChecklistDone(checklistEls.gate_who, !!f.who, "gate_who");
+    setChecklistDone(checklistEls.gate_time, !!f.time, "gate_time");
+    setChecklistDone(checklistEls.gate_about, !!f.about, "gate_about");
+    setChecklistDone(checklistEls.gate_where, !!f.location, "gate_where");
+    setChecklistDone(checklistEls.gate_id, !!fl.idChecked, "gate_id");
+    setChecklistDone(checklistEls.gate_supervisor, !!fl.reportedSupervisor, "gate_supervisor");
+    setChecklistDone(checklistEls.gate_rules, !!fl.illegalDone, "gate_rules");
+    setChecklistDone(checklistEls.gate_send_ps, !!fl.sentToPersonSearch, "gate_send_ps");
 
     setChecklistDone(checklistEls.ps_started, !!fl.psStarted);
     setChecklistDone(checklistEls.ps_position, !!fl.psPositioned);
@@ -528,14 +544,14 @@
       const f=state.facts;
       if (!f.name) return 'Example: "What is your full name?"';
       if (!f.purpose) return 'Example: "What is the purpose of your visit today?"';
-      if (!f.appt) return 'Example: "Do you have an appointment?"';
+      if (!state.flags.apptAsked) return 'Example: "Do you have an appointment?"';
       if (!f.who) return 'Example: "With whom do you have an appointment?"';
       if (!f.time) return 'Example: "What time is the appointment?"';
       if (!f.about) return 'Example: "What is the appointment about?"';
       if (!f.location) return 'Example: "Where is the appointment?"';
       if (!state.flags.idChecked) return 'Example: "Can I see your ID, please?"';
       if (!state.flags.reportedSupervisor) return 'Example: "I will contact my supervisor."';
-      if (!state.flags.rulesDone) return 'Example: "Drugs, alcohol and weapons are not allowed on base. Everyone is searched."';
+      if (!state.flags.rulesDone) return 'Example: "No weapons, drugs, or alcohol are allowed on base. If you have any of these items, please hand them in."';
       if (!state.flags.sentToPersonSearch) return 'Example: "Please go to person search. My colleague will assist you."';
       return "Continue the procedure.";
     }
@@ -588,7 +604,7 @@
 
   function gateComplete(){
     const f=state.facts;
-    return !!(f.name && f.purpose && f.who && f.time && f.about && f.location && state.flags.idChecked && state.flags.reportedSupervisor && state.flags.rulesDone);
+    return !!(f.name && f.purpose && f.who && f.time && f.about && f.location && state.flags.idChecked && state.flags.reportedSupervisor && state.flags.illegalDone);
   }
 
   function enterPersonSearch(){
@@ -668,7 +684,26 @@
       return;
     }
 
-    if (intent==="rules_contraband" || intent==="search_announce"){ state.flags.rulesDone=true; enqueueVisitor("Understood."); updateHint(); return; }
+
+    if (intent==="ask_illegal"){
+      state.flags.illegalAsked = true;
+      enqueueVisitor("What do you mean by illegal items?");
+      updateHint();
+      return;
+    }
+    if (intent==="explain_illegal" || intent==="rules_contraband" || intent==="search_announce"){
+      state.flags.illegalExplained = true;
+      enqueueVisitor("Okay, I understand.");
+      updateHint();
+      return;
+    }
+    if (intent==="request_handin"){
+      state.flags.illegalDone = true;
+      enqueueVisitor("Sure. If I have anything, I can hand it in now.");
+      updateHint();
+      return;
+    }
+
 
     if (intent==="press_for_answer"){
       state.flags.forcedCoop=true;
@@ -682,13 +717,18 @@
       if (!gateComplete()){ miss("Complete the 5W/H, check ID, contact supervisor, and explain rules."); return; }
       state.flags.sentToPersonSearch=true;
       enqueueVisitor("Okay.");
-      enqueueVisitor("Please follow my colleague to the person search area.");
-      if (panelTitle) panelTitle.textContent="Transition";
-      if (panelSub) panelSub.textContent="Moving visitor to Person Search…";
+      // Student initiates move to person search
+      state.flags.sentToPersonSearch = true;
+      updateChecklist();
+
+      // Show 5s transition popup instead of a visitor line
+      if (transitionText) transitionText.textContent = "The visitor follows your colleague to the person search.";
+      if (transitionModal) transitionModal.hidden = false;
+
       setTimeout(()=>{
-        enqueueVisitor("The visitor follows your colleague to the person search.");
+        if (transitionModal) transitionModal.hidden = true;
         enterPersonSearch();
-      }, 350);
+      }, 5000);
       return;
     }
 

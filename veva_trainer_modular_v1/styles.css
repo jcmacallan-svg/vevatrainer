@@ -23,7 +23,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
   flex:1;
   display:grid;
   /* Two columns on top (chat + checklist), bottom panel spans full width */
-  grid-template-columns: 1fr 0.20fr;
+  grid-template-columns: 1fr auto;
   grid-template-rows: 1fr auto auto auto;
   gap:12px;
   width:100%;
@@ -256,7 +256,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 
 /* === v1.6.4 checklist vertical pane override === */
 .content{
-  grid-template-columns:minmax(0,1.1fr) minmax(320px,.9fr);
+  grid-template-columns: 1fr auto;
   grid-template-rows:minmax(0,1fr) auto auto auto;
   align-items:start;
 }
@@ -282,7 +282,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 .inputBar{grid-column:1;grid-row:4;}
 
 @media (max-width: 1100px){
-  .content{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto auto auto auto;}
+  .content{grid-template-columns: 1fr auto;grid-template-rows:minmax(0,1fr) auto auto auto auto;}
   .chatPanel{grid-column:1;grid-row:1;}
   .checklistPanel{grid-column:1;grid-row:2;position:static;max-height:30vh;}
   .bottomPanel{grid-column:1;grid-row:3;}
@@ -328,9 +328,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 }
 
 /* --- UI tweak v3: clearer checklist ticks + half-size collapsed right rail --- */
-.checklistPanel.collapsed{
-  width: 28px !important; /* roughly half of previous 56px */
-}
+.checklistPanel.collapsed{ width: 28px !important; max-width:28px !important; }
 .checklistPanel.collapsed .checklistItems,
 .checklistPanel.collapsed .chkTitle,
 .checklistPanel.collapsed .chkStatus{
@@ -483,3 +481,16 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
   cursor:pointer;
 }
 .pillBtn:hover,.pillSelect:hover{border-color: rgba(74,163,255,.45)}
+
+/* Checklist panel: push to the far right + narrower */
+.checklistPanel{
+  width: 300px;
+  max-width: 300px;
+  justify-self: end;
+}
+
+/* Transition modal */
+#transitionModal.modal{position:fixed; inset:0; display:grid; place-items:center; background:rgba(0,0,0,.55); z-index:9999;}
+#transitionModal .modalInner{width:min(520px,92vw); border:1px solid rgba(255,255,255,.10); background:rgba(15,18,24,.96); border-radius:16px; padding:18px 18px; box-shadow:0 18px 60px rgba(0,0,0,.55);}
+#transitionModal .modalTitle{font-weight:800; font-size:14px; margin-bottom:8px;}
+#transitionModal .modalText{color:var(--muted); font-size:13px; line-height:1.35;}
