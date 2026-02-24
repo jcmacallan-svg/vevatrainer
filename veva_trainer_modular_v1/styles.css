@@ -326,3 +326,49 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 .checklistPanel.isCollapsed .checkCollapseBtn{
   width:100%;
 }
+
+
+
+/* --- UI tweak patch: clearer checklist tickmarks + slimmer collapsed checklist rail --- */
+
+/* Better visible markers (works for our injected checklist rows) */
+.ckDot{
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px !important;
+  border-radius: 999px !important;
+  border: 1.5px solid rgba(255,255,255,.45) !important;
+  display:grid !important;
+  place-items:center !important;
+  font-size: 13px !important;
+  line-height: 1 !important;
+}
+.ckItem.done .ckDot{
+  border-color: rgba(94,230,168,.95) !important;
+  background: rgba(94,230,168,.14) !important;
+  color: #5ee6a8 !important;
+  box-shadow: inset 0 0 0 1px rgba(94,230,168,.18);
+}
+
+/* Make unchecked circles easier to see */
+.ckItem{
+  align-items: center;
+}
+
+/* Move collapse arrow button a bit more to the right visually */
+.checklistHeader{
+  padding-left: 16px !important;
+  padding-right: 10px !important;
+}
+
+/* Shrink collapsed right-side rail roughly 20% */
+.checklistPanel.collapsed{
+  width: 45px !important; /* was ~56px */
+}
+.checklistPanel.collapsed .checklistHeader{
+  padding-left: 6px !important;
+  padding-right: 6px !important;
+}
+.chkToggle{
+  margin-left: 0 !important;
+}
