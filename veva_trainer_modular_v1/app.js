@@ -119,6 +119,9 @@
   const loginError = $("#loginError");
 
   const TRANSPARENT_PX = "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=";
+  // Legacy typing flags used by renderTyping/input handlers
+  var typingVisitor = false;
+  var typingStudent = false;
 
   // version pill
   const __assetVer = String(window.__ASSET_VER__ || "");
@@ -133,9 +136,6 @@
     debugPill.hidden = false;
     debugPill.textContent = text || "Debug: —";
   
-  // Hotfix: legacy typing flags referenced by renderTyping/input handlers
-  let typingVisitor = false;
-  let typingStudent = false;
 }
 
   // student session
