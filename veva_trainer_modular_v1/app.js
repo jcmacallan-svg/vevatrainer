@@ -65,6 +65,7 @@
   const sv_waar = $("#sv_waar");
   const sv_wanneer = $("#sv_wanneer");
   const sv_waarom = $("#sv_waarom");
+  const sv_note = $("#sv_note");
 
   const personSearchPanel = $("#personSearchPanel");
   const psOutfit = $("#psOutfit");
@@ -934,6 +935,10 @@ btnSend?.addEventListener("click", ()=>{
 
   // TTS (visitor)
   let ttsReady=false;
+  let cachedTTSVoice=null;
+  function refreshVoices(){
+    try{ cachedTTSVoice = pickVoice(); }catch{}
+  }
   function primeTTS(){
     try{
       if(!("speechSynthesis" in window)) return;
@@ -943,6 +948,7 @@ btnSend?.addEventListener("click", ()=>{
       window.speechSynthesis.speak(u);
       window.speechSynthesis.cancel();
       ttsReady=true;
+      try{ window.speechSynthesis.onvoiceschanged = refreshVoices; refreshVoices(); }catch{};
     }catch{}
   }
   function pickVoice(){
@@ -959,8 +965,14 @@ btnSend?.addEventListener("click", ()=>{
       const t=String(text||"").trim(); if(!t) return;
       window.speechSynthesis.cancel();
       const u=new SpeechSynthesisUtterance(t);
-      const v=pickVoice(); if(v) u.voice=v;
-      u.lang=v?.lang||"en-GB"; u.rate=1.0; u.pitch=0.75; u.volume=1.0;
+      const v = cachedTTSVoice || pickVoice();
+      if(!v){
+        // No English voice available → don't speak with Dutch default voice
+        return;
+      }
+      u.voice = v;
+      u.lang = v.lang || "en-US";
+      u.rate=1.0; u.pitch=0.75; u.volume=1.0;
       window.speechSynthesis.speak(u);
     }catch{}
   }
