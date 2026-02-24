@@ -23,7 +23,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
   flex:1;
   display:grid;
   /* Two columns on top (chat + checklist), bottom panel spans full width */
-  grid-template-columns: 1fr 0.5fr;
+  grid-template-columns: 1fr 0.35fr;
   grid-template-rows: 1fr auto auto auto;
   gap:12px;
   width:100%;
@@ -404,3 +404,58 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 
 
 .superNote{margin-top:10px;color:var(--muted);font-size:12px;line-height:1.3;border-top:1px solid rgba(255,255,255,.06);padding-top:10px}
+
+
+/* Checklist: missed items after supervisor report */
+.checkList li{
+  position: relative;
+  padding-left: 34px;
+}
+.checkList li::before{
+  content:"";
+  position:absolute;
+  left:10px;
+  top:50%;
+  transform:translateY(-50%);
+  width:16px;
+  height:16px;
+  border-radius:999px;
+  border:1.5px solid rgba(255,255,255,.42);
+  background: rgba(255,255,255,.02);
+}
+.checkList li.done::before{
+  border-color:#5ee6a8;
+  background: rgba(94,230,168,.14);
+}
+.checkList li.done::after{
+  content:"✓";
+  position:absolute;
+  left:14px;
+  top:50%;
+  transform:translateY(calc(-50% - 0.5px));
+  color:#5ee6a8;
+  font-size:11px;
+  font-weight:800;
+  line-height:1;
+}
+
+/* NEW: missed */
+.checkList li.missed::before{
+  border-color:#ff6b6b;
+  background: rgba(255,107,107,.12);
+}
+.checkList li.missed::after{
+  content:"✕";
+  position:absolute;
+  left:14px;
+  top:50%;
+  transform:translateY(calc(-50% - 0.5px));
+  color:#ff6b6b;
+  font-size:11px;
+  font-weight:900;
+  line-height:1;
+}
+
+.voiceSelect{background: rgba(255,255,255,.03); border:1px solid var(--border); color:var(--text); border-radius:10px; padding:6px 8px; font-size:12px;}
+.voiceGender{margin-left:6px; border:1px solid var(--border); background: rgba(255,255,255,.03); color:var(--text); border-radius:10px; padding:6px 8px; font-size:12px; cursor:pointer;}
+.voiceSelect--detail{margin-left:6px; max-width: 220px;}

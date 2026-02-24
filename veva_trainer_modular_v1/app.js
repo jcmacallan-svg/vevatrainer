@@ -851,6 +851,9 @@ btnSend?.addEventListener("click", ()=>{
     };
     window.VEVA_LOG?.({type:"supervisor_report", stage:state.stage, report, visitor:{name:state.visitor.name,idNo:state.visitor.idNo}, student:session});
     addMsg("student","[Report sent to supervisor]","NL 5W/H logged");
+    state.flags.reportedSupervisor = true;
+    // After report: lock in what was NOT asked as missed (red crosses) and move to rules step
+    updateChecklist();
     backToVisitor();
     enqueueVisitor("Understood. Thank you.");
     updateHint();
@@ -936,6 +939,98 @@ btnSend?.addEventListener("click", ()=>{
   // TTS (visitor)
   let ttsReady=false;
   let cachedTTSVoice=null;
+
+  // ===== Voice selector pill =====
+  const voiceSelect = document.getElementById("voiceSelect");
+  const voiceLang = document.getElementById("voiceLang");
+  const voiceGender = document.getElementById("voiceGender");
+  let voiceGenderPref = (localStorage.getItem("veva.voiceGender") || "male");
+  let voiceLangPref = (localStorage.getItem("veva.voiceLang") || "en-GB");
+
+  function isEnglish(v){ return /^en(-|_)/i.test(v.lang) || v.lang.toLowerCase()==="en"; }
+  function isLang(v, lang){ return (v.lang||"").toLowerCase().startsWith((lang||"").toLowerCase()); }
+
+  function nameLooksMale(name){
+    return /male|daniel|george|arthur|fred|guy|alex|tom|matthew|brian|ryan/i.test(name||"");
+  }
+  function nameLooksFemale(name){
+    return /female|susan|victoria|karen|samantha|emma|amelia|siri/i.test(name||"");
+  }
+
+  function chooseVoice(voices){
+    const lang = voiceLangPref;
+    const gender = voiceGenderPref;
+    const pool = voices.filter(v => isEnglish(v) && isLang(v, lang));
+    if (!pool.length) return null;
+
+    if (gender === "male"){
+      return pool.find(v => nameLooksMale(v.name)) || pool[0];
+    } else {
+      return pool.find(v => nameLooksFemale(v.name)) || pool[0];
+    }
+  }
+
+  function populateVoiceSelect(){
+    if(!("speechSynthesis" in window)) return;
+    const voices = window.speechSynthesis.getVoices() || [];
+
+    // set UI values
+    if (voiceLang){
+      if (![...voiceLang.options].some(o=>o.value===voiceLangPref)) voiceLangPref = "en-GB";
+      voiceLang.value = voiceLangPref;
+    }
+    if (voiceGender){
+      voiceGender.textContent = (voiceGenderPref === "female") ? "Female" : "Male";
+    }
+
+    // detail dropdown (exact voice)
+    if (voiceSelect){
+      voiceSelect.innerHTML = "";
+      const en = voices.filter(isEnglish);
+      en.forEach(v=>{
+        const opt=document.createElement("option");
+        opt.value=v.name;
+        opt.textContent=`${v.name} (${v.lang})`;
+        voiceSelect.appendChild(opt);
+      });
+    }
+
+    const chosen = chooseVoice(voices);
+    if (chosen){
+      cachedTTSVoice = chosen;
+      if (voiceSelect) voiceSelect.value = chosen.name;
+    }
+  }
+
+  if ("speechSynthesis" in window){
+    window.speechSynthesis.onvoiceschanged = populateVoiceSelect;
+    setTimeout(populateVoiceSelect, 250);
+  }
+
+  voiceLang?.addEventListener("change", ()=>{
+    voiceLangPref = voiceLang.value;
+    localStorage.setItem("veva.voiceLang", voiceLangPref);
+    populateVoiceSelect();
+  });
+
+  voiceGender?.addEventListener("click", ()=>{
+    voiceGenderPref = (voiceGenderPref === "male") ? "female" : "male";
+    localStorage.setItem("veva.voiceGender", voiceGenderPref);
+    populateVoiceSelect();
+  });
+
+  voiceSelect?.addEventListener("change", ()=>{
+    const voices = window.speechSynthesis.getVoices() || [];
+    const chosen = voices.find(v=>v.name===voiceSelect.value);
+    if(chosen){
+      cachedTTSVoice = chosen;
+    }
+  });
+    if(chosen){
+      cachedTTSVoice = chosen;
+    }
+  });
+
   function refreshVoices(){
     try{ cachedTTSVoice = pickVoice(); }catch{}
   }
