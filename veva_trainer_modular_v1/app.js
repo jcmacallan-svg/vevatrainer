@@ -29,6 +29,8 @@
   const btnEndScenario = $("#btnEndScenario");
   const summaryModal = $("#summaryModal");
   const summaryStats = $("#summaryStats");
+  const summaryHighlights = $("#summaryHighlights");
+  const summaryImprovements = $("#summaryImprovements");
   const summaryList = $("#summaryList");
   const btnCloseSummary = $("#btnCloseSummary");
   const btnNewScenario = $("#btnNewScenario");
@@ -543,9 +545,21 @@
   function buildScenarioSummary(){
     try{
       updateChecklist();
+
       const rows = [];
       const all = Object.entries(checklistEls || {}).filter(([k,el])=>!!el);
       let ok=0, miss=0, todo=0;
+
+      // group keys into sections
+      const sectionOf = (key)=>{
+        if (key.startsWith("gate_")) return "Gate";
+        if (key.startsWith("ps_")) return "Person search";
+        if (key.startsWith("si_")) return "Sign-in";
+        return "Other";
+      };
+
+      const sectionStats = {};
+      const addSec = (sec)=>{ sectionStats[sec] ||= {ok:0, miss:0, todo:0, total:0}; };
 
       for (const [key, el] of all){
         const label = (el.textContent || key).trim();
@@ -555,22 +569,94 @@
         else if (isMiss) miss++;
         else todo++;
 
-        rows.push({key, label, status: isDone ? "ok" : (isMiss ? "miss" : "todo")});
+        const sec = sectionOf(key);
+        addSec(sec);
+        sectionStats[sec].total++;
+        if (isDone) sectionStats[sec].ok++;
+        else if (isMiss) sectionStats[sec].miss++;
+        else sectionStats[sec].todo++;
+
+        rows.push({key, label, status: isDone ? "ok" : (isMiss ? "miss" : "todo"), section: sec});
       }
-      return {ok, miss, todo, rows};
+
+      const total = ok + miss + todo;
+      const score = total ? Math.round((ok / total) * 100) : 0;
+
+      // top strengths: first 3 ok items by section order
+      const strengths = rows.filter(r=>r.status==="ok").slice(0,3).map(r=>r.label);
+
+      // improvements: prioritize missed first, then todo
+      const misses = rows.filter(r=>r.status==="miss");
+      const todos = rows.filter(r=>r.status==="todo");
+
+      // Map from key to example sentence
+      const exampleFor = (key)=>{
+        const ex = {
+          gate_name: 'Example: "What is your name?"',
+          gate_purpose: 'Example: "What is the purpose of your visit?"',
+          gate_appt: 'Example: "Do you have an appointment?"',
+          gate_who: 'Example: "Who are you meeting with?"',
+          gate_time: 'Example: "What time is your appointment?"',
+          gate_about: 'Example: "What is the meeting about?"',
+          gate_where: 'Example: "Where is the meeting / location?"',
+          gate_id: 'Example: "May I see your ID, please?"',
+          gate_supervisor: 'Example: "I will contact my supervisor and report this."',
+          gate_rules: 'Example: "Do you have any illegal items—weapons, drugs, or alcohol?"',
+          gate_send_ps: 'Example: "Please follow me to the person search area."',
+          ps_pockets: 'Example: "Please empty your pockets on the table."',
+          ps_position: 'Example: "Stand still, hands on the wall, feet apart."',
+          ps_resolved: 'Example: "Thank you. You can proceed."',
+          si_start: 'Example: "Please sign in here."',
+          si_badge: 'Example: "Here is your visitor badge—wear it visibly."',
+        };
+        return ex[key] || "";
+      };
+
+      const topFixes = [...misses, ...todos].slice(0,3).map(r=>({label:r.label, hint: exampleFor(r.key)}));
+
+      return {ok, miss, todo, total, score, rows, sectionStats, strengths, topFixes};
     }catch(e){
-      return {ok:0, miss:0, todo:0, rows:[]};
+      return {ok:0, miss:0, todo:0, total:0, score:0, rows:[], sectionStats:{}, strengths:[], topFixes:[]};
     }
   }
 
   function showScenarioSummary(){
     const sum = buildScenarioSummary();
+
     if (summaryStats){
-      summaryStats.textContent = `Done: ${sum.ok}  •  Missed: ${sum.miss}  •  Remaining: ${sum.todo}`;
+      summaryStats.textContent = `Score: ${sum.score}%  •  Done: ${sum.ok}  •  Missed: ${sum.miss}  •  Remaining: ${sum.todo}`;
     }
+
+    // KPIs per section
+    if (summaryHighlights){
+      const secOrder = ["Gate","Person search","Sign-in","Other"];
+      const kpis = secOrder.filter(s=>sum.sectionStats[s]).map(s=>{
+        const st = sum.sectionStats[s];
+        const pct = st.total ? Math.round((st.ok / st.total) * 100) : 0;
+        return `<div class="kpi"><b>${s}:</b> ${pct}% (✓${st.ok} ✕${st.miss} •${st.todo})</div>`;
+      }).join("");
+      const strengths = (sum.strengths && sum.strengths.length)
+        ? `<ul>${sum.strengths.map(t=>`<li>${t}</li>`).join("")}</ul>`
+        : `<ul><li>No completed steps yet.</li></ul>`;
+
+      summaryHighlights.innerHTML = `<h4>What went well</h4>${strengths}<div class="kpiRow">${kpis}</div>`;
+    }
+
+    if (summaryImprovements){
+      const fixes = (sum.topFixes && sum.topFixes.length)
+        ? `<ul>${sum.topFixes.map(f=>`<li><b>${f.label}</b>${f.hint ? `<br><span class="muted">${f.hint}</span>` : ""}</li>`).join("")}</ul>`
+        : `<ul><li>Nothing to improve — great run.</li></ul>`;
+      summaryImprovements.innerHTML = `<h4>Top improvements (next run)</h4>${fixes}`;
+    }
+
     if (summaryList){
       summaryList.innerHTML = "";
-      sum.rows.forEach(r=>{
+      // sort by section, then status (miss, todo, ok)
+      const statusRank = {miss:0, todo:1, ok:2};
+      const sectionRank = { "Gate":0, "Person search":1, "Sign-in":2, "Other":3 };
+      const sorted = [...sum.rows].sort((a,b)=> (sectionRank[a.section]??9)-(sectionRank[b.section]??9) || (statusRank[a.status]??9)-(statusRank[b.status]??9) );
+
+      sorted.forEach(r=>{
         const div=document.createElement("div");
         div.className="summaryRow";
         const badge=document.createElement("div");
@@ -580,15 +666,17 @@
         txt.className="summaryText";
         const t=document.createElement("div");
         t.className="summaryTitle";
-        t.textContent=r.label;
+        t.textContent = `[${r.section}] ${r.label}`;
         const h=document.createElement("div");
         h.className="summaryHint";
-        h.textContent = (r.status==="ok" ? "Completed." : (r.status==="miss" ? "Not asked / skipped." : "Not reached yet."));
+        const ex = (r.status!=="ok") ? exampleFor(r.key) : "";
+        h.textContent = (r.status==="ok" ? "Completed." : (r.status==="miss" ? "Not asked / skipped." : "Not reached yet.")) + (ex ? "  " + ex : "");
         txt.appendChild(t); txt.appendChild(h);
         div.appendChild(badge); div.appendChild(txt);
         summaryList.appendChild(div);
       });
     }
+
     if (summaryModal) summaryModal.hidden=false;
   }
 
