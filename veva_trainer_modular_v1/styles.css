@@ -531,8 +531,3 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 .kpiRow{display:flex; gap:10px; flex-wrap:wrap; margin-top:8px}
 .kpi{border:1px solid rgba(255,255,255,.08); background: rgba(0,0,0,.12); border-radius:14px; padding:8px 10px; font-size:12px; color:var(--muted);}
 .kpi b{color:var(--text);}
-
-/* Bottom panel sizing tweak: make visitor/ID area taller so buttons (e.g., Return ID) stay visible without page scrolling */
-.bottomPanel{min-height: 260px;}
-.bottomPanel .panelBody{display:flex;flex-direction:column;}
-#panelStack{flex:1; min-height:0; overflow:auto;}

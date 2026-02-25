@@ -530,13 +530,13 @@
     const fl = state.flags || {};
     state.flags.gateLocked = true;
     state.lockedGate = {
-      gate_name: !!fl.nameAsked,
-      gate_purpose: !!fl.purposeAsked,
+      gate_name: !!f.name,
+      gate_purpose: !!f.purpose,
       gate_appt: !!fl.apptAsked,
-      gate_who: !!fl.whoAsked,
-      gate_time: !!fl.timeAsked,
-      gate_about: !!fl.aboutAsked,
-      gate_where: !!fl.whereAsked,
+      gate_who: !!f.who,
+      gate_time: !!f.time,
+      gate_about: !!f.about,
+      gate_where: !!f.location,
       gate_id: !!fl.idChecked
     };
   }
@@ -694,13 +694,13 @@ function updateChecklist(){
     const f = state.facts || {};
     const fl = state.flags || {};
 
-    setChecklistDone(checklistEls.gate_name, !!fl.nameAsked, "gate_name");
-    setChecklistDone(checklistEls.gate_purpose, !!fl.purposeAsked, "gate_purpose");
+    setChecklistDone(checklistEls.gate_name, !!f.name, "gate_name");
+    setChecklistDone(checklistEls.gate_purpose, !!f.purpose, "gate_purpose");
     setChecklistDone(checklistEls.gate_appt, !!fl.apptAsked, "gate_appt");
-    setChecklistDone(checklistEls.gate_who, !!fl.whoAsked, "gate_who");
-    setChecklistDone(checklistEls.gate_time, !!fl.timeAsked, "gate_time");
-    setChecklistDone(checklistEls.gate_about, !!fl.aboutAsked, "gate_about");
-    setChecklistDone(checklistEls.gate_where, !!fl.whereAsked, "gate_where");
+    setChecklistDone(checklistEls.gate_who, !!f.who, "gate_who");
+    setChecklistDone(checklistEls.gate_time, !!f.time, "gate_time");
+    setChecklistDone(checklistEls.gate_about, !!f.about, "gate_about");
+    setChecklistDone(checklistEls.gate_where, !!f.location, "gate_where");
     setChecklistDone(checklistEls.gate_id, !!fl.idChecked, "gate_id");
     setChecklistDone(checklistEls.gate_supervisor, !!fl.reportedSupervisor, "gate_supervisor");
     setChecklistDone(checklistEls.gate_rules, !!fl.illegalDone, "gate_rules");
@@ -807,15 +807,9 @@ function updateChecklist(){
       miss('Try: “How can I help you?”'); return;
     }
 
-    if (intent==="ask_name"){
-      state.flags.nameAsked = true;
-      updateChecklist(); state.facts.name=state.visitor.name; enqueueVisitor(`My name is ${state.visitor.first} ${state.visitor.last}.`); updateHint(); return; }
-    if (intent==="ask_surname"){
-      state.flags.nameAsked = true;
-      updateChecklist(); enqueueVisitor(`My surname is ${state.visitor.last}.`); updateHint(); return; }
+    if (intent==="ask_name"){ state.facts.name=state.visitor.name; enqueueVisitor(`My name is ${state.visitor.first} ${state.visitor.last}.`); updateHint(); return; }
+    if (intent==="ask_surname"){ enqueueVisitor(`My surname is ${state.visitor.last}.`); updateHint(); return; }
     if (intent==="purpose"){
-      state.flags.purposeAsked = true;
-      updateChecklist();
       state.facts.purpose="known";
       if (state.evasiveFor==="purpose" && bandFromMood()==="evasive" && !state.flags.forcedCoop){
         enqueueVisitor("It’s personal."); showHint(PRESS_HINT_TEXT); return;
@@ -826,8 +820,6 @@ function updateChecklist(){
     if (intent==="has_appointment"){ state.visitorDeclaredAppt = "yes"; /* info only */ enqueueVisitor(phrase("gate","has_appointment_yes",state)); updateHint(); return; }
 
     if (intent==="who_meeting"){
-      state.flags.whoAsked = true;
-      updateChecklist();
       state.facts.who="known";
       if (state.evasiveFor==="who_meeting" && bandFromMood()==="evasive" && !state.flags.forcedCoop && !state.flags.evasiveUsed){
         state.flags.evasiveUsed=true;
@@ -837,15 +829,9 @@ function updateChecklist(){
       updateHint();
       return;
     }
-    if (intent==="time_meeting"){
-      state.flags.timeAsked = true;
-      updateChecklist(); state.facts.time="known"; enqueueVisitor(`My appointment is at ${getMeetingTime(state)}.`); updateHint(); return; }
-    if (intent==="about_meeting"){
-      state.flags.aboutAsked = true;
-      updateChecklist(); state.facts.about="known"; enqueueVisitor(phrase("gate","about_meeting",state, state.flags.forcedCoop ? "open":null)); updateHint(); return; }
-    if (intent==="where_meeting"){
-      state.flags.whereAsked = true;
-      updateChecklist(); state.facts.location="known"; enqueueVisitor(`At reception, building ${state.facts.locationCode}.`); updateHint(); return; }
+    if (intent==="time_meeting"){ state.facts.time="known"; enqueueVisitor(`My appointment is at ${getMeetingTime(state)}.`); updateHint(); return; }
+    if (intent==="about_meeting"){ state.facts.about="known"; enqueueVisitor(phrase("gate","about_meeting",state, state.flags.forcedCoop ? "open":null)); updateHint(); return; }
+    if (intent==="where_meeting"){ state.facts.location="known"; enqueueVisitor(`At reception, building ${state.facts.locationCode}.`); updateHint(); return; }
 
     if (intent==="ask_id"){
       state.flags.idChecked=true;
@@ -857,8 +843,6 @@ function updateChecklist(){
     if (intent==="dob_q"){ enqueueVisitor(`My date of birth is ${state.visitor.dob}.`); return; }
     if (intent==="nat_q"){ enqueueVisitor(`My nationality is ${state.visitor.nat}.`); return; }
     if (intent==="spell_last_name"){
-      state.flags.nameAsked = true;
-      updateChecklist();
       const letters=String(state.visitor.last||"").replace(/[^A-Za-z]/g,"").toUpperCase().split("");
       enqueueVisitor(letters.length?letters.join("-"):String(state.visitor.last||"").toUpperCase());
       return;
