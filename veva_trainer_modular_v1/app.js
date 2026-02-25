@@ -26,6 +26,11 @@
   const btnPersonSearch = $("#btnPersonSearch");
   const btnSignIn = $("#btnSignIn");
   const btnDeny = $("#btnDeny");
+  const btnEndScenario = $("#btnEndScenario");
+  const summaryModal = $("#summaryModal");
+  const summaryStats = $("#summaryStats");
+  const summaryList = $("#summaryList");
+  const btnCloseSummary = $("#btnCloseSummary");
   const btnNewScenario = $("#btnNewScenario");
   const btnReset = $("#btnReset");
 
@@ -534,6 +539,67 @@
     };
   }
 
+
+  function buildScenarioSummary(){
+    try{
+      updateChecklist();
+      const rows = [];
+      const all = Object.entries(checklistEls || {}).filter(([k,el])=>!!el);
+      let ok=0, miss=0, todo=0;
+
+      for (const [key, el] of all){
+        const label = (el.textContent || key).trim();
+        const isDone = el.classList.contains("done");
+        const isMiss = el.classList.contains("missed");
+        if (isDone) ok++;
+        else if (isMiss) miss++;
+        else todo++;
+
+        rows.push({key, label, status: isDone ? "ok" : (isMiss ? "miss" : "todo")});
+      }
+      return {ok, miss, todo, rows};
+    }catch(e){
+      return {ok:0, miss:0, todo:0, rows:[]};
+    }
+  }
+
+  function showScenarioSummary(){
+    const sum = buildScenarioSummary();
+    if (summaryStats){
+      summaryStats.textContent = `Done: ${sum.ok}  •  Missed: ${sum.miss}  •  Remaining: ${sum.todo}`;
+    }
+    if (summaryList){
+      summaryList.innerHTML = "";
+      sum.rows.forEach(r=>{
+        const div=document.createElement("div");
+        div.className="summaryRow";
+        const badge=document.createElement("div");
+        badge.className = "summaryBadge " + (r.status==="ok" ? "summaryBadge--ok" : (r.status==="miss" ? "summaryBadge--miss" : "summaryBadge--todo"));
+        badge.textContent = (r.status==="ok" ? "✓" : (r.status==="miss" ? "✕" : "•"));
+        const txt=document.createElement("div");
+        txt.className="summaryText";
+        const t=document.createElement("div");
+        t.className="summaryTitle";
+        t.textContent=r.label;
+        const h=document.createElement("div");
+        h.className="summaryHint";
+        h.textContent = (r.status==="ok" ? "Completed." : (r.status==="miss" ? "Not asked / skipped." : "Not reached yet."));
+        txt.appendChild(t); txt.appendChild(h);
+        div.appendChild(badge); div.appendChild(txt);
+        summaryList.appendChild(div);
+      });
+    }
+    if (summaryModal) summaryModal.hidden=false;
+  }
+
+  function endScenarioNow(){
+    state.flags.ended = true;
+    try{ inputEl.disabled = true; }catch{}
+    try{ sendBtn.disabled = true; }catch{}
+    try{ btnEndScenario.disabled = true; }catch{}
+    showScenarioSummary();
+  }
+
 function updateChecklist(){
     ensureChecklistMarkup();
     if (!state) return;
@@ -740,11 +806,9 @@ function updateChecklist(){
       state.flags.sentToPersonSearch=true;
       enqueueVisitor("Okay.");
       // Student initiates move to person search
-      state.flags.sentToPersonSearch = true;
-      updateChecklist();
 
       // Show 5s transition popup instead of a visitor line
-      if (transitionText) transitionText.textContent = "The visitor follows your colleague to the person search.";
+      if (transitionText) transitionText.textContent = "The visitor follows you to the person search area.";
       if (transitionBanner){ transitionBanner.textContent = "The visitor is following you to the person search area."; transitionBanner.hidden=false; }
       if (transitionModal) transitionModal.hidden = false;
 
@@ -1141,6 +1205,8 @@ btnSend?.addEventListener("click", ()=>{
     if(loginError) loginError.style.display="none";
     session={surname,group,difficulty}; saveStudent(session); updateStudentPill();
     loginModal.hidden=true;
+      document.body.classList.remove("prestart");
+      if (checklistPanel) checklistPanel.hidden=false;
     primeTTS();
     resetScenario();
     textInput?.focus();
@@ -1176,6 +1242,7 @@ btnChecklistCollapse?.addEventListener("click", ()=>{
   if(portraitPhoto) portraitPhoto.src=state.visitor.photoSrc||TRANSPARENT_PX;
   if(supervisorPhoto) supervisorPhoto.src=supervisorAvatar.src||soldierAvatar.src;
   hideAllPanels();
+  if (checklistPanel) checklistPanel.hidden=true;
   renderChat();
 updateChecklist();
 })();

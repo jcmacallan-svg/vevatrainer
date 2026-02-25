@@ -506,3 +506,20 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
   font-size: 13px;
   line-height: 1.35;
 }
+
+/* Hide right feedback/checklist until login/start */
+.prestart .checklistPanel{ display:none !important; }
+
+/* Summary modal */
+.modalInner--wide{ width:min(760px,94vw); }
+.summaryList{ margin-top:12px; display:flex; flex-direction:column; gap:8px; max-height:52vh; overflow:auto; padding-right:4px;}
+.summaryRow{ display:flex; align-items:flex-start; gap:10px; padding:10px 12px; border:1px solid rgba(255,255,255,.08); border-radius:14px; background: rgba(255,255,255,.02);}
+.summaryBadge{ width:22px; height:22px; min-width:22px; border-radius:999px; display:grid; place-items:center; font-weight:900; font-size:12px; }
+.summaryBadge--ok{ border:1.5px solid rgba(94,230,168,.95); color:#5ee6a8; background: rgba(94,230,168,.12);}
+.summaryBadge--miss{ border:1.5px solid rgba(255,107,107,.95); color:#ff6b6b; background: rgba(255,107,107,.10);}
+.summaryBadge--todo{ border:1.5px solid rgba(255,255,255,.28); color: rgba(255,255,255,.65); background: rgba(255,255,255,.03);}
+.summaryText{ flex:1; }
+.summaryTitle{ font-weight:800; font-size:13px; margin-bottom:2px;}
+.summaryHint{ color:var(--muted); font-size:12px; line-height:1.35;}
+.btnGhost{ border:1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.02); }
+.btnGhost:hover{ border-color: rgba(74,163,255,.45); }

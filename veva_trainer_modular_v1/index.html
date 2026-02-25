@@ -6,7 +6,7 @@
   <title>VEVA Trainer</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
-<body>
+<body class="prestart">
   <div class="topPills">
     <div id="versionPill" class="pill">v—</div>
     <div id="studentPill" class="pill">Student: —</div>
@@ -276,5 +276,17 @@
   </div>
 
   <script src="boot.js"></script>
+
+  <div id="summaryModal" class="modal" hidden>
+    <div class="modalInner modalInner--wide">
+      <div class="modalTitle">Scenario feedback</div>
+      <div id="summaryStats" class="modalText"></div>
+      <div id="summaryList" class="summaryList"></div>
+      <div class="modalActions">
+        <button id="btnCloseSummary" class="btn">Close</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
