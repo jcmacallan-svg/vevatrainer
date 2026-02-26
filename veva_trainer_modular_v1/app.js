@@ -1,67 +1,3 @@
-
-    // --- Person Search handlers (work in PersonSearch flow) ---
-    if (state.flowName==="PersonSearch"){
-      const fl=state.flags||{};
-      if (!fl.psSharpAsked) return 'Example: "Do you have any sharp objects on you?"';
-      if (!fl.psEmptyPockets) return 'Example: "Please empty your pockets."';
-      if (!fl.psItemsOnTable) return 'Example: "Place all items on the table."';
-      if (!fl.psExplainArmpits) return 'Example: "I am going to search around your armpits."';
-      if (!fl.psExplainWaist) return 'Example: "I am checking around your waistband."';
-      if (!fl.psExplainLeg) return 'Example: "Please place your leg on my knee."';
-      if (!fl.psPosition) return 'Example: "Stand still, hands on the wall, feet apart."';
-      if (!fl.psResolved) return 'Example: "Thank you. You may proceed."';
-      return "";
-    }
-      if (intent==="ps_empty_pockets"){
-        state.flags.psEmptyPockets = true;
-        updateChecklist();
-        enqueueVisitor("Okay, I'm emptying my pockets now.");
-        updateHint();
-        return;
-      }
-      if (intent==="ps_items_table"){
-        state.flags.psItemsOnTable = true;
-        updateChecklist();
-        enqueueVisitor("Alright, everything is on the table.");
-        updateHint();
-        return;
-      }
-      if (intent==="ps_explain_armpits"){
-        state.flags.psExplainArmpits = true;
-        updateChecklist();
-        enqueueVisitor("Okay.");
-        updateHint();
-        return;
-      }
-      if (intent==="ps_explain_waist"){
-        state.flags.psExplainWaist = true;
-        updateChecklist();
-        enqueueVisitor("Okay.");
-        updateHint();
-        return;
-      }
-      if (intent==="ps_explain_leg"){
-        state.flags.psExplainLeg = true;
-        updateChecklist();
-        enqueueVisitor("Okay.");
-        updateHint();
-        return;
-      }
-      if (intent==="ps_position"){
-        state.flags.psPosition = true;
-        updateChecklist();
-        enqueueVisitor("Understood. I'll stand still.");
-        updateHint();
-        return;
-      }
-      if (intent==="ps_resolve"){
-        state.flags.psResolved = true;
-        updateChecklist();
-        enqueueVisitor("Thank you.");
-        updateHint();
-        return;
-      }
-    }
 // app.js (core modular engine) - see README for overview
 // NOTE: This is a full working core. Keep patches modular; extend there first.
 
@@ -178,7 +114,7 @@
     gate_rules: $("#cl_gate_rules"),
     gate_send_ps: $("#cl_gate_send_ps"),
     ps_sharp: $("#cl_ps_sharp"),
-    ps_started: $("#cl_ps_started"),
+    ps_pockets: $("#cl_ps_pockets"),
     ps_table: $("#cl_ps_table"),
     ps_position: $("#cl_ps_position"),
     ps_explain_armpits: $("#cl_ps_explain_armpits"),
@@ -339,15 +275,13 @@
     if (/\b(hand\s*(them)?\s*in|hand\s*it\s*in|please\s+hand|turn\s+it\s+in|surrender|give\s+it\s+to\s+me|place\s+it\s+on\s+the\s+table)\b/i.test(n)) return "request_handin";
 
     
-    // Person Search intents
-    if (/\b(sharp\s+objects?|anything\s+sharp|needles?|knife|blade|razor)\b/i.test(n) && /\b(do\s+you\s+have|any|carrying|with\s+you|on\s+you)\b/i.test(n)) return "ps_ask_sharp";
-    if (/\bempty\s+your\s+pockets\b/i.test(n) || (/\bempty\b/i.test(n) && /\bpockets\b/i.test(n))) return "ps_empty_pockets";
-    if (/\b(place|put|set)\b/i.test(n) && /\b(table)\b/i.test(n) && (/\bitems\b/i.test(n) || /\beverything\b/i.test(n))) return "ps_items_table";
-    if (/\barmpits?\b/i.test(n) && (/\bsearch\b/i.test(n) || /\bcheck\b/i.test(n))) return "ps_explain_armpits";
-    if (/(waist|waistband|belt|hip)\b/i.test(n) && (/\bsearch\b/i.test(n) || /\bcheck\b/i.test(n))) return "ps_explain_waist";
-    if (/\bleg\b/i.test(n) && (/\bknee\b/i.test(n) || /\bplace\b/i.test(n))) return "ps_explain_leg";
-    if (/\b(position|stand\s+still|hands\s+on\s+the\s+wall|feet\s+apart|face\s+away)\b/i.test(n)) return "ps_position";
-    if (/\b(thank\s+you|you\s+can\s+go|you\s+may\s+proceed|all\s+set|done\b)\b/i.test(n)) return "ps_resolve";
+    // Person Search: expanded patterns
+    if (/\bsharp\b|\bneedle\b|\bknife\b|\bra(z|s)or\b/i.test(n) && /\bdo\s+you\s+have|any\b/i.test(n)) return "ps_ask_sharp";
+    if (/\bempty\s+your\s+pockets\b/i.test(n)) return "ps_empty_pockets";
+    if (/\bplace\s+all\s+items\b|\bon\s+the\s+table\b/i.test(n)) return "ps_items_table";
+    if (/\barmpits\b/i.test(n) && /\bsearch|checking\b|\bam\s+going\s+to\b/i.test(n)) return "ps_explain_armpits";
+    if (/\bwaist|waistband|belt\b/i.test(n) && /\bcheck|search|checking\b|\bam\s+checking\b/i.test(n)) return "ps_explain_waist";
+    if (/\bleg\b/i.test(n) && /\bknee\b/i.test(n)) return "ps_explain_leg";
 
     const list = Array.isArray(window.VEVA_INTENTS) ? window.VEVA_INTENTS : [];
     for (const it of list){ try{ if (it?.rx?.test(raw)) return it.key; }catch{} }
@@ -526,8 +460,18 @@
     supervisorPanel.hidden=true;
     if (panelTitle) panelTitle.textContent="Visitor";
     if (panelSub) panelSub.textContent=state.flowName||"—";
-    if (state.stage.startsWith("ps_")) showPersonSearch();
-    else if (state.stage.startsWith("si_")) showSignIn();
+    if (state.stage.startsWith("ps_")){
+      if (!state.flags.psSharpAsked) return 'Example: "Do you have any sharp objects on you?"';
+      if (!state.flags.psPocketsEmptied) return 'Example: "Please empty your pockets."';
+      if (!state.flags.psItemsOnTable) return 'Example: "Place all items on the table."';
+      if (!state.flags.psPositioned) return 'Example: "Stand still. Hands on the wall, feet apart."';
+      if (!state.flags.psExplainArmpits) return 'Example: "I am going to search around your armpits."';
+      if (!state.flags.psExplainWaist) return 'Example: "I am checking around your waistband."';
+      if (!state.flags.psExplainLeg) return 'Example: "Please place your leg on my knee."';
+      if (!state.flags.psResolved) return 'Example: "Thank you. You may proceed to sign-in."';
+      return "Proceed to sign-in.";
+    }
+if (state.stage.startsWith("si_")) showSignIn();
     else if (state.ui.idVisible) idCardWrap.hidden=false;
     else hideAllPanels();
     updateHint();
@@ -643,7 +587,7 @@
     const missableGate = new Set(["gate_name","gate_purpose","gate_appt","gate_who","gate_time","gate_about","gate_where","gate_id","gate_rules"]);
     const missablePS = new Set(["ps_sharp","ps_pockets","ps_table","ps_position","ps_explain_armpits","ps_explain_waist","ps_explain_leg","ps_resolved"]);
 
-    const gateMiss = !!fl.sentToPersonSearch;
+    const gateMiss = !!fl.reportedSupervisor || !!fl.sentToPersonSearch || !!fl.gateLocked;
     const psMiss = !!fl.sentToSignIn;
 
     const isPS = key && key.startsWith("ps_");
@@ -841,13 +785,8 @@ function updateChecklist(){
     setChecklistDone(checklistEls.gate_rules, !!fl.illegalDone, "gate_rules");
     setChecklistDone(checklistEls.gate_send_ps, !!fl.sentToPersonSearch, "gate_send_ps");
 
-    setChecklistDone(checklistEls.ps_sharp, !!fl.psSharpAsked, "ps_sharp");
-    setChecklistDone(checklistEls.ps_started, !!fl.psPocketsEmptied, "ps_pockets");
-    setChecklistDone(checklistEls.ps_table, !!fl.psItemsOnTable, "ps_table");
-    setChecklistDone(checklistEls.ps_position, !!fl.psPositioned, "ps_position");
-    setChecklistDone(checklistEls.ps_explain_armpits, !!fl.psExplainArmpits, "ps_explain_armpits");
-    setChecklistDone(checklistEls.ps_explain_waist, !!fl.psExplainWaist, "ps_explain_waist");
-    setChecklistDone(checklistEls.ps_explain_leg, !!fl.psExplainLeg, "ps_explain_leg");
+    setChecklistDone(checklistEls.ps_started, !!fl.psStarted);
+    setChecklistDone(checklistEls.ps_position, !!fl.psPositioned);
     setChecklistDone(checklistEls.ps_resolved, !!fl.psResolved, "ps_resolved");
 
     setChecklistDone(checklistEls.si_issued, !!fl.siIssued);
@@ -872,17 +811,12 @@ function updateChecklist(){
       return "Continue the procedure.";
     }
     if (state.stage.startsWith("ps_")){
-      if (!state.flags.psSharpAsked) return 'Example: "Do you have any sharp objects on you?"';
-      if (!state.flags.psPocketsEmptied) return 'Example: "Please empty your pockets."';
-      if (!state.flags.psItemsOnTable) return 'Example: "Place all items on the table."';
-      if (!state.flags.psPositioned) return 'Example: "Stand still. Hands on the wall, feet apart."';
-      if (!state.flags.psExplainArmpits) return 'Example: "I am going to search around your armpits."';
-      if (!state.flags.psExplainWaist) return 'Example: "I am checking around your waistband."';
-      if (!state.flags.psExplainLeg) return 'Example: "Please place your leg on my knee."';
-      if (!state.flags.psResolved) return 'Example: "Thank you. You may proceed to sign-in."';
+      if (!state.flags.psStarted) return "Tell them: Empty your pockets and place items on the table.";
+      if (!state.flags.psPositioned) return "Give instructions: arms out, palms up, legs apart.";
+      if (state.ps?.hasIllegal && !state.flags.psResolved) return "If you find something: ask them to take it out.";
       return "Proceed to sign-in.";
     }
-if (state.stage.startsWith("si_")){
+    if (state.stage.startsWith("si_")){
       if (!state.flags.siIssued) return "Fill the register and issue a visitor pass.";
       return "Ask them to return the pass when leaving.";
     }
@@ -901,7 +835,7 @@ if (state.stage.startsWith("si_")){
       flowName:"Gate", stage:"gate_approach", misses:0, lastIntent:"", lastAsked:"",
       visitor:v,
       facts:{ name:"", purpose:"", appt:"yes", who:"", time:"", about:"", location:"", meetingTime:"", locationCode:"" },
-      flags:{ idChecked:false, reportedSupervisor:false, rulesDone:false, sentToPersonSearch:false, psSharpAsked:false, psPocketsEmptied:false, psItemsOnTable:false, psPositioned:false, psExplainArmpits:false, psExplainWaist:false, psExplainLeg:false, psResolved:false, sentToSignIn:false, siIssued:false },
+      flags:{ idChecked:false, reportedSupervisor:false, rulesDone:false, sentToPersonSearch:false, psSharpAsked:false, psPocketsEmptied:false, psItemsOnTable:false, psPositioned:false, psExplainArmpits:false, psExplainWaist:false, psExplainLeg:false, psResolved:false, siIssued:false },
       ui:{ idVisible:false, supervisorVisible:false },
       ps:null, pass:null,
       evasiveFor: pick(["purpose","who_meeting","about_meeting","where_meeting","time_meeting"])
@@ -1088,7 +1022,6 @@ if (state.stage.startsWith("si_")){
       if (state.ps?.sharpItem){
         enqueueVisitor(`Yes. I have a ${state.ps.sharpItem}.`);
         enqueueVisitor("Here you go. I can hand it in now.");
-        // We treat this as handed in and no longer a risk
         state.ps.sharpItem = null;
       } else {
         enqueueVisitor("No, I don't have any sharp objects on me.");
@@ -1121,7 +1054,6 @@ if (state.stage.startsWith("si_")){
       return;
     }
 
-    // Explain what you're doing (3 mandatory verbalizations)
     if (intent==="ps_explain_armpits"){
       state.flags.psExplainArmpits = true;
       updateChecklist();
@@ -1156,10 +1088,10 @@ if (state.stage.startsWith("si_")){
       return;
     }
 
-    miss('Person Search: ask about sharp objects, then empty pockets, place items on table, give positioning, and explain your actions.');
+    miss('Person Search: ask about sharp objects, then empty pockets, place items on the table, give positioning, and explain your actions.');
   }
 
-function handleSI(){
+  function handleSI(){
     showSignIn();
     miss("Fill in the register on the right, then issue the visitor pass.");
   }
@@ -1512,6 +1444,7 @@ btnSend?.addEventListener("click", ()=>{
     if(loginError) loginError.style.display="none";
     session={surname,group,difficulty}; saveStudent(session); updateStudentPill();
     loginModal.hidden=true;
+      checklistPanel?.classList.add("collapsed");
       document.body.classList.remove("prestart");
       if (checklistPanel) checklistPanel.hidden=false;
     primeTTS();
@@ -1551,7 +1484,5 @@ btnChecklistCollapse?.addEventListener("click", ()=>{
   hideAllPanels();
   if (checklistPanel) checklistPanel.hidden=true;
   renderChat();
-  // Start with checklist collapsed
-  try{ if(checklistPanel) checklistPanel.classList.add("collapsed"); }catch{}
-  updateChecklist();
+updateChecklist();
 })();
