@@ -328,16 +328,6 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 }
 
 /* --- UI tweak v3: clearer checklist ticks + half-size collapsed right rail --- */
-.checklistPanel.collapsed{ width: 28px !important; max-width:28px !important; }
-.checklistPanel.collapsed .checklistItems,
-.checklistPanel.collapsed .chkTitle,
-.checklistPanel.collapsed .chkStatus{
-  display:none !important;
-}
-.checklistPanel.collapsed .checklistHeader{
-  padding-left: 2px !important;
-  padding-right: 2px !important;
-}
 .chkToggle{
   width: 22px !important;
   height: 22px !important;
@@ -567,3 +557,23 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 .clItem.missed{border-color: rgba(255,107,107,.35); background: rgba(255,107,107,.07);}
 .clItem.missed::before{content:"✕"; border-color:#ff6b6b; background: rgba(255,107,107,.14); color:#ff6b6b; font-weight:900; font-size:12px;}
 .clItem span{font-size:12px; color: var(--text); line-height:1.25;}
+
+
+/* Checklist: start minimized but still visible (button + label) */
+.checklistPanel.isCollapsed{ width: 120px !important; }
+.checklistPanel.isCollapsed .checkSection{ display:none !important; }
+.checklistPanel.isCollapsed .panelTitle{ display:none !important; }
+.checklistPanel.isCollapsed .panelHead{ justify-content:flex-start; gap:8px; }
+.checklistPanel.isCollapsed .checkCollapseBtn{
+  width: 100%;
+  justify-content: flex-start;
+  padding: 10px 12px;
+  border-radius: 14px;
+  gap:10px;
+}
+.checklistPanel.isCollapsed .checkCollapseBtn::after{
+  content: " Checklist";
+  font-weight: 800;
+  letter-spacing: .2px;
+  opacity: .9;
+}

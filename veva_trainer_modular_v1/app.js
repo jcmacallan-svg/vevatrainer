@@ -1444,7 +1444,8 @@ btnSend?.addEventListener("click", ()=>{
     if(loginError) loginError.style.display="none";
     session={surname,group,difficulty}; saveStudent(session); updateStudentPill();
     loginModal.hidden=true;
-      checklistPanel?.classList.add("collapsed");
+      checklistPanel?.classList.add("isCollapsed");
+      if (btnChecklistCollapse) btnChecklistCollapse.textContent = "▸";
       document.body.classList.remove("prestart");
       if (checklistPanel) checklistPanel.hidden=false;
     primeTTS();
@@ -1460,9 +1461,10 @@ const btnChecklistCollapse = $("#btnChecklistCollapse");
 btnChecklistCollapse?.addEventListener("click", ()=>{
   const panel = document.getElementById("checklistPanel");
   if (!panel) return;
-  const collapsed = panel.classList.toggle("isCollapsed");
-  btnChecklistCollapse.textContent = collapsed ? "◂" : "▸";
-  btnChecklistCollapse.setAttribute("aria-label", collapsed ? "Expand checklist" : "Collapse checklist");
+  const isCollapsed = panel.classList.toggle("isCollapsed");
+  // When collapsed we show an expand arrow
+  btnChecklistCollapse.textContent = isCollapsed ? "▸" : "◂";
+  btnChecklistCollapse.setAttribute("aria-label", isCollapsed ? "Expand checklist" : "Collapse checklist");
 });
 
   // boot
