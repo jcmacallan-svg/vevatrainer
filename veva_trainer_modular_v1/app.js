@@ -1480,7 +1480,7 @@ btnChecklistCollapse?.addEventListener("click", ()=>{
   loginModal.hidden=false;
 
   // initial dummy
-  state={flowName:"Gate", stage:"idle", visitor:{...makeRandomVisitor(), contact:makeContact()}, facts:{}, flags:{}, ui:{idVisible:false,supervisorVisible:false}, misses:0, visitorDeclaredAppt:null};
+  state={flowName:"Gate", stage:"idle", visitor:{...makeRandomVisitor(), contact:makeContact(), illegalItem: pick([null,null,null,null,"a small pocket knife","a needle","a razor blade"] )}, facts:{}, flags:{}, ui:{idVisible:false,supervisorVisible:false}, misses:0, visitorDeclaredAppt:null};
   if(portraitPhoto) portraitPhoto.src=state.visitor.photoSrc||TRANSPARENT_PX;
   if(supervisorPhoto) supervisorPhoto.src=supervisorAvatar.src||soldierAvatar.src;
   hideAllPanels();
