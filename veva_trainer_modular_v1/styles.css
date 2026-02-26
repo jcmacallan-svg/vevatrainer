@@ -577,3 +577,12 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
   letter-spacing: .2px;
   opacity: .9;
 }
+
+/* Make Sign-in REGISTER pill clearly visible */
+.chipPrimary{
+  background: rgba(74,163,255,.18);
+  border-color: rgba(74,163,255,.55);
+  color: rgba(230,245,255,.98);
+  font-weight: 900;
+  letter-spacing: .06em;
+}
