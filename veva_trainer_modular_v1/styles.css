@@ -536,3 +536,34 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 .bottomPanel{min-height: 260px;}
 .bottomPanel .panelBody{display:flex;flex-direction:column;}
 #panelStack{flex:1; min-height:0; overflow:auto;}
+
+/* === FORCE checklist missed rendering (compatible with current checkList design) === */
+.checkList li.missed{
+  border-color: rgba(255,107,107,.55) !important;
+  background: rgba(255,107,107,.08) !important;
+}
+.checkList li.missed::before{
+  content:"✕" !important;
+  color: rgba(255,107,107,.95) !important;
+}
+
+
+/* === Checklist (new markup from ensureChecklistMarkup) === */
+#checklistList{display:flex; flex-direction:column; gap:12px;}
+.clGroup{border:1px solid rgba(255,255,255,.10); background: rgba(255,255,255,.02); border-radius:16px; padding:10px;}
+.clGroupTitle{font-weight:900; font-size:13px; margin:0 0 8px 0;}
+.clItem{display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:12px; border:1px solid rgba(255,255,255,.08); background: rgba(0,0,0,.10); margin:6px 0; position:relative;}
+.clItem input{position:absolute; opacity:0; pointer-events:none;}
+.clItem::before{
+  content:"";
+  width:18px; height:18px; border-radius:999px;
+  border:1.5px solid rgba(255,255,255,.35);
+  display:inline-grid; place-items:center;
+  color: rgba(255,255,255,.85);
+  flex: 0 0 18px;
+}
+.clItem.done{border-color: rgba(94,230,168,.35); background: rgba(94,230,168,.07);}
+.clItem.done::before{content:"✓"; border-color:#5ee6a8; background: rgba(94,230,168,.14); color:#5ee6a8; font-weight:900; font-size:12px;}
+.clItem.missed{border-color: rgba(255,107,107,.35); background: rgba(255,107,107,.07);}
+.clItem.missed::before{content:"✕"; border-color:#ff6b6b; background: rgba(255,107,107,.14); color:#ff6b6b; font-weight:900; font-size:12px;}
+.clItem span{font-size:12px; color: var(--text); line-height:1.25;}

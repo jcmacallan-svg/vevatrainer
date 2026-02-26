@@ -272,9 +272,48 @@
     const list = Array.isArray(window.VEVA_INTENTS) ? window.VEVA_INTENTS : [];
     for (const it of list){ try{ if (it?.rx?.test(raw)) return it.key; }catch{} }
 
-    // Defensive fallbacks for phrasing variants
+    // Defensive fallbacks for phrasing variants (local, so checklist keeps working even if VEVA_INTENTS is missing)
+    if (/\b(hi|hello|good\s+(morning|afternoon|evening))\b/i.test(n) && /\bhelp\b/i.test(n)) return "greet";
+
+    // Gate: name
+    if (/\b(what\s+is|may\s+i\s+have|can\s+i\s+have)\s+(your\s+)?(full\s+)?name\b/i.test(n)) return "ask_name";
+    if (/\bsurname\b/i.test(n) && /\b(what\s+is|your)\b/i.test(n)) return "ask_surname";
+
+    // Gate: purpose
+    if (/\b(purpose|reason)\b/i.test(n) && /\b(visit|here|coming)\b/i.test(n)) return "purpose";
+    if (/\bwhat\s+are\s+you\s+here\s+for\b/i.test(n)) return "purpose";
+
+    // Gate: appointment
+    if (/\bappointment\b/i.test(n) && /\b(do\s+you\s+have|have\s+you\s+got|got\s+an|have\s+an|any)\b/i.test(n)) return "has_appointment";
+
+    // Gate: who meeting / contact person
+    if (/\b(who|with\s+whom)\b/i.test(n) && /\b(meet(ing)?|appointment|seeing|contact|point\s+of\s+contact)\b/i.test(n)) return "who_meeting";
+
+    // Gate: time
+    if (/\b(what\s+time|when)\b/i.test(n) && /\b(appointment|meeting)\b/i.test(n)) return "time_meeting";
+
+    // Gate: about/topic
+    if (/\b(what\s+is\s+it\s+about|topic|about)\b/i.test(n) && /\b(appointment|meeting|visit)\b/i.test(n)) return "about_meeting";
+
+    // Gate: where/location
+    if (/\b(where)\b/i.test(n) && /\b(appointment|meeting|going|location|building|room)\b/i.test(n)) return "where_meeting";
+
+    // Gate: ID
+    if (/\b(id|identification|identity\s+card)\b/i.test(n) && /\b(see|check|show|may\s+i\s+see|can\s+i\s+see)\b/i.test(n)) return "ask_id";
+
+    // Supervisor
     if (/\b(check\s+with|contact|call|speak\s+to|talk\s+to)\s+(my\s+)?supervisor\b/i.test(n)) return "contact_supervisor";
+
+    // Illegal items
+    if (/\b(illegal\s+items?|prohibited\s+items?|contraband|banned\s+items?)\b/i.test(n) && /\b(do\s+you\s+have|any|carrying|with\s+you|on\s+you|in\s+your\s+(bag|car|vehicle))\b/i.test(n)) return "ask_illegal";
+    if (/\b(weapons?|knife|knives|gun|firearm|ammo|drugs?|narcotics?|alcohol|booze)\b/i.test(n) && /\b(do\s+you\s+have|any|carrying|with\s+you|on\s+you)\b/i.test(n)) return "ask_illegal";
+    if (/\b(no|not)\s+(weapons?|drugs?|alcohol)\b/i.test(n) || /\b(weapons?|drugs?|alcohol)\b[^.]{0,40}\b(not\s+allowed|forbidden|prohibited)\b/i.test(n)) return "explain_illegal";
+    if (/\b(hand\s*(them)?\s*in|hand\s*it\s*in|please\s+hand|turn\s+it\s+in|surrender|give\s+it\s+to\s+me)\b/i.test(n)) return "request_handin";
+
+    // Transitions
     if (/\b(go\s+to|proceed\s+to|walk\s+to|send\s+(him|her|the\s+visitor)\s+to)\b.*\b(person\s+search|search\s+area)\b/i.test(n)) return "go_person_search";
+    if (/\b(go\s+to|proceed\s+to|walk\s+to)\b.*\b(sign\s*-?in|sign\s*in\s+office|reception|sign\s*in\s+desk)\b/i.test(n)) return "go_sign_in";
+
 
     return "unknown";
   }
@@ -511,14 +550,30 @@
 
   function setChecklistDone(el, done, key){
     if (!el) return;
-    const doneVal = (locked && key && (key in snap)) ? !!snap[key] : !!done;
-    el.classList.toggle("done", doneVal);
 
     const fl = state?.flags || {};
-    const afterAny = !!fl.reportedSupervisor || !!fl.sentToPersonSearch;
-    const missable = new Set(["gate_name","gate_purpose","gate_appt","gate_who","gate_time","gate_about","gate_where","gate_id","gate_rules","ps_pockets","ps_position","ps_resolved"]);
-    if (afterAny && key && missable.has(key) && !done){
+    const locked = !!fl.gateLocked;
+    const snap = state?.lockedGate || {};
+    const doneVal = (locked && key && (key in snap)) ? !!snap[key] : !!done;
+    el.classList.toggle("done", doneVal);
+    const box = el.querySelector('input[type="checkbox"]');
+    if (box){ box.checked = !!doneVal; box.indeterminate = false; }
+
+    // missed marking: Gate keys after supervisor contact / move to PS / explicit lock
+    const missableGate = new Set(["gate_name","gate_purpose","gate_appt","gate_who","gate_time","gate_about","gate_where","gate_id","gate_rules"]);
+    const missablePS = new Set(["ps_pockets","ps_position","ps_resolved"]);
+
+    const gateMiss = !!fl.reportedSupervisor || !!fl.sentToPersonSearch || !!fl.gateLocked;
+    const psMiss = !!fl.sentToSignIn;
+
+    const isPS = key && key.startsWith("ps_");
+    const shouldMiss = isPS ? psMiss : gateMiss;
+
+    const missable = isPS ? missablePS : missableGate;
+
+    if (shouldMiss && key && missable.has(key) && !doneVal){
       el.classList.add("missed");
+      if (box){ box.checked = false; box.indeterminate = false; }
     } else {
       el.classList.remove("missed");
     }
@@ -823,7 +878,7 @@ function updateChecklist(){
       enqueueVisitor(phrase("gate","purpose",state, state.flags.forcedCoop ? "open":null));
       updateHint(); return;
     }
-    if (intent==="has_appointment"){ state.visitorDeclaredAppt = "yes"; /* info only */ enqueueVisitor(phrase("gate","has_appointment_yes",state)); updateHint(); return; }
+    if (intent==="has_appointment"){ state.flags.apptAsked = true; updateChecklist(); state.visitorDeclaredAppt = "yes"; /* info only */ enqueueVisitor(phrase("gate","has_appointment_yes",state)); updateHint(); return; }
 
     if (intent==="who_meeting"){
       state.flags.whoAsked = true;
@@ -906,8 +961,8 @@ function updateChecklist(){
     }
 
     if (intent==="go_person_search"){
-      if (!gateComplete()){ miss("Complete the 5W/H, check ID, contact supervisor, and explain rules."); return; }
       state.flags.sentToPersonSearch=true;
+      updateChecklist();
       enqueueVisitor("Okay.");
       // Student initiates move to person search
 
