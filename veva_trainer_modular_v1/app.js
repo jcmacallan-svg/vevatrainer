@@ -1225,6 +1225,7 @@ btnSend?.addEventListener("click", ()=>{
     resetScenario();
   });
   btnReset?.addEventListener("click", ()=>{ if(loginModal){ loginModal.hidden=false; loginModal.style.display=""; } history=[]; renderChat(); hideAllPanels(); if(textInput) textInput.value=""; });
+  btnPhrases?.addEventListener("click", ()=>{ window.open("VEVA_Checkpoint_Trainer_Woordenlijst_EN-NL.pdf","_blank","noopener"); });
 
   btnPersonSearch?.addEventListener("click", ()=> handleStudent("Go to person search"));
   btnSignIn?.addEventListener("click", ()=> handleStudent("Go to sign-in office"));
