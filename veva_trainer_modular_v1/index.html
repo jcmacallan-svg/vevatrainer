@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body class="prestart">
-  <div class="topPills">
+  <div class="topPills" id="topPills">
     <div id="versionPill" class="pill">v—</div>
     <div id="studentPill" class="pill">Student: —</div>
     <div id="voiceStatus" class="pill">Voice: ready</div>
@@ -36,7 +36,10 @@
       <button id="btnDeny" class="sideBtn danger">Deny entrance</button>
       <button id="btnNewScenario" class="sideBtn">Start new scenario</button>
       <button id="btnEndScenario" class="sideBtn ghost">End scenario</button>
+      <button id="btnPhrases" class="sideBtn ghost">Te vragen zinnen</button>
       <button id="btnReset" class="sideBtn ghost">Reset</button>
+
+      <div class="sidePills" id="sidePills"></div>
     </aside>
 
     <main class="main">
@@ -74,10 +77,15 @@
           <div class="checkSection">
             <div class="checkTitle">Person search</div>
             <ul class="checkList">
-              <li id="cl_ps_started">Pockets / items on table</li>
+              <li id="cl_ps_sharp">Asked about sharp objects</li>
+              <li id="cl_ps_remove">Remove jacket / headgear</li>
               <li id="cl_ps_position">Positioning instructions</li>
-              <li id="cl_ps_resolved">Search resolved</li>
-            </ul>
+              <li id="cl_ps_explain_armpits">Explain: armpits</li>
+              <li id="cl_ps_explain_waist">Explain: waistband / private area</li>
+              <li id="cl_ps_leg">Instruction: leg on knee</li>
+              <li id="cl_ps_items_ok">Items checked (OK)</li>
+              <li id="cl_ps_cleared">Cleared → sign-in</li>
+</ul>
           </div>
 
           <div class="checkSection">

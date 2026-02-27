@@ -612,3 +612,21 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 @media (min-height: 900px){
   .bottomPanel, #bottomPanel, .bottomDock, .lowerPanel, .bottomArea, #bottomArea{ min-height: 320px; }
 }
+
+/* Move top pills into sidebar */
+#topPills{ display:none !important; }
+
+.sidePills{ margin-top:auto; padding-top:14px; display:flex; flex-wrap:wrap; gap:8px; align-items:flex-start; }
+.sidebar{ display:flex; flex-direction:column; }
+
+/* Chat order: newest on top */
+.chatSlots{ display:flex; flex-direction:column-reverse; overflow:auto; }
+
+/* Responsiveness: keep panels visible on smaller laptops */
+@media (max-width: 1200px){
+  .content{ gap:12px; }
+  .checklistPanel{ min-width: 260px; }
+}
+@media (max-height: 800px){
+  .bottomPanel, #bottomPanel, .bottomDock, .lowerPanel, .bottomArea, #bottomArea{ min-height: 240px; }
+}
