@@ -630,3 +630,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 @media (max-height: 800px){
   .bottomPanel, #bottomPanel, .bottomDock, .lowerPanel, .bottomArea, #bottomArea{ min-height: 240px; }
 }
+
+
+/* Patch v1.6.5: allow scrolling inside the Visitor Pass card so rules at the bottom are always reachable */
+#passPanel .cardBody{max-height:320px; overflow-y:auto;}

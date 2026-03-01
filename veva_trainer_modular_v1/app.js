@@ -116,15 +116,20 @@
     gate_supervisor: $("#cl_gate_supervisor"),
     gate_rules: $("#cl_gate_rules"),
     gate_send_ps: $("#cl_gate_send_ps"),
+
+    // Person Search
     ps_sharp: $("#cl_ps_sharp"),
-    ps_pockets: $("#cl_ps_pockets"),
-    ps_table: $("#cl_ps_table"),
+    ps_remove: $("#cl_ps_remove"),
     ps_position: $("#cl_ps_position"),
     ps_explain_armpits: $("#cl_ps_explain_armpits"),
     ps_explain_waist: $("#cl_ps_explain_waist"),
-    ps_explain_leg: $("#cl_ps_explain_leg"),
-    ps_resolved: $("#cl_ps_resolved"),
+    ps_leg: $("#cl_ps_leg"),
+    ps_items_ok: $("#cl_ps_items_ok"),
+    ps_cleared: $("#cl_ps_cleared"),
+
+    // Sign-in
     si_issued: $("#cl_si_issued"),
+    si_pass_no: $("#cl_si_pass_no"),
     si_visible: $("#cl_si_visible"),
     si_show: $("#cl_si_show"),
     si_return: $("#cl_si_return"),
@@ -301,18 +306,35 @@
     if (/\bwhere\b.*\b(meeting|appointment|going)\b|\blocation\b/i.test(n)) return "ask_where";
 
     // Person Search patterns
-    if (/\bdo\s+you\s+have\b.*\b(sharp|knife|needle|razor)\b/i.test(n)) return "ps_ask_sharp";
-    if (/(remove|take\s+off)\b.*\b(jacket|coat|cap|hat|headgear|hood)\b/i.test(n)) return "ps_remove_outer";
-    if (/\bstand\s+still\b|\bhands\s+on\s+the\s+wall\b|\bfeet\s+apart\b/i.test(n)) return "ps_position";
-    if (/\barmpits\b/i.test(n) && /(search|check|checking|going\s+to)\b/i.test(n)) return "ps_explain_armpits";
-    if (/\b(waist|waistband|belt|private)\b/i.test(n) && /(search|check|checking|going\s+to)\b/i.test(n)) return "ps_explain_waist";
-    if (/\b(leg)\b/i.test(n) && /\bknee\b/i.test(n)) return "ps_leg_on_knee";
-    if (/\b(everything\s+is\s+ok|looks\s+fine|items\s+are\s+ok|all\s+items\s+are\s+ok)\b/i.test(n)) return "ps_check_items";
+    if (/\bdo\s+you\s+have\b.*\b(sharp|knife|needle|razor|blade)\b/i.test(n)) return "ps_ask_sharp";
+
+    // Remove outerwear (jacket / headgear)
+    if (/(remove|take\s*off|please\s+remove|could\s+you\s+remove|can\s+you\s+remove)\b.*\b(jacket|coat|cap|hat|headgear|hood|helmet)\b/i.test(n)) return "ps_remove_outer";
+    if (/\b(jacket|coat)\b.*\b(headgear|cap|hat|helmet)\b.*\b(remove|off|take\s*off)\b/i.test(n)) return "ps_remove_outer";
+
+    // Positioning
+    if (/\bstand\s+still\b|\bhands\s+on\s+the\s+wall\b|\bfeet\s+apart\b|\bface\s+the\s+wall\b/i.test(n)) return "ps_position";
+
+    // Search statements (wording can be "I am going to search under/around ...")
+    if (/\b(armpit|armpits)\b/i.test(n) || /\bunder\s+your\s+arms?\b/i.test(n)){
+      if (/(search|check|checking|pat\s*down|going\s+to|i'?m\s+(going\s+to|gonna)|i\s+am\s+(going\s+to|going\s+to\s+be))\b/i.test(n)) return "ps_explain_armpits";
+    }
+    if (/\b(waist|waistband|belt|around\s+your\s+waist|private\s+area|groin)\b/i.test(n)){
+      if (/(search|check|checking|pat\s*down|going\s+to|i'?m\s+(going\s+to|gonna)|i\s+am\s+(going\s+to|going\s+to\s+be))\b/i.test(n)) return "ps_explain_waist";
+    }
+
+    // Leg on knee
+    if (/\b(put|place|lift|raise)\b/i.test(n) && /\b(leg|foot)\b/i.test(n) && /\b(knee|thigh)\b/i.test(n)) return "ps_leg_on_knee";
+    if (/\bleg\b/i.test(n) && /\bon\b/i.test(n) && /\bmy\s+knee\b/i.test(n)) return "ps_leg_on_knee";
+
+    // Items checked
+    if (/\b(everything\s+is\s+ok|looks\s+fine|items?\s+are\s+ok|all\s+items?\s+are\s+ok|nothing\s+found|no\s+issues)\b/i.test(n)) return "ps_check_items";
 
     
     // Sign-in intents
     if (/\b(sign\s*in|register)\b/i.test(n)) return "si_sign_in";
     if (/\b(issue|give|hand)\b/i.test(n) && /\b(visitor\s*pass|pass|badge)\b/i.test(n)) return "si_issue_pass";
+    if (/\b(pass|badge)\b/i.test(n) && /\b(VP-\d{4}|\d{3,6})\b/i.test(n)) return "si_pass_no";
     if ((/\bwear\b/i.test(n) || /\bvisible\b/i.test(n)) && /\bpass|badge\b/i.test(n)) return "si_rule_visible";
     if (/\b(show|present)\b/i.test(n) && /\b(request|asked)\b/i.test(n)) return "si_rule_show";
     if (/\breturn\b/i.test(n) && (/\bleave|exit|when\s+you\s+leave|when\s+leaving\b/i.test(n))) return "si_rule_return";
@@ -643,7 +665,7 @@ if (state.stage.startsWith("si_")) showSignIn();
     // missed marking: Gate keys after supervisor contact / move to PS / explicit lock
     const missableGate = new Set(["gate_name","gate_purpose","gate_appt","gate_who","gate_time","gate_about","gate_where","gate_id","gate_supervisor","gate_rules"]);
     const missablePS = new Set(["ps_sharp","ps_remove","ps_position","ps_explain_armpits","ps_explain_waist","ps_leg","ps_items_ok","ps_cleared"]); 
-    const missableSI = new Set(["si_issued","si_visible","si_show","si_return","si_alarm","si_closes"]);
+    const missableSI = new Set(["si_issued","si_pass_no","si_visible","si_show","si_return","si_alarm","si_closes"]);
 
     const gateMiss = !!fl.sentToPersonSearch;
     const psMiss = !!fl.sentToSignIn;
@@ -855,6 +877,7 @@ function updateChecklist(){
     setChecklistDone(checklistEls.ps_cleared, !!fl.psCleared, "ps_cleared");
 
     setChecklistDone(checklistEls.si_issued, !!fl.siIssued, "si_issued");
+    setChecklistDone(checklistEls.si_pass_no, !!fl.siPassNoStated, "si_pass_no");
     setChecklistDone(checklistEls.si_visible, !!fl.siRuleVisible, "si_visible");
     setChecklistDone(checklistEls.si_show, !!fl.siRuleShowOnRequest, "si_show");
     setChecklistDone(checklistEls.si_return, !!fl.siRuleReturnOnExit, "si_return");
@@ -1182,8 +1205,24 @@ function updateChecklist(){
     }
     if (intent==="si_issue_pass"){
       state.flags.siIssued = true;
+      // Ensure a concrete pass number exists and is visible to the student
+      showPass();
+
+      // Student must *state* which pass is being issued (e.g., "I am issuing pass VP-1234")
+      const pid = state?.pass?.id || "";
+      const statedExact = pid && new RegExp("\\b"+pid.replace(/[-/\\^$*+?.()|[\]{}]/g,'\\$&')+"\\b","i").test(n);
+      const statedGeneric = /\b(pass|badge)\b/i.test(n) && /\b(VP-\d{4}|\d{3,6})\b/i.test(n);
+      if (statedExact || statedGeneric) state.flags.siPassNoStated = true;
+
       updateChecklist();
-      enqueueVisitor("Here is your visitor pass.");
+      enqueueVisitor("Here is your visitor pass. Please wear it visibly at all times.");
+      updateHint();
+      return;
+    }
+    if (intent==="si_pass_no"){
+      state.flags.siPassNoStated = true;
+      updateChecklist();
+      enqueueVisitor("Understood.");
       updateHint();
       return;
     }
