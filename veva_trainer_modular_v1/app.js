@@ -425,16 +425,15 @@
   const q=[]; let tmr=null; let approach=null;
   
     function enqueueVisitor(text){
-    // Show typing dots for 2–4s + extra time for longer messages
+    // Show typing dots for ~2–3s max (fast iteration; length adds but is capped)
     const t = String(text||"");
     typingVisitor = true;
     renderTyping();
 
-    const baseMin = 2000;
-    const baseMax = 4000;
-    const randomBase = Math.floor(Math.random() * (baseMax - baseMin + 1)) + baseMin;
-    const lengthFactor = Math.min(t.length * 35, 4000);
-    const delay = randomBase + lengthFactor;
+    // Base delay 2000–2600ms, plus a small length bonus, hard-capped at 3000ms.
+    const base = 2000 + Math.floor(Math.random() * 601); // 2000..2600
+    const lengthBonus = Math.min(t.length * 10, 700);
+    const delay = Math.min(base + lengthBonus, 3000); 
 
     setTimeout(()=>{
       typingVisitor = false;
