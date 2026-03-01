@@ -125,8 +125,11 @@
     ps_explain_leg: $("#cl_ps_explain_leg"),
     ps_resolved: $("#cl_ps_resolved"),
     si_issued: $("#cl_si_issued"),
-    si_rules: $("#cl_si_rules"),
-    si_close: $("#cl_si_close"),
+    si_visible: $("#cl_si_visible"),
+    si_show: $("#cl_si_show"),
+    si_return: $("#cl_si_return"),
+    si_alarm: $("#cl_si_alarm"),
+    si_closes: $("#cl_si_closes"),
   };
 
   // Login
@@ -305,6 +308,16 @@
     if (/\b(waist|waistband|belt|private)\b/i.test(n) && /(search|check|checking|going\s+to)\b/i.test(n)) return "ps_explain_waist";
     if (/\b(leg)\b/i.test(n) && /\bknee\b/i.test(n)) return "ps_leg_on_knee";
     if (/\b(everything\s+is\s+ok|looks\s+fine|items\s+are\s+ok|all\s+items\s+are\s+ok)\b/i.test(n)) return "ps_check_items";
+
+    
+    // Sign-in intents
+    if (/\b(sign\s*in|register)\b/i.test(n)) return "si_sign_in";
+    if (/\b(issue|give|hand)\b/i.test(n) && /\b(visitor\s*pass|pass|badge)\b/i.test(n)) return "si_issue_pass";
+    if ((/\bwear\b/i.test(n) || /\bvisible\b/i.test(n)) && /\bpass|badge\b/i.test(n)) return "si_rule_visible";
+    if (/\b(show|present)\b/i.test(n) && /\b(request|asked)\b/i.test(n)) return "si_rule_show";
+    if (/\breturn\b/i.test(n) && (/\bleave|exit|when\s+you\s+leave|when\s+leaving\b/i.test(n))) return "si_rule_return";
+    if (/\balarm\b/i.test(n) || /\bassembly\s*area\b/i.test(n)) return "si_rule_alarm";
+    if (/\bcloses\b/i.test(n) || /\bclose\b/i.test(n) || /\b4\s*(pm|p\.m\.|o\'clock|oclock)?\b/i.test(n)) return "si_rule_closes";
 
     const list = Array.isArray(window.VEVA_INTENTS) ? window.VEVA_INTENTS : [];
     for (const it of list){ try{ if (it?.rx?.test(raw)) return it.key; }catch{} }
@@ -623,15 +636,17 @@ if (state.stage.startsWith("si_")) showSignIn();
 
     // missed marking: Gate keys after supervisor contact / move to PS / explicit lock
     const missableGate = new Set(["gate_name","gate_purpose","gate_appt","gate_who","gate_time","gate_about","gate_where","gate_id","gate_supervisor","gate_rules"]);
-    const missablePS = new Set(["ps_sharp","ps_remove","ps_position","ps_explain_armpits","ps_explain_waist","ps_leg","ps_items_ok","ps_cleared"]);
+    const missablePS = new Set(["ps_sharp","ps_remove","ps_position","ps_explain_armpits","ps_explain_waist","ps_leg","ps_items_ok","ps_cleared"]);\n    const missableSI = new Set(["si_issued","si_visible","si_show","si_return","si_alarm","si_closes"]);
 
-    const gateMiss = !!fl.reportedSupervisor || !!fl.sentToPersonSearch || !!fl.gateLocked;
+    const gateMiss = !!fl.sentToPersonSearch;
     const psMiss = !!fl.sentToSignIn;
+    const siMiss = !!fl.ended;
 
     const isPS = key && key.startsWith("ps_");
-    const shouldMiss = isPS ? psMiss : gateMiss;
+    const isSI = key && key.startsWith("si_");
+    const shouldMiss = isPS ? psMiss : (isSI ? siMiss : gateMiss);
 
-    const missable = isPS ? missablePS : missableGate;
+    const missable = isPS ? missablePS : (isSI ? missableSI : missableGate);
 
     if (shouldMiss && key && missable.has(key) && !doneVal){
       el.classList.add("missed");
@@ -823,14 +838,21 @@ function updateChecklist(){
     setChecklistDone(checklistEls.gate_rules, !!fl.illegalDone, "gate_rules");
     setChecklistDone(checklistEls.gate_send_ps, !!fl.sentToPersonSearch, "gate_send_ps");
 
-    setChecklistDone(checklistEls.ps_started, !!fl.psStarted);
-    setChecklistDone(checklistEls.ps_position, !!fl.psPositioned);
-    setChecklistDone(checklistEls.ps_resolved, !!fl.psResolved, "ps_resolved");
+    setChecklistDone(checklistEls.ps_sharp, !!fl.psSharpAsked, "ps_sharp");
+    setChecklistDone(checklistEls.ps_remove, !!fl.psRemoveOuter, "ps_remove");
+    setChecklistDone(checklistEls.ps_position, !!fl.psPositioned, "ps_position");
+    setChecklistDone(checklistEls.ps_explain_armpits, !!fl.psExplainArmpits, "ps_explain_armpits");
+    setChecklistDone(checklistEls.ps_explain_waist, !!fl.psExplainWaist, "ps_explain_waist");
+    setChecklistDone(checklistEls.ps_leg, !!fl.psLegOnKnee, "ps_leg");
+    setChecklistDone(checklistEls.ps_items_ok, !!fl.psItemsOk, "ps_items_ok");
+    setChecklistDone(checklistEls.ps_cleared, !!fl.psCleared, "ps_cleared");
 
-    setChecklistDone(checklistEls.si_issued, !!fl.siIssued);
-    // not implemented separately yet — best effort:
-    setChecklistDone(checklistEls.si_rules, !!fl.siIssued);
-    setChecklistDone(checklistEls.si_close, state.stage === "done");
+    setChecklistDone(checklistEls.si_issued, !!fl.siIssued, "si_issued");
+    setChecklistDone(checklistEls.si_visible, !!fl.siRuleVisible, "si_visible");
+    setChecklistDone(checklistEls.si_show, !!fl.siRuleShowOnRequest, "si_show");
+    setChecklistDone(checklistEls.si_return, !!fl.siRuleReturnOnExit, "si_return");
+    setChecklistDone(checklistEls.si_alarm, !!fl.siRuleAlarmAssembly, "si_alarm");
+    setChecklistDone(checklistEls.si_closes, !!fl.siRuleBaseCloses, "si_closes");
   }
   function nextHint(){
     if (state.stage.startsWith("gate_")){
@@ -873,7 +895,7 @@ function updateChecklist(){
       flowName:"Gate", stage:"gate_approach", misses:0, lastIntent:"", lastAsked:"",
       visitor:v,
       facts:{ name:"", purpose:"", appt:"yes", who:"", time:"", about:"", location:"", meetingTime:"", locationCode:"" },
-      flags:{ idChecked:false, reportedSupervisor:false, rulesDone:false, sentToPersonSearch:false, psSharpAsked:false, psRemoveOuter:false, psPositioned:false, psExplainArmpits:false, psExplainWaist:false, psLegOnKnee:false, psItemsOk:false, psCleared:false, siIssued:false },
+      flags:{ idChecked:false, reportedSupervisor:false, rulesDone:false, sentToPersonSearch:false, psSharpAsked:false, psRemoveOuter:false, psPositioned:false, psExplainArmpits:false, psExplainWaist:false, psLegOnKnee:false, psItemsOk:false, psCleared:false, siIssued:false, siRuleVisible:false, siRuleShowOnRequest:false, siRuleReturnOnExit:false, siRuleAlarmAssembly:false, siRuleBaseCloses:false },
       ui:{ idVisible:false, supervisorVisible:false },
       ps:null, pass:null,
       evasiveFor: pick(["purpose","who_meeting","about_meeting","where_meeting","time_meeting"])
@@ -1146,9 +1168,57 @@ function updateChecklist(){
     miss('Person Search: ask about sharp objects, ask them to remove jacket/headgear, give positioning, explain where you will search (armpits + waistband), give the leg-on-knee instruction, check the items, then clear them to sign-in.');
   }
 
-  function handleSI(){
+  function handleSI(intent, raw){
     showSignIn();
-    miss("Fill in the register on the right, then issue the visitor pass.");
+    const n = String(raw||"");
+    if (intent==="si_sign_in"){
+      enqueueVisitor("Okay. Please sign in on the register.");
+      updateHint();
+      return;
+    }
+    if (intent==="si_issue_pass"){
+      state.flags.siIssued = true;
+      updateChecklist();
+      enqueueVisitor("Here is your visitor pass.");
+      updateHint();
+      return;
+    }
+    if (intent==="si_rule_visible"){
+      state.flags.siRuleVisible = true;
+      updateChecklist();
+      enqueueVisitor("Okay. I will wear it visibly.");
+      updateHint();
+      return;
+    }
+    if (intent==="si_rule_show"){
+      state.flags.siRuleShowOnRequest = true;
+      updateChecklist();
+      enqueueVisitor("Understood. I will show it on request.");
+      updateHint();
+      return;
+    }
+    if (intent==="si_rule_return"){
+      state.flags.siRuleReturnOnExit = true;
+      updateChecklist();
+      enqueueVisitor("Okay. I'll return it when I leave.");
+      updateHint();
+      return;
+    }
+    if (intent==="si_rule_alarm"){
+      state.flags.siRuleAlarmAssembly = true;
+      updateChecklist();
+      enqueueVisitor("Okay. I will go to the assembly area if there is an alarm.");
+      updateHint();
+      return;
+    }
+    if (intent==="si_rule_closes"){
+      state.flags.siRuleBaseCloses = true;
+      updateChecklist();
+      enqueueVisitor("Okay.");
+      updateHint();
+      return;
+    }
+    miss("Sign-in: sign the register, issue the visitor pass, then explain the pass rules.");
   }
 
   function handleStudent(raw){
