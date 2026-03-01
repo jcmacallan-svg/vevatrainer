@@ -402,23 +402,29 @@
 
   const q=[]; let tmr=null; let approach=null;
   
-  function enqueueVisitor(text){
-    // Create typing bubble
-    const typingBubble = addMessage("visitor","...");
-    typingBubble.classList.add("typing");
-    
-    // Calculate dynamic delay based on text length
-    const baseMin = 2000;   // 2 sec
-    const baseMax = 4000;   // 4 sec base random
-    const lengthFactor = Math.min(text.length * 35, 4000); // longer text = longer wait
+    function enqueueVisitor(text){
+    // Show typing dots for 2–4s + extra time for longer messages
+    const t = String(text||"");
+    typingVisitor = true;
+    renderTyping();
+
+    const baseMin = 2000;
+    const baseMax = 4000;
     const randomBase = Math.floor(Math.random() * (baseMax - baseMin + 1)) + baseMin;
+    const lengthFactor = Math.min(t.length * 35, 4000);
     const delay = randomBase + lengthFactor;
-    
+
     setTimeout(()=>{
-      typingBubble.classList.remove("typing");
-      typingBubble.textContent = text;
+      typingVisitor = false;
+      // remove any pending typing placeholder and render
+      addMsg("visitor", t);
+      window.VEVA_LOG?.({type:"visitor", stage: state?.stage, text: t});
+      speakVisitor(t);
+      renderChat();
+      updateHint();
     }, delay);
   }
+
 
   function drain(){
     if (tmr || !q.length) return;
@@ -636,7 +642,8 @@ if (state.stage.startsWith("si_")) showSignIn();
 
     // missed marking: Gate keys after supervisor contact / move to PS / explicit lock
     const missableGate = new Set(["gate_name","gate_purpose","gate_appt","gate_who","gate_time","gate_about","gate_where","gate_id","gate_supervisor","gate_rules"]);
-    const missablePS = new Set(["ps_sharp","ps_remove","ps_position","ps_explain_armpits","ps_explain_waist","ps_leg","ps_items_ok","ps_cleared"]);\n    const missableSI = new Set(["si_issued","si_visible","si_show","si_return","si_alarm","si_closes"]);
+    const missablePS = new Set(["ps_sharp","ps_remove","ps_position","ps_explain_armpits","ps_explain_waist","ps_leg","ps_items_ok","ps_cleared"]); 
+    const missableSI = new Set(["si_issued","si_visible","si_show","si_return","si_alarm","si_closes"]);
 
     const gateMiss = !!fl.sentToPersonSearch;
     const psMiss = !!fl.sentToSignIn;
@@ -948,9 +955,6 @@ function updateChecklist(){
       state.stage="gate_5wh";
     }
 
-      miss('Try: “How can I help you?”'); return;
-    }
-
     if (intent==="ask_name"){
       state.flags.nameAsked = true;
       updateChecklist(); state.facts.name=state.visitor.name; enqueueVisitor(`My name is ${state.visitor.first}.`); updateHint(); return; }
@@ -1024,7 +1028,7 @@ function updateChecklist(){
     if (intent==="ask_illegal"){
       state.flags.illegalAsked = true;
       // If the student asks specifically about weapons/drugs/alcohol, visitor can answer directly.
-      if (/(weapons?|knife|knives|gun|firearm|ammo|drugs?|narcotics?|alcohol)/i.test(rawN)){
+      if (/\b(weapons?|knife|knives|gun|firearm|ammo|drugs?|narcotics?|alcohol)\b/i.test(rawN)){
         if (state.visitor?.illegalItem){
           enqueueVisitor(`Yes. I have ${state.visitor.illegalItem}.`);
         } else {
