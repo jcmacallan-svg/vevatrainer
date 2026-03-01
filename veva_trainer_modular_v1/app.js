@@ -289,7 +289,7 @@
     
     // Robust Gate patterns (always-on)
     if (/\b(what\s*(is|'s)\s*your\s*name|your\s*name\s*please)\b/i.test(n)) return "ask_name";
-    if (/\b(surname|last\s*name|family\s*name)\b/i.test(n) && /\bwhat\b/i.test(n)) return "ask_name";
+    if (/\b(surname|last\s*name|family\s*name)\b/i.test(n) && /\bwhat\b/i.test(n)) return "ask_surname";
     if (/\b(purpose|reason)\b.*\b(visit|here)\b|\bwhy\s+are\s+you\s+here\b/i.test(n)) return "ask_purpose";
     if (/\bdo\s+you\s+have\s+an?\s+appointment\b|\bappointment\?\b/i.test(n)) return "ask_appt";
     if (/\bwho\b.*\b(meeting|appointment|see|seeing|contact)\b|\bpoint\s+of\s+contact\b/i.test(n)) return "ask_who";
@@ -388,10 +388,25 @@
   }
 
   const q=[]; let tmr=null; let approach=null;
+  
   function enqueueVisitor(text){
-    const t=String(text||"").trim(); if(!t) return;
-    q.push(t); drain();
+    // Create typing bubble
+    const typingBubble = addMessage("visitor","...");
+    typingBubble.classList.add("typing");
+    
+    // Calculate dynamic delay based on text length
+    const baseMin = 2000;   // 2 sec
+    const baseMax = 4000;   // 4 sec base random
+    const lengthFactor = Math.min(text.length * 35, 4000); // longer text = longer wait
+    const randomBase = Math.floor(Math.random() * (baseMax - baseMin + 1)) + baseMin;
+    const delay = randomBase + lengthFactor;
+    
+    setTimeout(()=>{
+      typingBubble.classList.remove("typing");
+      typingBubble.textContent = text;
+    }, delay);
   }
+
   function drain(){
     if (tmr || !q.length) return;
     // typing dot
@@ -607,7 +622,7 @@ if (state.stage.startsWith("si_")) showSignIn();
     if (box){ box.checked = !!doneVal; box.indeterminate = false; }
 
     // missed marking: Gate keys after supervisor contact / move to PS / explicit lock
-    const missableGate = new Set(["gate_name","gate_purpose","gate_appt","gate_who","gate_time","gate_about","gate_where","gate_id","gate_rules"]);
+    const missableGate = new Set(["gate_name","gate_purpose","gate_appt","gate_who","gate_time","gate_about","gate_where","gate_id","gate_supervisor","gate_rules"]);
     const missablePS = new Set(["ps_sharp","ps_remove","ps_position","ps_explain_armpits","ps_explain_waist","ps_leg","ps_items_ok","ps_cleared"]);
 
     const gateMiss = !!fl.reportedSupervisor || !!fl.sentToPersonSearch || !!fl.gateLocked;
@@ -901,18 +916,22 @@ function updateChecklist(){
   }
 
   function handleGate(intent, raw){
-    if (state.stage==="gate_start"){
-      if (intent==="greet"){ state.stage="gate_help"; enqueueVisitor(phrase("shared","need_help",state)); updateHint(); return; }
-      miss("Try greeting first."); return;
+    // Normalize intent keys (detectIntent uses ask_*; handlers use legacy keys)
+    const rawN = String(raw||"");
+    const map = { ask_purpose:"purpose", ask_where:"where_meeting", ask_appt:"has_appointment", ask_who:"who_meeting", ask_time:"time_meeting", ask_about:"about_meeting" };
+    if (map[intent]) intent = map[intent];
+
+    if (state.stage==="gate_start" || state.stage==="gate_help"){
+      // Allow jumping straight into questions (no mandatory "How can I help")
+      state.stage="gate_5wh";
     }
-    if (state.stage==="gate_help"){
-      if (intent==="help_open"){ state.stage="gate_5wh"; enqueueVisitor("I have an appointment on base."); state.facts.purpose="known"; updateHint(); return; }
+
       miss('Try: “How can I help you?”'); return;
     }
 
     if (intent==="ask_name"){
       state.flags.nameAsked = true;
-      updateChecklist(); state.facts.name=state.visitor.name; enqueueVisitor(`My name is ${state.visitor.first} ${state.visitor.last}.`); updateHint(); return; }
+      updateChecklist(); state.facts.name=state.visitor.name; enqueueVisitor(`My name is ${state.visitor.first}.`); updateHint(); return; }
     if (intent==="ask_surname"){
       state.flags.nameAsked = true;
       updateChecklist(); enqueueVisitor(`My surname is ${state.visitor.last}.`); updateHint(); return; }
@@ -982,7 +1001,17 @@ function updateChecklist(){
 
     if (intent==="ask_illegal"){
       state.flags.illegalAsked = true;
-      enqueueVisitor("What do you mean by illegal items?");
+      // If the student asks specifically about weapons/drugs/alcohol, visitor can answer directly.
+      if (/(weapons?|knife|knives|gun|firearm|ammo|drugs?|narcotics?|alcohol)/i.test(rawN)){
+        if (state.visitor?.illegalItem){
+          enqueueVisitor(`Yes. I have ${state.visitor.illegalItem}.`);
+        } else {
+          enqueueVisitor("No, I don\'t have any weapons, drugs or alcohol with me.");
+        }
+      } else {
+        enqueueVisitor("What do you mean by illegal items?");
+      }
+      updateChecklist();
       updateHint();
       return;
     }
