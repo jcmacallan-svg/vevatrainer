@@ -28,6 +28,7 @@
   const btnDeny = $("#btnDeny");
   const btnEndScenario = $("#btnEndScenario");
   const btnPhrases = $("#btnPhrases");
+  const btnGoAppointment = $("#btnGoAppointment");
   const sidePills = $("#sidePills");
   const topPills = $("#topPills");
   const summaryModal = $("#summaryModal");
@@ -107,7 +108,7 @@
     const portraitRow = $("#portraitRow");
     if(!portraitRow) return;
 
-    const els = [
+    const panels = [
       $("#idCardWrap"),
       $("#supervisorPanel"),
       $("#personSearchPanel"),
@@ -115,13 +116,12 @@
       $("#passPanel"),
     ].filter(Boolean);
 
-    const anyVisible = els.some(el=>{
-      const cs = window.getComputedStyle(el);
-      return cs.display !== "none" && cs.visibility !== "hidden" && !el.hidden;
-    });
-
-    portraitRow.hidden = !!anyVisible;
+    const anyVisible = panels.some(el => !el.hidden && el.style.display !== "none");
     portraitRow.style.display = anyVisible ? "none" : "";
+    portraitRow.hidden = anyVisible;
+
+    // Also expose a body class for CSS fallback
+    try{ document.body.classList.toggle("hasPopup", anyVisible); }catch{}
   }
   const passNo = $("#passNo");
   const passName = $("#passName");
@@ -142,6 +142,7 @@
     gate_where: $("#cl_gate_where"),
     gate_id: $("#cl_gate_id"),
     gate_supervisor: $("#cl_gate_supervisor"),
+    gate_search: $("#cl_gate_search"),
     gate_rules: $("#cl_gate_rules"),
     gate_send_ps: $("#cl_gate_send_ps"),
 
@@ -149,10 +150,6 @@
     ps_sharp: $("#cl_ps_sharp"),
     ps_remove: $("#cl_ps_remove"),
     ps_position: $("#cl_ps_position"),
-    ps_explain_armpits: $("#cl_ps_explain_armpits"),
-    ps_explain_waist: $("#cl_ps_explain_waist"),
-    ps_leg: $("#cl_ps_leg"),
-    ps_items_ok: $("#cl_ps_items_ok"),
     ps_cleared: $("#cl_ps_cleared"),
 
     // Sign-in
@@ -344,6 +341,10 @@
     if (/\bwhat\b/i.test(n) && /\b(appointment|meeting)\b/i.test(n) && /\babout\b/i.test(n)) return "about_meeting";
     
     // Illegal items check
+    // Explain search due to threat level (separate from illegal items)
+    if ((/\b(everyone|everybody|all\s+visitors?)\b/i.test(n) && /\b(search(ed)?|pat\s*down|screen(ed)?)\b/i.test(n)) && (/\b(threat|security)\b/i.test(n) || /\b(increase(d)?|elevate(d)?)\b/i.test(n) || /\bprocedure\b/i.test(n))) return "search_announce";
+    if (/\b(due\s+to|because\s+of)\b/i.test(n) && /\b(threat|security)\b/i.test(n) && /\b(search|searched|pat\s*down)\b/i.test(n)) return "search_announce";
+
     if (/\b(illegal\s+items?|prohibited\s+items?|contraband|banned\s+items?)\b/i.test(n) && /\b(do\s+you\s+have|any|carrying|with\s+you|on\s+you|in\s+your\s+(bag|car|vehicle))\b/i.test(n)) return "ask_illegal";
     if (/\b(weapons?|knife|knives|gun|firearm|ammo|drugs?|narcotics?|alcohol|booze)\b/i.test(n) && /\b(do\s+you\s+have|any|carrying|with\s+you|on\s+you)\b/i.test(n)) return "ask_illegal";
     if (/\b(what\s+do\s+you\s+mean|what\s+does\s+that\s+mean|what\s+is\s+that\s+supposed\s+to\s+mean)\b/i.test(n)) return "illegal_clarify";
@@ -381,6 +382,8 @@
 
     // Positioning
     if (/\bstand\s+still\b|\bhands\s+on\s+the\s+wall\b|\bfeet\s+apart\b|\bface\s+the\s+wall\b/i.test(n)) return "ps_position";
+    if (/\bspread\b/i.test(n) && /\b(arms?|hands?)\b/i.test(n) && /\b(legs?|feet)\b/i.test(n)) return "ps_position";
+    if (/\b(arms?|hands?)\b[^.]{0,30}\bapart\b/i.test(n) && /\b(legs?|feet)\b[^.]{0,30}\bapart\b/i.test(n)) return "ps_position";
 
     // Search statements (wording can be "I am going to search under/around ...")
     if (/\b(armpit|armpits)\b/i.test(n) || /\bunder\s+your\s+arms?\b/i.test(n)){
@@ -397,6 +400,11 @@
     // Items checked
     if (/\b(i\s*(have\s*)?checked\s+your\s+items?|i\s*am\s*going\s*to\s*check\s+your\s+items?|i\s*will\s*check\s+your\s+items?|i\s*am\s*checking\s+your\s+items?)\b/i.test(n)) return "ps_check_items";
     if (/\b(everything\s+is\s+ok|looks\s+fine|items?\s+are\s+ok|all\s+items?\s+are\s+ok|nothing\s+found|no\s+issues)\b/i.test(n)) return "ps_check_items";
+    // Clearance phrasing: can be used with or without explicitly mentioning sign-in.
+    if (/\b(i\s*(have\s*)?checked\s+everything|i\s*have\s*checked\s+everything|i\s*checked\s+everything)\b/i.test(n) && /\b(ok(ay)?|clear|good\s+to\s+go|you\s*\'?re\s+ok|you\s*\'?re\s+okay|you\s*\'?re\s+good)\b/i.test(n)){
+      if (/\b(sign\s*in|register|sign-in|office)\b/i.test(n)) return "go_sign_in";
+      return "ps_clear";
+    }
     if (/\b(clear(ed)?\s+to\s+(proceed|go)|you\s+are\s+clear|free\s+to\s+proceed|ok(ay)?\s+to\s+proceed)\b/i.test(n) && /\b(sign\s*in|register|sign-in|office)\b/i.test(n)) return "go_sign_in";
 
     // IMPORTANT: explicit "go to sign-in office" must win over generic "sign in" intent.
@@ -408,7 +416,8 @@
     if (/\b(sign\s*in|register|sign\s+here|signature)\b/i.test(n)) return "si_sign_in";
     if ((/\b(issue|give|hand)\b/i.test(n) || /\bhere\s+is\b/i.test(n)) && /\b(visitor\s*pass|pass|badge)\b/i.test(n)) return "si_issue_pass";
     if (/\b(pass|badge)\b/i.test(n) && /\b(VP-\d{4}|\d{3,6})\b/i.test(n)) return "si_pass_no";
-    if (/\b(pass|badge)\b/i.test(n) && (/\b(visible|wear|display)\b/i.test(n) || (/\bkeep\b/i.test(n) && /\bvisible\b/i.test(n)))) return "si_rule_visible";
+    // "wear" is sometimes transcribed as "where" by STT/TTS confusion – accept both.
+    if (/\b(pass|badge)\b/i.test(n) && (/\b(visible|wear|where|display)\b/i.test(n) || (/\bkeep\b/i.test(n) && /\bvisible\b/i.test(n)))) return "si_rule_visible";
     if ((/\b(show|present|display)\b/i.test(n)) && (/\b(on\s+request|when\s+asked|if\s+asked|upon\s+request|requested)\b/i.test(n) || (/\brequest\b/i.test(n) && /\b(show|present|display)\b/i.test(n)))) return "si_rule_show";
     if ((/\b(return|hand\s+back|give\s+back)\b/i.test(n)) && (/\b(on\s+exit|when\s+you\s+leave|when\s+leaving|when\s+you\s+exit|before\s+you\s+leave|at\s+the\s+gate)\b/i.test(n) || /\b(exit|leave)\b/i.test(n))) return "si_rule_return";
     if (/\b(alarm|fire\s+alarm|assembly\s*(point|area)|muster\s*point)\b/i.test(n)) return "si_rule_alarm";
@@ -586,6 +595,7 @@
   // portrait visibility handled by syncPortraitVisibility()  // portrait visibility handled by syncPortraitVisibility()
 
     idCardWrap.hidden=false;
+    syncPortraitVisibility();
 
     if (idScenario) idScenario.textContent = state.flowName || "Gate";
     if (idLevel) idLevel.textContent = String(session.difficulty||"standard").toUpperCase();
@@ -622,6 +632,7 @@
     if (sv_waarom) sv_waarom.value = fl.aboutAsked ? (state.facts?.aboutText || "") : "";
     if (sv_note) sv_note.textContent = "";
     supervisorPanel.hidden=false;
+    syncPortraitVisibility();
     if (supervisorPhoto) supervisorPhoto.src = supervisorAvatar.src || soldierAvatar.src;
     state.ui.supervisorVisible=true;
     if (panelTitle) panelTitle.textContent="Supervisor";
@@ -656,6 +667,7 @@ if (state.stage.startsWith("si_")) showSignIn();
     hideAllPanels();
     // Keep portrait row visible during Person Search
 personSearchPanel.hidden=false;
+    syncPortraitVisibility();
     if (panelTitle) panelTitle.textContent="Person Search";
     if (panelSub) panelSub.textContent="Search procedure";
     renderPS();
@@ -693,6 +705,7 @@ personSearchPanel.hidden=false;
 function showSignIn(){
     hideAllPanels();
     signInPanel.hidden=false;
+    syncPortraitVisibility();
     if (panelTitle) panelTitle.textContent="Sign-in";
     if (panelSub) panelSub.textContent="Register + pass";
 
@@ -733,6 +746,7 @@ function showSignIn(){
     const portraitRow = $("#portraitRow");
   // portrait visibility handled by syncPortraitVisibility()  // portrait visibility handled by syncPortraitVisibility()
     passPanel.hidden=false;
+    syncPortraitVisibility();
     if (panelTitle) panelTitle.textContent="Sign-in";
     if (panelSub) panelSub.textContent="Visitor pass issued";
     state.pass = state.pass || {};
@@ -800,13 +814,14 @@ function showSignIn(){
         <label class="clItem" id="cl_gate_where"><input type="checkbox" disabled> <span>Where</span></label>
         <label class="clItem" id="cl_gate_id"><input type="checkbox" disabled> <span>ID checked & returned</span></label>
         <label class="clItem" id="cl_gate_supervisor"><input type="checkbox" disabled> <span>Supervisor report (NL)</span></label>
-        <label class="clItem" id="cl_gate_rules"><input type="checkbox" disabled> <span>Rules explained</span></label>
+        <label class="clItem" id="cl_gate_search"><input type="checkbox" disabled> <span>Explain search (increased threat)</span></label>
+        <label class="clItem" id="cl_gate_rules"><input type="checkbox" disabled> <span>Illegal items check</span></label>
         <label class="clItem" id="cl_gate_send_ps"><input type="checkbox" disabled> <span>Sent to person search</span></label>
       </div>`;
     // rebind references if cache delivered old HTML
     checklistEls.gate_name = $("#cl_gate_name"); checklistEls.gate_purpose=$("#cl_gate_purpose"); checklistEls.gate_appt=$("#cl_gate_appt");
     checklistEls.gate_who=$("#cl_gate_who"); checklistEls.gate_time=$("#cl_gate_time"); checklistEls.gate_about=$("#cl_gate_about"); checklistEls.gate_where=$("#cl_gate_where");
-    checklistEls.gate_id=$("#cl_gate_id"); checklistEls.gate_supervisor=$("#cl_gate_supervisor"); checklistEls.gate_rules=$("#cl_gate_rules"); checklistEls.gate_send_ps=$("#cl_gate_send_ps");
+    checklistEls.gate_id=$("#cl_gate_id"); checklistEls.gate_supervisor=$("#cl_gate_supervisor"); checklistEls.gate_search=$("#cl_gate_search"); checklistEls.gate_rules=$("#cl_gate_rules"); checklistEls.gate_send_ps=$("#cl_gate_send_ps");
   }
 
   function setChecklistDone(el, done, key){
@@ -826,8 +841,8 @@ function showSignIn(){
     if (box){ box.checked = !!doneVal; box.indeterminate = false; }
 
     // missed marking: Gate keys after supervisor contact / move to PS / explicit lock
-    const missableGate = new Set(["gate_name","gate_purpose","gate_appt","gate_who","gate_time","gate_about","gate_where","gate_id","gate_supervisor","gate_rules"]);
-    const missablePS = new Set(["ps_sharp","ps_remove","ps_position","ps_explain_armpits","ps_explain_waist","ps_leg","ps_items_ok","ps_cleared"]); 
+    const missableGate = new Set(["gate_name","gate_purpose","gate_appt","gate_who","gate_time","gate_about","gate_where","gate_id","gate_supervisor","gate_search","gate_rules"]);
+    const missablePS = new Set(["ps_sharp","ps_remove","ps_position","ps_cleared"]);
     const missableSI = new Set(["si_signed","si_issued","si_pass_no","si_visible","si_show","si_return","si_alarm","si_closes"]);
 
     const gateMiss = !!fl.sentToPersonSearch;
@@ -861,7 +876,10 @@ function showSignIn(){
       gate_time: !!fl.timeAsked,
       gate_about: !!fl.aboutAsked,
       gate_where: !!fl.whereAsked,
-      gate_id: !!fl.idChecked
+      gate_id: !!fl.idChecked,
+      gate_supervisor: !!fl.reportedSupervisor,
+      gate_search: !!fl.searchExplained,
+      gate_rules: !!fl.illegalDone
     };
   }
 
@@ -869,14 +887,12 @@ function showSignIn(){
     state.flags = state.flags || {};
     const fl = state.flags;
     fl.psLocked = true;
+    const outfit = state?.ps?.outfit || {};
+    const needsOuter = !!(outfit.jacket || outfit.cap || outfit.headgear || outfit.helmet);
     state.lockedPS = {
       ps_sharp: !!fl.psSharpAsked,
-      ps_remove: !!fl.psRemoveOuter,
+      ps_remove: (!needsOuter) || !!fl.psRemoveOuter,
       ps_position: !!fl.psPositioned,
-      ps_explain_armpits: !!fl.psExplainArmpits,
-      ps_explain_waist: !!fl.psExplainWaist,
-      ps_leg: !!fl.psLegOnKnee,
-      ps_items_ok: !!fl.psItemsOk,
       ps_cleared: !!fl.psCleared
     };
   }
@@ -895,19 +911,16 @@ function showSignIn(){
       gate_where: 'Example: "Where is the meeting / location?"',
       gate_id: 'Example: "May I see your ID, please?"',
       gate_supervisor: 'Example: "I will contact my supervisor and report this."',
+      gate_search: 'Example: "Due to an increased threat level, everyone will be searched."',
       gate_rules: 'Example: "Do you have any illegal items—weapons, drugs, or alcohol?"',
       gate_send_ps: 'Example: "Please follow me to the person search area."',
-      ps_pockets: 'Example: "Please empty your pockets on the table."',
-      ps_position: 'Example: "Stand still, hands on the wall, feet apart."',
+      ps_sharp: 'Example: "Do you have any sharp objects on you?"',
       ps_remove: 'Example: "Please remove your jacket and headgear."',
-      ps_armpits: 'Example: "I am going to search under your armpits."',
-      ps_waist: 'Example: "I am going to search around your waist / belt area."',
-      ps_leg: 'Example: "Please put your leg on my knee."',
-      ps_items_ok: 'Example: "I have checked your items and they are okay."',
-      ps_cleared: 'Example: "You are clear to proceed to the sign-in office."',
-      si_register: 'Example: "Please sign in here."',
-      si_pass_no: 'Example: "I am issuing visitor pass VP-1234."',
-      si_pass_hand: 'Example: "Here is your visitor pass."',
+      ps_position: 'Example: "Spread your arms and legs."',
+      ps_cleared: 'Example: "I\'ve checked everything—you\'re OK. Clear to proceed."',
+      si_signed: 'Example: "Please sign here."',
+      si_pass_no: 'Example: "Your pass number is VP-1234."',
+      si_issued: 'Example: "Here is your visitor pass."',
       si_rule_visible: 'Example: "Keep the pass visible at all times."',
       si_rule_show: 'Example: "Show it on request."',
       si_rule_return: 'Example: "Return it when you leave."',
@@ -1085,7 +1098,7 @@ function buildScenarioSummary(){
 
       const payload = {
         ts: new Date().toISOString(),
-        event: "endScenario",
+        event: eventName,
         student,
         className,
         runId: state.runId,
@@ -1111,7 +1124,8 @@ function buildScenarioSummary(){
     }catch{}
   }
 
-  function endScenarioNow(){
+  function endScenarioNow(eventName){
+    eventName = eventName || "endScenario";
     state.flags.ended = true;
     try{ inputEl.disabled = true; }catch{}
     try{ sendBtn.disabled = true; }catch{}
@@ -1137,16 +1151,16 @@ function updateChecklist(){
     setChecklistDone(checklistEls.gate_where, !!fl.whereAsked, "gate_where");
     setChecklistDone(checklistEls.gate_id, !!fl.idChecked, "gate_id");
     setChecklistDone(checklistEls.gate_supervisor, !!fl.reportedSupervisor, "gate_supervisor");
+    setChecklistDone(checklistEls.gate_search, !!fl.searchExplained, "gate_search");
     setChecklistDone(checklistEls.gate_rules, !!fl.illegalDone, "gate_rules");
     setChecklistDone(checklistEls.gate_send_ps, !!fl.sentToPersonSearch, "gate_send_ps");
 
+    const outfit = state?.ps?.outfit || {};
+    const needsOuter = !!(outfit.jacket || outfit.cap || outfit.headgear || outfit.helmet);
     setChecklistDone(checklistEls.ps_sharp, !!fl.psSharpAsked, "ps_sharp");
-    setChecklistDone(checklistEls.ps_remove, !!fl.psRemoveOuter, "ps_remove");
+    // Only required if the visitor is actually wearing outerwear/headgear.
+    setChecklistDone(checklistEls.ps_remove, (!needsOuter) || !!fl.psRemoveOuter, "ps_remove");
     setChecklistDone(checklistEls.ps_position, !!fl.psPositioned, "ps_position");
-    setChecklistDone(checklistEls.ps_explain_armpits, !!fl.psExplainArmpits, "ps_explain_armpits");
-    setChecklistDone(checklistEls.ps_explain_waist, !!fl.psExplainWaist, "ps_explain_waist");
-    setChecklistDone(checklistEls.ps_leg, !!fl.psLegOnKnee, "ps_leg");
-    setChecklistDone(checklistEls.ps_items_ok, !!fl.psItemsOk, "ps_items_ok");
     setChecklistDone(checklistEls.ps_cleared, !!fl.psCleared, "ps_cleared");
 
     setChecklistDone(checklistEls.si_signed, !!fl.siSigned, "si_signed");
@@ -1170,11 +1184,12 @@ function updateChecklist(){
     if (!state.reachedSI) return;
 
     const gateOk = !!fl.nameAsked && !!fl.purposeAsked && !!fl.apptAsked && !!fl.whoAsked && !!fl.timeAsked && !!fl.aboutAsked && !!fl.whereAsked
-      && !!fl.idChecked && !!fl.reportedSupervisor && !!fl.illegalDone && !!fl.sentToPersonSearch;
+      && !!fl.idChecked && !!fl.reportedSupervisor && !!fl.searchExplained && !!fl.illegalDone && !!fl.sentToPersonSearch;
 
+    const outfit = state?.ps?.outfit || {};
+    const needsOuter = !!(outfit.jacket || outfit.cap || outfit.headgear || outfit.helmet);
     const psOk = !state.reachedPS || (
-      !!fl.psSharpAsked && !!fl.psRemoveOuter && !!fl.psPositioned && !!fl.psExplainArmpits && !!fl.psExplainWaist
-      && !!fl.psLegOnKnee && !!fl.psItemsOk && !!fl.psCleared
+      !!fl.psSharpAsked && (!!fl.psPositioned) && (!!fl.psCleared) && (!needsOuter || !!fl.psRemoveOuter)
     );
 
     const siOk = !!fl.siSigned && !!fl.siIssued && !!fl.siPassNoStated && !!fl.siRuleVisible && !!fl.siRuleShowOnRequest
@@ -1198,14 +1213,15 @@ function nextHint(){
       if (!f.location) return 'Example: "Where is the appointment?"';
       if (!state.flags.idChecked) return 'Example: "Can I see your ID, please?"';
       if (!state.flags.reportedSupervisor) return 'Example: "I will contact my supervisor."';
-      if (!state.flags.rulesDone) return 'Example: "No weapons, drugs, or alcohol are allowed on base. If you have any of these items, please hand them in."';
+      if (!state.flags.searchExplained) return 'Example: "Due to an increased threat level, everyone will be searched."';
+      if (!state.flags.illegalDone) return 'Example: "Do you have any illegal items—weapons, drugs, or alcohol?"';
       if (!state.flags.sentToPersonSearch) return 'Example: "Please go to person search. My colleague will assist you."';
       return "Continue the procedure.";
     }
     if (state.stage.startsWith("ps_")){
-      if (!state.flags.psStarted) return "Tell them: Empty your pockets and place items on the table.";
-      if (!state.flags.psPositioned) return "Give instructions: arms out, palms up, legs apart.";
-      if (state.ps?.hasIllegal && !state.flags.psResolved) return "If you find something: ask them to take it out.";
+      if (!state.flags.psSharpAsked) return 'Example: "Do you have any sharp objects on you?"';
+      if (!state.flags.psPositioned) return 'Example: "Spread your arms and legs."';
+      if (!state.flags.psCleared) return 'Example: "I\'ve checked everything—you\'re OK. Clear to proceed."';
       return "Proceed to sign-in.";
     }
     if (state.stage.startsWith("si_")){
@@ -1227,7 +1243,7 @@ function nextHint(){
       flowName:"Gate", stage:"gate_approach", misses:0, lastIntent:"", lastAsked:"",
       visitor:v,
       facts:{ name:"", purpose:"", appt:"yes", who:"", time:"", about:"", location:"", meetingTime:"", locationCode:"", purposeText:"", whoText:"", aboutText:"", whereText:"", company:"" },
-      flags:{ idChecked:false, reportedSupervisor:false, rulesDone:false, sentToPersonSearch:false, psSharpAsked:false, psRemoveOuter:false, psPositioned:false, psExplainArmpits:false, psExplainWaist:false, psLegOnKnee:false, psItemsOk:false, psCleared:false, siIssued:false, siRuleVisible:false, siRuleShowOnRequest:false, siRuleReturnOnExit:false, siRuleAlarmAssembly:false, siRuleBaseCloses:false },
+      flags:{ idChecked:false, reportedSupervisor:false, searchExplained:false, illegalDone:false, sentToPersonSearch:false, psSharpAsked:false, psRemoveOuter:false, psPositioned:false, psCleared:false, siIssued:false, siRuleVisible:false, siRuleShowOnRequest:false, siRuleReturnOnExit:false, siRuleAlarmAssembly:false, siRuleBaseCloses:false },
       ui:{ idVisible:false, supervisorVisible:false },
       ps:null, pass:null,
       evasiveFor: pick(["purpose","who_meeting","about_meeting","where_meeting","time_meeting"])
@@ -1404,7 +1420,14 @@ function nextHint(){
       updateHint();
       return;
     }
-    if (intent==="explain_illegal" || intent==="rules_contraband" || intent==="search_announce"){
+    if (intent==="search_announce"){
+      state.flags.searchExplained = true;
+      enqueueVisitor("Okay, I understand.");
+      updateChecklist();
+      updateHint();
+      return;
+    }
+    if (intent==="explain_illegal" || intent==="rules_contraband"){
       state.flags.illegalExplained = true;
       enqueueVisitor("Okay, I understand.");
       updateHint();
@@ -1554,7 +1577,7 @@ function nextHint(){
       return;
     }
 
-    miss('Person Search: ask about sharp objects, ask them to remove jacket/headgear, give positioning, explain where you will search (armpits + waistband), give the leg-on-knee instruction, check the items, then clear them to sign-in.');
+    miss('Person Search: ask about sharp objects, remove jacket/headgear if needed, give positioning (spread arms and legs), then clear the person (e.g., "I\'ve checked everything—you\'re OK. Clear to proceed.").');
   }
 
   
@@ -1886,7 +1909,8 @@ btnSend?.addEventListener("click", ()=>{
 
   btnPersonSearch?.addEventListener("click", ()=> handleStudent("Go to person search"));
   btnSignIn?.addEventListener("click", ()=> handleStudent("Go to sign-in office"));
-  btnEndScenario?.addEventListener("click", ()=> endScenarioNow());
+  btnEndScenario?.addEventListener("click", ()=> endScenarioNow("endScenario"));
+  btnGoAppointment?.addEventListener("click", ()=> endScenarioNow("goAppointment"));
   btnCloseSummary?.addEventListener("click", ()=>{ if(summaryModal) summaryModal.hidden=true; });
   btnDeny?.addEventListener("click", ()=> enqueueVisitor(phrase("shared","deny_why",state)));
 
