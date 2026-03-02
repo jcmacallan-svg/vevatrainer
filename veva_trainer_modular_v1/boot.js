@@ -26,12 +26,35 @@ window.BUILD = { version: "8.0.5-modular+v1_7_20", name: "VEVA Ingang/Uitgang Tr
             load("patches/gate/phrasebank_gate_en.js", function () {
               load("patches/gate/flow_gate.js", function(){
 
-                load("patches/person_search/intents_person_search_en.js", function(){
-                  load("patches/person_search/phrasebank_person_search_en.js", function(){
-                    load("patches/person_search/visuals_person_search.js", function(){
-                      load("patches/person_search/tabletop_renderer.js", function(){
-                        load("patches/person_search/flow_person_search.js", function(){
+                // --- Person Search chain ---
+load("patches/person_search/intents_person_search_en.js", function(){
+  load("patches/person_search/phrasebank_person_search_en.js", function(){
+    load("patches/person_search/visuals_person_search.js", function(){
+      load("patches/person_search/tabletop_renderer.js", function(){
+        load("patches/person_search/flow_person_search.js", function(){
 
+          // vervolg (zoals jij het al had)
+          load("patches/sign_in/intents_signin_en.js", function(){
+            load("patches/sign_in/phrasebank_signin_en.js", function(){
+              load("patches/sign_in/flow_signin.js", function(){
+
+                load("patches/return_pass/intents_return_en.js", function(){
+                  load("patches/return_pass/phrasebank_return_en.js", function(){
+                    load("patches/return_pass/flow_return.js", function(){
+                      load("app.js");
+                    });
+                  });
+                });
+
+              });
+            });
+          });
+
+        });
+      });
+    });
+  });
+});
                         load("patches/sign_in/intents_signin_en.js", function(){
                           load("patches/sign_in/phrasebank_signin_en.js", function(){
                             load("patches/sign_in/flow_signin.js", function(){
