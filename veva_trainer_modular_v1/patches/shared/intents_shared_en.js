@@ -12,7 +12,7 @@
   add("go_person_search", /\b(go to|walk to|proceed to).*(person search|search area)\b/i);
   add("go_sign_in", /\b(go to|walk to|proceed to).*(sign(-|\s)?in|reception)\b/i);
 
-  add("ask_id", /\b(can i see|show me|may i see|do you have).*(id|identification|passport)\b/i);
+  add("ask_id", /\b(can i see|show me|may i see).*(id|identification|passport)\b/i);
   add("return_id", /\b(return|here'?s).*(id|passport)\b/i);
 
   // 5W/H identity / control questions

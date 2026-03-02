@@ -277,16 +277,16 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 .checklistPanel .checkList li{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
 .checklistPanel .checkList li span{display:block;line-height:1.25;}
 .checklistPanel .checkList li::before{margin-right:6px;flex:0 0 auto;}
-.hintBand{grid-column:1;grid-row:2;}
-.bottomPanel{grid-column:1;grid-row:3;}
+.bottomPanel{grid-column:1;grid-row:2;}
+.hintBand{grid-column:1;grid-row:3;}
 .inputBar{grid-column:1;grid-row:4;}
 
 @media (max-width: 1100px){
   .content{grid-template-columns: 1fr auto;grid-template-rows:minmax(0,1fr) auto auto auto auto;}
   .chatPanel{grid-column:1;grid-row:1;}
   .checklistPanel{grid-column:1;grid-row:2;position:static;max-height:30vh;}
-  .hintBand{grid-column:1;grid-row:3;}
-  .bottomPanel{grid-column:1;grid-row:4;}
+  .bottomPanel{grid-column:1;grid-row:3;}
+  .hintBand{grid-column:1;grid-row:4;}
   .inputBar{grid-column:1;grid-row:5;}
 }
 
@@ -653,8 +653,8 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
   justify-content:center;
 }
 .sigSvg{ width:100%; height:100%; }
-.sigPath{ fill:none; stroke:rgba(255,255,255,0.9); stroke-width:3; stroke-linecap:round; stroke-linejoin:round; stroke-dasharray:1400; stroke-dashoffset:1400; }
-.sigRun .sigPath{ animation:sigdraw 1.5s ease-out forwards; }
+.sigPath{ fill:none; stroke:rgba(255,255,255,0.9); stroke-width:3; stroke-linecap:round; stroke-linejoin:round; stroke-dasharray:900; stroke-dashoffset:900; }
+.sigRun .sigPath{ animation:sigdraw 1.2s ease-out forwards; }
 @keyframes sigdraw{ to{ stroke-dashoffset:0; } }
 
 /* Rules box revealed after signing */
@@ -686,7 +686,8 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
   stroke-width: 4;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-dasharray:1400; stroke-dashoffset:1400;
+  stroke-dasharray: 900;
+  stroke-dashoffset: 900;
   opacity: .9;
 }
 .sigBox.sigRun .sigPath{
@@ -717,13 +718,3 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
   outline:none;
 }
 .notesPad::placeholder{ color:rgba(230,237,243,0.65); }
-
-
-/* Auto-hide portrait row when a bottom panel popup is active */
-body.hasPopup #portraitRow{display:none !important;}
-
-
-/* Sidebar helper text */
-.sideHelp{margin:10px 0 0; padding:10px 12px; border:1px solid rgba(255,255,255,.08); border-radius:12px; background:rgba(20,35,60,.35);}
-.sideHelpTitle{font-weight:700; margin-bottom:6px; font-size:12px; opacity:.95;}
-.sideHelpBody{font-size:12px; line-height:1.35; opacity:.85;}
