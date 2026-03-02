@@ -722,3 +722,9 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 
 /* Auto-hide portrait row when a bottom panel popup is active */
 body.hasPopup #portraitRow{display:none !important;}
+
+
+/* Sidebar helper text */
+.sideHelp{margin:10px 0 0; padding:10px 12px; border:1px solid rgba(255,255,255,.08); border-radius:12px; background:rgba(20,35,60,.35);}
+.sideHelpTitle{font-weight:700; margin-bottom:6px; font-size:12px; opacity:.95;}
+.sideHelpBody{font-size:12px; line-height:1.35; opacity:.85;}
