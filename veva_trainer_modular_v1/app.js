@@ -608,7 +608,34 @@ if (state.stage.startsWith("si_")) showSignIn();
     renderPS();
     updateHint();
   }
-  function showSignIn(){
+  
+  function setSignInView(mode){
+    // mode: "register" | "rules"
+    const titleEl = signInPanel ? signInPanel.querySelector(".cardTitle") : null;
+    const subEl = signInPanel ? signInPanel.querySelector(".cardSub") : null;
+    const chipEl = signInPanel ? signInPanel.querySelector(".chip") : null;
+
+    const isRules = (mode==="rules");
+    if (si_form){
+      si_form.hidden = isRules;
+      si_form.style.display = isRules ? "none" : "";
+    }
+    const sigLabel = signInPanel ? signInPanel.querySelector(".sigLabel") : null;
+    if (sigLabel){
+      sigLabel.hidden = isRules;
+      sigLabel.style.display = isRules ? "none" : "";
+    }
+    if (si_rulesForm){
+      si_rulesForm.hidden = !isRules;
+      si_rulesForm.style.display = isRules ? "" : "none";
+    }
+
+    if (titleEl) titleEl.textContent = isRules ? "Wachtconsignes" : "Sign-in Register";
+    if (subEl) subEl.textContent = isRules ? "Base rules briefing" : "Fill in the entry log.";
+    if (chipEl) chipEl.textContent = isRules ? "RULES" : "REGISTER";
+  }
+
+function showSignIn(){
     hideAllPanels();
     signInPanel.hidden=false;
     if (panelTitle) panelTitle.textContent="Sign-in";
@@ -642,9 +669,7 @@ if (state.stage.startsWith("si_")) showSignIn();
 
     // Signature / rules step:
     const signed = !!state.flags.siSigned;
-    if (si_form) si_form.hidden = signed;           // hide register form after signature
-    if (sigBox) sigBox.parentElement && (sigBox.parentElement.hidden = signed); // signature label hidden after signature
-    if (si_rulesForm) si_rulesForm.hidden = !signed;
+    setSignInView(signed ? "rules" : "register");
 
     updateHint();
   }
@@ -1504,7 +1529,7 @@ function handleSI(intent, raw){
       enqueueVisitor("Okay.");
 
       // After the signature is drawn, switch to the rules overview (register form hides, rules appear).
-      setTimeout(()=>{ try{ showSignIn(); }catch(e){} }, 900);
+      setTimeout(()=>{ try{ setSignInView("rules"); }catch(e){} }, 850);
 
       updateHint();
       return;
