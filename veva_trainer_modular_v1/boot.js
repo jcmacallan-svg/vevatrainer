@@ -1,5 +1,5 @@
 // boot.js
-window.BUILD = { version: "8.0.3-modular", name: "VEVA Ingang/Uitgang Trainer", date: "2026-03-02" };
+window.BUILD = { version: "8.0.4-modular", name: "VEVA Ingang/Uitgang Trainer", date: "2026-03-02" };
 
 (function () {
   // Safety stub for legacy cached patches

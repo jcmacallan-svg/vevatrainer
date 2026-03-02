@@ -369,6 +369,10 @@
     if (/\b(everything\s+is\s+ok|looks\s+fine|items?\s+are\s+ok|all\s+items?\s+are\s+ok|nothing\s+found|no\s+issues)\b/i.test(n)) return "ps_check_items";
     if (/\b(clear(ed)?\s+to\s+(proceed|go)|you\s+are\s+clear|free\s+to\s+proceed|ok(ay)?\s+to\s+proceed)\b/i.test(n) && /\b(sign\s*in|register|sign-in|office)\b/i.test(n)) return "go_sign_in";
 
+    // IMPORTANT: explicit "go to sign-in office" must win over generic "sign in" intent.
+    // Otherwise button text like "Go to Sign-in Office" gets misclassified as si_sign_in.
+    if (/\b(go\s+to|proceed\s+to|walk\s+to)\b.*\b(sign\s*-?in(\s+office)?|reception|sign\s*in\s+desk)\b/i.test(n)) return "go_sign_in";
+
     
     // Sign-in intents
     if (/\b(sign\s*in|register|sign\s+here|signature)\b/i.test(n)) return "si_sign_in";
