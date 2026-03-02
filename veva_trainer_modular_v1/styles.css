@@ -39,9 +39,8 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 .content{
   flex:1;
   display:grid;
-  /* Two columns on top (chat + checklist), bottom panel spans full width */
-  grid-template-columns: 1fr auto;
-  grid-template-rows: 1fr auto auto auto;
+  grid-template-columns: 1fr 340px;
+  grid-template-rows: 1fr auto auto;
   gap:12px;
   width:100%;
   min-height:0;
@@ -724,6 +723,19 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 
 .bottomPanel .hintBand{margin:8px 0 10px 0;}
 
-/* Hide portrait/photo strip inside supervisor card (we use full-width form) */
-#supervisorPanel .superRow img#supervisorPhoto{ display:none !important; }
-#supervisorPanel .superRow{ grid-template-columns: 1fr !important; }
+
+/* Grid placement to keep panes stable */
+.chatPanel{ grid-column:1; grid-row:1; }
+.checklistPanel{ grid-column:2; grid-row:1 / span 2; }
+.bottomPanel{ grid-column:1; grid-row:2; }
+.inputBar{ grid-column:1; grid-row:3; }
+
+@media (max-width: 980px){
+  .content{
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto auto auto;
+  }
+  .checklistPanel{ grid-column:1; grid-row:2; max-height: 260px; }
+  .bottomPanel{ grid-column:1; grid-row:3; }
+  .inputBar{ grid-column:1; grid-row:4; }
+}
