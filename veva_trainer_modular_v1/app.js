@@ -88,6 +88,7 @@
   const signInPanel = $("#signInPanel");
   const si_name = $("#si_name");
   const si_company = $("#si_company");
+  const sigBox = $("#sigBox");
   const si_poc = $("#si_poc");
   const si_time = $("#si_time");
   const si_loc = $("#si_loc");
@@ -247,6 +248,19 @@
     return hhmm;
   }
 
+  function generateCompany(state){
+    const v = state.visitor || {};
+    const first = (v.first||"").replace(/[^A-Za-z]/g,"");
+    const last = (v.last||"").replace(/[^A-Za-z]/g,"");
+    const pool = [
+      "NorthSea Logistics","DeltaTech Services","Orion Maintenance","Aegis Security Systems",
+      "Harborline Transport","Vector IT Consulting","BlueGate Facilities","Atlas Engineering"
+    ];
+    if (last) return `${last} ${pick(["Logistics","Consulting","Services","Transport","Maintenance"])}`;
+    if (first) return `${first}${pick(["Tech","Works","Logistics","Services"])}`;
+    return pick(pool);
+  }
+
   function fill(tpl, state){
     const v = state.visitor;
     state.facts.locationCode = state.facts.locationCode || String(randInt(1,9)).padStart(2,"0");
@@ -292,18 +306,20 @@
     if (/\bplace\s+all\s+items\b|\bon\s+the\s+table\b/i.test(n)) return "ps_items_table";
     if (/\barmpits\b/i.test(n) && /\bsearch|checking\b|\bam\s+going\s+to\b/i.test(n)) return "ps_explain_armpits";
     if (/\bwaist|waistband|belt\b/i.test(n) && /\bcheck|search|checking\b|\bam\s+checking\b/i.test(n)) return "ps_explain_waist";
-    if (/\bleg\b/i.test(n) && /\bknee\b/i.test(n)) return "ps_explain_leg";
+    // "Put your leg on my knee" should count as the leg-on-knee instruction
+    if (/\bleg\b/i.test(n) && /\bknee\b/i.test(n)) return "ps_leg_on_knee";
 
     
     // Robust Gate patterns (always-on)
     if (/\b(what\s*(is|'s)\s*your\s*name|your\s*name\s*please)\b/i.test(n)) return "ask_name";
-    if (/\b(surname|last\s*name|family\s*name)\b/i.test(n) && /\bwhat\b/i.test(n)) return "ask_surname";
+    if (/\b(surname|last\s*name|family\s*name)\b/i.test(n) && (/\bwhat\b/i.test(n) || /\byour\b/i.test(n))) return "ask_surname";
     if (/\b(purpose|reason)\b.*\b(visit|here)\b|\bwhy\s+are\s+you\s+here\b/i.test(n)) return "ask_purpose";
     if (/\bdo\s+you\s+have\s+an?\s+appointment\b|\bappointment\?\b/i.test(n)) return "ask_appt";
     if (/\bwho\b.*\b(meeting|appointment|see|seeing|contact)\b|\bpoint\s+of\s+contact\b/i.test(n)) return "ask_who";
     if (/\bwhat\s+time\b.*\bappointment\b|\bappointment\s+time\b/i.test(n)) return "ask_time";
     if (/\bwhat\b.*\b(meeting|appointment)\b.*\babout\b|\bmeeting\s+topic\b/i.test(n)) return "ask_about";
     if (/\bwhere\b.*\b(meeting|appointment|going)\b|\blocation\b/i.test(n)) return "ask_where";
+    if (/\b(company|employer|organization|organisation|firm)\b/i.test(n) && /\b(from|with|work\s*for|represent)\b/i.test(n)) return "ask_company";
 
     // Person Search patterns
     if (/\bdo\s+you\s+have\b.*\b(sharp|knife|needle|razor|blade)\b/i.test(n)) return "ps_ask_sharp";
@@ -328,7 +344,9 @@
     if (/\bleg\b/i.test(n) && /\bon\b/i.test(n) && /\bmy\s+knee\b/i.test(n)) return "ps_leg_on_knee";
 
     // Items checked
+    if (/\b(i\s*(have\s*)?checked\s+your\s+items?|i\s*am\s*going\s*to\s*check\s+your\s+items?|i\s*will\s*check\s+your\s+items?|i\s*am\s*checking\s+your\s+items?)\b/i.test(n)) return "ps_check_items";
     if (/\b(everything\s+is\s+ok|looks\s+fine|items?\s+are\s+ok|all\s+items?\s+are\s+ok|nothing\s+found|no\s+issues)\b/i.test(n)) return "ps_check_items";
+    if (/\b(clear(ed)?\s+to\s+(proceed|go)|you\s+are\s+clear|free\s+to\s+proceed|ok(ay)?\s+to\s+proceed)\b/i.test(n) && /\b(sign\s*in|register|sign-in|office)\b/i.test(n)) return "go_sign_in";
 
     
     // Sign-in intents
@@ -1049,6 +1067,8 @@ function updateChecklist(){
 
     if (intent==="ask_illegal"){
       state.flags.illegalAsked = true;
+      // For training: asking the illegal items question counts as completing the illegal-items check.
+      state.flags.illegalDone = true;
       // If the student asks specifically about weapons/drugs/alcohol, visitor can answer directly.
       if (/\b(weapons?|knife|knives|gun|firearm|ammo|drugs?|narcotics?|alcohol)\b/i.test(rawN)){
         if (state.visitor?.illegalItem){
@@ -1107,7 +1127,7 @@ function updateChecklist(){
     miss('Example: "What is the purpose of your visit today?" or "Can I see your ID, please?" or "I will contact my supervisor."');
   }
 
-  function handlePS(intent){
+  function handlePS(intent, raw){
     showPersonSearch();
 
     // Normalize legacy keys
@@ -1174,6 +1194,19 @@ function updateChecklist(){
       state.flags.psItemsOk = true;
       updateChecklist();
       enqueueVisitor("Okay.");
+
+      // If the student combines "items are OK" with a clearance instruction, allow immediate transition.
+      const n = normalize(raw||"");
+      if (/\b(clear(ed)?\s+to\s+(proceed|go)|you\s+are\s+clear|free\s+to\s+proceed|ok(ay)?\s+to\s+proceed)\b/i.test(n) && /\b(sign\s*in|register|sign-in|office)\b/i.test(n)){
+        state.flags.psCleared = true;
+        state.flags.sentToSignIn = true;
+        updateChecklist();
+        state.flowName="Sign-in";
+        state.stage="si_arrival";
+        showSignIn();
+        enqueueVisitor("Okay. I will proceed to sign-in.");
+      }
+
       updateHint();
       return;
     }
@@ -1197,8 +1230,66 @@ function updateChecklist(){
   function handleSI(intent, raw){
     showSignIn();
     const n = String(raw||"");
+
+    // Allow asking remaining 5W/H details at the sign-in office (if not already asked at the gate)
+    if (intent==="ask_company"){
+      state.flags.companyAsked = true;
+      state.facts.company = state.facts.company || generateCompany(state);
+      if (si_company && !si_company.value) si_company.value = state.facts.company;
+      enqueueVisitor(`I'm from ${state.facts.company}.`);
+      updateHint();
+      return;
+    }
+    if (intent==="ask_purpose" || intent==="purpose"){
+      state.flags.purposeAsked = true;
+      state.facts.purpose = state.facts.purpose || "known";
+      enqueueVisitor(phrase("gate","purpose",state, state.flags.forcedCoop ? "open":null));
+      updateHint();
+      return;
+    }
+    if (intent==="ask_who" || intent==="who_meeting"){
+      state.flags.whoAsked = true;
+      state.facts.who = state.facts.who || "known";
+      enqueueVisitor(phrase("gate","who_meeting",state, state.flags.forcedCoop ? "open":null));
+      updateHint();
+      return;
+    }
+    if (intent==="ask_time" || intent==="time_meeting"){
+      state.flags.timeAsked = true;
+      state.facts.time = state.facts.time || "known";
+      enqueueVisitor(`My appointment is at ${getMeetingTime(state)}.`);
+      updateHint();
+      return;
+    }
+    if (intent==="ask_about" || intent==="about_meeting"){
+      state.flags.aboutAsked = true;
+      state.facts.about = state.facts.about || "known";
+      enqueueVisitor(phrase("gate","about_meeting",state, state.flags.forcedCoop ? "open":null));
+      updateHint();
+      return;
+    }
+    if (intent==="ask_where" || intent==="where_meeting"){
+      state.flags.whereAsked = true;
+      state.facts.location = state.facts.location || "known";
+      enqueueVisitor(`At reception, building ${state.facts.locationCode}.`);
+      updateHint();
+      return;
+    }
+    if (intent==="ask_appt" || intent==="has_appointment"){
+      state.flags.apptAsked = true;
+      enqueueVisitor(phrase("gate","has_appointment_yes",state));
+      updateHint();
+      return;
+    }
     if (intent==="si_sign_in"){
-      enqueueVisitor("Okay. Please sign in on the register.");
+      // Visitor signs the register (student initiated)
+      state.flags.siSigned = true;
+      if (si_name && !si_name.value) si_name.value = state.visitor?.name || "";
+      if (si_poc && !si_poc.value) si_poc.value = state.visitor?.contact?.full || "";
+      if (si_time && !si_time.value) si_time.value = getMeetingTime(state);
+      if (si_loc && !si_loc.value) si_loc.value = state.facts.locationCode ? `Building ${state.facts.locationCode}` : (state.facts.location||"");
+      if (sigBox){ sigBox.hidden = false; sigBox.classList.remove("sigRun"); void sigBox.offsetWidth; sigBox.classList.add("sigRun"); }
+      enqueueVisitor("Okay.");
       updateHint();
       return;
     }
@@ -1214,7 +1305,7 @@ function updateChecklist(){
       if (statedExact || statedGeneric) state.flags.siPassNoStated = true;
 
       updateChecklist();
-      enqueueVisitor("Here is your visitor pass. Please wear it visibly at all times.");
+      enqueueVisitor("Thank you.");
       updateHint();
       return;
     }
@@ -1338,8 +1429,8 @@ function updateChecklist(){
     }
 
     if (state.stage.startsWith("gate_")) return handleGate(intent, txt);
-    if (state.stage.startsWith("ps_")) return handlePS(intent);
-    if (state.stage.startsWith("si_")) return handleSI(intent);
+    if (state.stage.startsWith("ps_")) return handlePS(intent, txt);
+    if (state.stage.startsWith("si_")) return handleSI(intent, txt);
 
     enqueueVisitor("Okay.");
   }
