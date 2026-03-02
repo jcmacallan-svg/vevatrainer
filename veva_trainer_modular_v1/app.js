@@ -28,6 +28,7 @@
   const btnDeny = $("#btnDeny");
   const btnEndScenario = $("#btnEndScenario");
   const btnPhrases = $("#btnPhrases");
+  const btnGoAppointment = $("#btnGoAppointment");
   const sidePills = $("#sidePills");
   const topPills = $("#topPills");
   const summaryModal = $("#summaryModal");
@@ -107,7 +108,7 @@
     const portraitRow = $("#portraitRow");
     if(!portraitRow) return;
 
-    const els = [
+    const panels = [
       $("#idCardWrap"),
       $("#supervisorPanel"),
       $("#personSearchPanel"),
@@ -115,13 +116,12 @@
       $("#passPanel"),
     ].filter(Boolean);
 
-    const anyVisible = els.some(el=>{
-      const cs = window.getComputedStyle(el);
-      return cs.display !== "none" && cs.visibility !== "hidden" && !el.hidden;
-    });
-
-    portraitRow.hidden = !!anyVisible;
+    const anyVisible = panels.some(el => !el.hidden && el.style.display !== "none");
     portraitRow.style.display = anyVisible ? "none" : "";
+    portraitRow.hidden = anyVisible;
+
+    // Also expose a body class for CSS fallback
+    try{ document.body.classList.toggle("hasPopup", anyVisible); }catch{}
   }
   const passNo = $("#passNo");
   const passName = $("#passName");
@@ -586,6 +586,7 @@
   // portrait visibility handled by syncPortraitVisibility()  // portrait visibility handled by syncPortraitVisibility()
 
     idCardWrap.hidden=false;
+    syncPortraitVisibility();
 
     if (idScenario) idScenario.textContent = state.flowName || "Gate";
     if (idLevel) idLevel.textContent = String(session.difficulty||"standard").toUpperCase();
@@ -622,6 +623,7 @@
     if (sv_waarom) sv_waarom.value = fl.aboutAsked ? (state.facts?.aboutText || "") : "";
     if (sv_note) sv_note.textContent = "";
     supervisorPanel.hidden=false;
+    syncPortraitVisibility();
     if (supervisorPhoto) supervisorPhoto.src = supervisorAvatar.src || soldierAvatar.src;
     state.ui.supervisorVisible=true;
     if (panelTitle) panelTitle.textContent="Supervisor";
@@ -656,6 +658,7 @@ if (state.stage.startsWith("si_")) showSignIn();
     hideAllPanels();
     // Keep portrait row visible during Person Search
 personSearchPanel.hidden=false;
+    syncPortraitVisibility();
     if (panelTitle) panelTitle.textContent="Person Search";
     if (panelSub) panelSub.textContent="Search procedure";
     renderPS();
@@ -693,6 +696,7 @@ personSearchPanel.hidden=false;
 function showSignIn(){
     hideAllPanels();
     signInPanel.hidden=false;
+    syncPortraitVisibility();
     if (panelTitle) panelTitle.textContent="Sign-in";
     if (panelSub) panelSub.textContent="Register + pass";
 
@@ -733,6 +737,7 @@ function showSignIn(){
     const portraitRow = $("#portraitRow");
   // portrait visibility handled by syncPortraitVisibility()  // portrait visibility handled by syncPortraitVisibility()
     passPanel.hidden=false;
+    syncPortraitVisibility();
     if (panelTitle) panelTitle.textContent="Sign-in";
     if (panelSub) panelSub.textContent="Visitor pass issued";
     state.pass = state.pass || {};
@@ -1085,7 +1090,7 @@ function buildScenarioSummary(){
 
       const payload = {
         ts: new Date().toISOString(),
-        event: "endScenario",
+        event: eventName,
         student,
         className,
         runId: state.runId,
@@ -1111,7 +1116,8 @@ function buildScenarioSummary(){
     }catch{}
   }
 
-  function endScenarioNow(){
+  function endScenarioNow(eventName){
+    eventName = eventName || "endScenario";
     state.flags.ended = true;
     try{ inputEl.disabled = true; }catch{}
     try{ sendBtn.disabled = true; }catch{}
@@ -1886,7 +1892,8 @@ btnSend?.addEventListener("click", ()=>{
 
   btnPersonSearch?.addEventListener("click", ()=> handleStudent("Go to person search"));
   btnSignIn?.addEventListener("click", ()=> handleStudent("Go to sign-in office"));
-  btnEndScenario?.addEventListener("click", ()=> endScenarioNow());
+  btnEndScenario?.addEventListener("click", ()=> endScenarioNow("endScenario"));
+  btnGoAppointment?.addEventListener("click", ()=> endScenarioNow("goAppointment"));
   btnCloseSummary?.addEventListener("click", ()=>{ if(summaryModal) summaryModal.hidden=true; });
   btnDeny?.addEventListener("click", ()=> enqueueVisitor(phrase("shared","deny_why",state)));
 

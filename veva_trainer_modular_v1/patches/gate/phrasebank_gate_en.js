@@ -14,11 +14,11 @@
 
   P.gate = {
     bandFromMood,
-    ask_id: { open:["Of course — here’s my ID."], cautious:["Alright. Here you go."], evasive:["Can I show it without handing it over?"] },
-    return_id: { open:["Thank you very much."], cautious:["Thank you."], evasive:["Finally."] },
-    purpose: { open:["I have an appointment on base."], cautious:["I have an appointment."], evasive:["It’s personal.","Why do I need to tell you?"] },
-    has_appointment_yes: { open:["Yes — it’s scheduled."], cautious:["Yes."], evasive:["Yes… can we move on?"] },
-    about_meeting: { open:["It’s about contractor access today."], cautious:["It’s about access today."], evasive:["It’s private.","I’d rather not say."] },
+    ask_id: { open:["Of course — here’s my ID."], cautious:["Uhm well I guess so. Here you go."], evasive:["Do you really need to see it?"] },
+    return_id: { open:["Thank you very much."], cautious:["I hope there is nothing wrong, thank you."], evasive:["Thanks"] },
+    purpose: { open:["I'm here to see someone."], cautious:["I'm here to see someone."], evasive:["Do you need to know?.","Why do I need to tell you?"] },
+    has_appointment_yes: { open:["Yes — it’s scheduled."], cautious:["Yes."], evasive:["Yes… can we hurry up!"] },
+    about_meeting: { open:["I have a complaint","I was told to come over repairs."], cautious:["Uhm.. I am not certain I think they wanted me to come over to take a look at something."], evasive:["It’s private.","I’d rather not say."] },
 
     who_meeting: {
       open: [

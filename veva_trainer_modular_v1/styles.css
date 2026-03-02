@@ -277,16 +277,16 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 .checklistPanel .checkList li{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
 .checklistPanel .checkList li span{display:block;line-height:1.25;}
 .checklistPanel .checkList li::before{margin-right:6px;flex:0 0 auto;}
-.bottomPanel{grid-column:1;grid-row:2;}
-.hintBand{grid-column:1;grid-row:3;}
+.hintBand{grid-column:1;grid-row:2;}
+.bottomPanel{grid-column:1;grid-row:3;}
 .inputBar{grid-column:1;grid-row:4;}
 
 @media (max-width: 1100px){
   .content{grid-template-columns: 1fr auto;grid-template-rows:minmax(0,1fr) auto auto auto auto;}
   .chatPanel{grid-column:1;grid-row:1;}
   .checklistPanel{grid-column:1;grid-row:2;position:static;max-height:30vh;}
-  .bottomPanel{grid-column:1;grid-row:3;}
-  .hintBand{grid-column:1;grid-row:4;}
+  .hintBand{grid-column:1;grid-row:3;}
+  .bottomPanel{grid-column:1;grid-row:4;}
   .inputBar{grid-column:1;grid-row:5;}
 }
 
@@ -718,3 +718,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
   outline:none;
 }
 .notesPad::placeholder{ color:rgba(230,237,243,0.65); }
+
+
+/* Auto-hide portrait row when a bottom panel popup is active */
+body.hasPopup #portraitRow{display:none !important;}
