@@ -376,7 +376,7 @@
     
     // Sign-in intents
     if (/\b(sign\s*in|register|sign\s+here|signature)\b/i.test(n)) return "si_sign_in";
-    if (/\b(issue|give|hand)\b/i.test(n) && /\b(visitor\s*pass|pass|badge)\b/i.test(n)) return "si_issue_pass";
+    if ((/\b(issue|give|hand)\b/i.test(n) || /\bhere\s+is\b/i.test(n)) && /\b(visitor\s*pass|pass|badge)\b/i.test(n)) return "si_issue_pass";
     if (/\b(pass|badge)\b/i.test(n) && /\b(VP-\d{4}|\d{3,6})\b/i.test(n)) return "si_pass_no";
     if ((/\bwear\b/i.test(n) || /\bvisible\b/i.test(n)) && /\bpass|badge\b/i.test(n)) return "si_rule_visible";
     if (/\b(show|present)\b/i.test(n) && /\b(request|asked)\b/i.test(n)) return "si_rule_show";
@@ -616,7 +616,7 @@ if (state.stage.startsWith("si_")) showSignIn();
 
     // In sign-in office, hide the portrait guidance block to give the form full space
     const portraitRow = $("#portraitRow");
-    if (portraitRow) portraitRow.hidden = true;
+    if (portraitRow){ portraitRow.hidden = true; portraitRow.style.display = "none"; }
 
     // At arrival, the register starts blank. Fields are filled only when the student asks the questions here.
     state.flags = state.flags || {};
@@ -729,9 +729,14 @@ if (state.stage.startsWith("si_")) showSignIn();
     if (!el) return;
 
     const fl = state?.flags || {};
-    const locked = !!fl.gateLocked;
-    const snap = state?.lockedGate || {};
-    const doneVal = (locked && key && (key in snap)) ? !!snap[key] : !!done;
+    const gateLocked = !!fl.gateLocked;
+    const psLocked = !!fl.psLocked;
+    const gateSnap = state?.lockedGate || {};
+    const psSnap = state?.lockedPS || {};
+    const isPSKey = !!(key && key.startsWith('ps_'));
+    const doneVal = (gateLocked && key && (key in gateSnap)) ? !!gateSnap[key]
+      : (psLocked && isPSKey && (key in psSnap)) ? !!psSnap[key]
+      : !!done;
     el.classList.toggle("done", doneVal);
     const box = el.querySelector('input[type="checkbox"]');
     if (box){ box.checked = !!doneVal; box.indeterminate = false; }
@@ -773,6 +778,22 @@ if (state.stage.startsWith("si_")) showSignIn();
       gate_about: !!fl.aboutAsked,
       gate_where: !!fl.whereAsked,
       gate_id: !!fl.idChecked
+    };
+  }
+
+  function lockPSNow(){
+    state.flags = state.flags || {};
+    const fl = state.flags;
+    fl.psLocked = true;
+    state.lockedPS = {
+      ps_sharp: !!fl.psSharpAsked,
+      ps_remove: !!fl.psRemoveOuter,
+      ps_position: !!fl.psPositioned,
+      ps_explain_armpits: !!fl.psExplainArmpits,
+      ps_explain_waist: !!fl.psExplainWaist,
+      ps_leg: !!fl.psLegOnKnee,
+      ps_items_ok: !!fl.psItemsOk,
+      ps_cleared: !!fl.psCleared
     };
   }
 
@@ -870,6 +891,14 @@ function buildScenarioSummary(){
       const todoA = applicable.filter(r=>r.status==="todo").length;
       const score = total ? Math.round((okA / total) * 100) : 0;
 
+      // Per-section scores (only meaningful when section was reached)
+      const gateSt = sectionStats["Gate"] || {ok:0,total:0};
+      const psSt = sectionStats["Person search"] || {ok:0,total:0};
+      const siSt = sectionStats["Sign-in"] || {ok:0,total:0};
+      const gateScore = gateSt.total ? Math.round((gateSt.ok / gateSt.total) * 100) : 0;
+      const psScore = reachedPS ? (psSt.total ? Math.round((psSt.ok / psSt.total) * 100) : 0) : null;
+      const siScore = reachedSI ? (siSt.total ? Math.round((siSt.ok / siSt.total) * 100) : 0) : null;
+
       const grade = (score>=90) ? "Excellent" : (score>=75) ? "Good" : (score>=60) ? "Needs improvement" : "Poor";
       const gradeHint = (grade==="Excellent") ? "Very strong performance—keep this pace." :
         (grade==="Good") ? "Solid run. Tighten up the missed steps for a higher score." :
@@ -891,6 +920,7 @@ function buildScenarioSummary(){
         totalRaw: (ok+miss+todo),
         okA, missA, todoA, total,
         score, grade, gradeHint,
+        gateScore, psScore, siScore,
         rows, sectionStats, strengths, topFixes
       };
     }catch(e){
@@ -898,8 +928,8 @@ function buildScenarioSummary(){
     }
   }
 
-  function showScenarioSummary(){
-    const sum = buildScenarioSummary();
+  function showScenarioSummary(sum){
+    sum = sum || buildScenarioSummary();
 
     if (summaryStats){
       summaryStats.textContent = `${sum.grade} — ${sum.score}%  •  Done: ${sum.okA}/${sum.total}  •  Missed: ${sum.missA}  •  Remaining: ${sum.todoA}  •  ${sum.gradeHint}`;
@@ -958,12 +988,54 @@ function buildScenarioSummary(){
     if (summaryModal) summaryModal.hidden=false;
   }
 
+  // --- Results logging (Google Sheets via Apps Script Web App) ---
+  function logResultsToSheets(sum){
+    try{
+      const url = window.CONFIG?.logEndpoint;
+      if (!url) return;
+
+      const student = (session?.surname || "").trim();
+      const className = (session?.group || "").trim();
+      const difficulty = (session?.difficulty || "standard").trim();
+      state.runId = state.runId || ("RUN-"+randInt(100000,999999));
+
+      const payload = {
+        ts: new Date().toISOString(),
+        event: "endScenario",
+        student,
+        className,
+        runId: state.runId,
+        stats: {
+          difficulty,
+          totalScore: (sum?.score ?? ""),
+          gateScore: (sum?.gateScore ?? ""),
+          personSearchScore: (sum?.psScore==null) ? "" : sum.psScore,
+          signInScore: (sum?.siScore==null) ? "" : sum.siScore,
+          top3: sum?.topFixes || [],
+          build: String(BUILD?.version || ""),
+          userAgent: navigator.userAgent
+        },
+        userAgent: navigator.userAgent
+      };
+
+      fetch(url, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      }).catch(()=>{});
+    }catch{}
+  }
+
   function endScenarioNow(){
     state.flags.ended = true;
     try{ inputEl.disabled = true; }catch{}
     try{ sendBtn.disabled = true; }catch{}
     try{ btnEndScenario.disabled = true; }catch{}
-    showScenarioSummary();
+    const sum = buildScenarioSummary();
+    showScenarioSummary(sum);
+    // Fire-and-forget Google Sheets logging
+    try{ logResultsToSheets(sum); }catch{}
   }
 
 function updateChecklist(){
@@ -1207,6 +1279,8 @@ function updateChecklist(){
     }
 
     if (intent==="go_person_search"){
+      // Lock gate results now so later questions cannot retroactively fix earlier misses
+      try{ lockGateNow(); }catch(e){}
       state.flags.sentToPersonSearch=true;
       updateChecklist();
       enqueueVisitor("Okay.");
@@ -1230,6 +1304,13 @@ function updateChecklist(){
 
   function handlePS(intent, raw){
     showPersonSearch();
+
+    // If PS has been locked (jumped forward), do not award retroactive credit.
+    if (state?.flags?.psLocked){
+      enqueueVisitor("Understood.");
+      updateHint();
+      return;
+    }
 
     // Normalize legacy keys
     if (intent==="ps_any_sharp") intent = "ps_ask_sharp";
@@ -1524,8 +1605,11 @@ function handleSI(intent, raw){
 
     // Force jump to the sign-in office when requested (training focus mode).
     if (intent==="go_sign_in"){
-      // Mark earlier steps as missed (they will show red crosses) but do not block the transition.
-      state.flags.psCleared = true;
+      // Mark earlier steps as missed (red crosses) but do not block the transition.
+      // Also lock earlier phases so they cannot be fixed retroactively.
+      try{ lockGateNow(); }catch(e){}
+      try{ lockPSNow(); }catch(e){}
+      state.flags.sentToPersonSearch = true;
       state.flags.sentToSignIn = true;
       state.flowName="Sign-in";
       state.stage="si_arrival";
