@@ -703,7 +703,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 #passPanel .cardBody{overflow:auto;min-height:0;}
 
 /* Notes pad (left sidebar) */
-.notesWrap{ margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
+.notesWrap{ margin-top:auto; padding-top:10px; border-top:1px solid var(--border); }
 .notesTitle{ font-size:12px; color:var(--muted); margin-bottom:6px; }
 .notesPad{
   width:100%;
