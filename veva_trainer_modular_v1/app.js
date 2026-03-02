@@ -1357,7 +1357,13 @@ function updateChecklist(){
   function handleStudent(raw){
     const txt=String(raw||"").trim();
     if (!txt || !state) return;
-    if (state.stage==="gate_approach") return;
+    if (state.stage==="gate_approach"){
+      // Allow immediate interaction; skip the approach timer so checklist can start right away
+      try{ if (approach) clearTimeout(approach); }catch{}
+      state.stage="gate_start";
+      enqueueVisitor(phrase("shared","greeting",state));
+      updateHint();
+    }
 
     addMsg("student", txt);
     window.VEVA_LOG?.({type:"student", stage:state.stage, text:txt});
@@ -1367,15 +1373,25 @@ function updateChecklist(){
 
     if (intent==="deny"){ enqueueVisitor(phrase("shared","deny_why",state)); return; }
 
-    // --- Global identity / control questions (available in any gate stage) ---
+    // --- Global identity / control questions (available in any stage) ---
     if (intent === "ask_name"){
-      state.facts.name = true;
+      if (String(state.stage||"").startsWith("gate_")){
+        state.flags.nameAsked = true;
+        state.facts.name = "known";
+        updateChecklist();
+      }
       enqueueVisitor(`My name is ${state.visitor.first}.`);
+      updateHint();
       return;
     }
     if (intent === "ask_surname"){
-      state.facts.surname = true;
+      if (String(state.stage||"").startsWith("gate_")){
+        state.flags.nameAsked = true;
+        state.facts.name = "known";
+        updateChecklist();
+      }
       enqueueVisitor(`My last name is ${state.visitor.last}.`);
+      updateHint();
       return;
     }
     if (intent === "spell_last_name"){
@@ -1385,6 +1401,7 @@ function updateChecklist(){
         .split("");
       const spelled = letters.length ? letters.join("-") : String(state.visitor.last || "").toUpperCase();
       enqueueVisitor(spelled || `My surname is ${state.visitor.last}.`);
+      updateHint();
       return;
     }
     if (intent === "ask_age" || intent === "confirm_age"){
