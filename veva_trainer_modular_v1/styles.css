@@ -7,7 +7,7 @@ html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;overflow:hidden;}
 .topPills{position:fixed;top:10px;left:10px;right:10px;display:flex;gap:10px;z-index:50;pointer-events:none;}
 .pill{pointer-events:auto;background:rgba(22,27,34,.9);border:1px solid var(--border);padding:8px 12px;border-radius:999px;color:var(--text);font-size:13px;box-shadow:var(--shadow);}
-.app{height:100vh;display:grid;grid-template-columns:300px 1fr 360px;gap:0;padding-top:54px;}
+.app{height:100vh;display:flex;padding-top:54px;}
 .sidebar{width:300px;min-width:260px;background:var(--panel);border-right:1px solid var(--border);padding:16px;display:flex;flex-direction:column;gap:10px;}
 .brand{padding:10px 10px 14px;border-bottom:1px solid var(--border);margin-bottom:8px;}
 .brandTitle{font-weight:800;letter-spacing:.2px;}
@@ -18,9 +18,18 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 .sideBtn.danger{background:linear-gradient(180deg, rgba(255,77,77,.25), rgba(255,77,77,.10));border:1px solid rgba(255,77,77,.45);}
 .sideBtn.primary{background:linear-gradient(180deg, rgba(58,167,255,.38), rgba(58,167,255,.18));border:1px solid rgba(58,167,255,.55);}
 .sideBtn.small{padding:8px 10px;border-radius:10px;font-size:13px;}
-.main{display:flex;flex-direction:column;min-width:0;min-height:0;padding:16px;}
-.content{display:flex;flex-direction:column;gap:12px;width:100%;height:100%;min-height:0;min-width:0;}
-.chatPanel{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:14px;overflow:hidden;min-height:0;display:flex;flex:1 1 auto;}
+.main{flex:1;display:flex;padding:16px;}
+.content{
+  flex:1;
+  display:grid;
+  /* Two columns on top (chat + checklist), bottom panel spans full width */
+  grid-template-columns: 1fr auto;
+  grid-template-rows: 1fr auto auto auto;
+  gap:12px;
+  width:100%;
+  min-height:0;
+}
+.chatPanel{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:14px;overflow:hidden;min-height:0;display:flex;}
 .chatSlots{
   flex: 1;
   overflow: auto;
@@ -59,14 +68,21 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 }
 
 /* Place the bottom panel under both columns */
-.bottomPanel{background:var(--panel);border:1px solid var(--border);border-radius:18px;overflow:hidden;min-height:260px;max-height:42vh;flex:0 0 auto;}
+.bottomPanel{grid-column: 1 / span 2;}
 
 /* Hint band + input should span full width */
 .hintBand{grid-column: 1 / span 2;}
-.inputBar{display:flex;gap:10px;align-items:center;background:rgba(22,27,34,.92);border:1px solid var(--border);border-radius:16px;padding:10px;position:sticky;bottom:0;flex:0 0 auto;}
+.inputBar{grid-column: 1 / span 2;}
 
 /* Checklist */
-.checklistPanel{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:14px;min-height:0;overflow:auto;margin:16px 16px 16px 0;height:calc(100vh - 54px - 32px);}
+.checklistPanel{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:14px;
+  min-height:0;
+  overflow:auto;
+}
 .panelHead{margin-bottom:10px;}
 .panelTitle{font-weight:800;letter-spacing:.2px;}
 .panelSub{color:var(--muted);font-size:12px;margin-top:2px;}
@@ -86,12 +102,12 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 .panelHeader{display:flex;flex-direction:column;gap:2px;padding-bottom:10px;border-bottom:1px solid var(--border);}
 .panelTitle{font-weight:800;}
 .panelSub{color:var(--muted);font-size:12px;}
-.panelBody{overflow:hidden;padding-top:12px;display:flex;flex-direction:column;min-height:0;}
+.panelBody{overflow:auto;padding-top:12px;}
 .portraitRow{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;}
 .portraitPhoto{width:84px;height:84px;border-radius:18px;border:1px solid var(--border);background:#0b1220;}
 .portraitMood{font-weight:700;}
 .portraitDesc{color:var(--muted);margin-top:6px;font-size:13px;line-height:1.35;}
-.panelStack{display:flex;flex-direction:column;gap:12px;flex:1;min-height:0;}
+.panelStack{display:flex;flex-direction:column;gap:12px;}
 .card{border:1px solid var(--border);border-radius:18px;background:var(--panel2);overflow:hidden;}
 
 /* Keep the ID card at a readable width (not full screen width) */
@@ -561,143 +577,3 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
   letter-spacing: .2px;
   opacity: .9;
 }
-
-/* Make Sign-in REGISTER pill clearly visible */
-.chipPrimary{
-  background: rgba(74,163,255,.18);
-  border-color: rgba(74,163,255,.55);
-  color: rgba(230,245,255,.98);
-  font-weight: 900;
-  letter-spacing: .06em;
-}
-
-/* Scroll helpers for lower panels and modals */
-.bottomPanel, #bottomPanel, .bottomDock, .lowerPanel, .bottomArea, #bottomArea{
-  max-height: 46vh;
-  overflow: hidden;
-}
-.bottomPanel .panelBody, #bottomPanel .panelBody, .bottomDock .panelBody, .lowerPanel .panelBody,
-.bottomArea .panelBody, #bottomArea .panelBody,
-#idPanel, #supervisorPanel, .idPanel, .supervisorPanel, .visitorPanel, #visitorPanel,
-.modalInner{
-  max-height: 46vh;
-  overflow: auto;
-  scrollbar-gutter: stable;
-}
-/* Visible scrollbars */
-*::-webkit-scrollbar{ width: 10px; height: 10px; }
-*::-webkit-scrollbar-thumb{ background: rgba(255,255,255,.18); border-radius: 10px; border: 2px solid rgba(0,0,0,0); background-clip: padding-box; }
-*::-webkit-scrollbar-track{ background: rgba(255,255,255,.06); border-radius: 10px; }
-
-/* Lift the lower information dock slightly (more room so buttons stay visible) */
-.bottomPanel, #bottomPanel, .bottomDock, .lowerPanel, .bottomArea, #bottomArea{
-  min-height: 280px;
-}
-@media (min-height: 900px){
-  .bottomPanel, #bottomPanel, .bottomDock, .lowerPanel, .bottomArea, #bottomArea{ min-height: 320px; }
-}
-
-/* Move top pills into sidebar */
-#topPills{ display:none !important; }
-
-.sidePills{ margin-top:auto; padding-top:14px; display:flex; flex-wrap:wrap; gap:8px; align-items:flex-start; }
-.sidebar{ display:flex; flex-direction:column; }
-
-/* Chat order: newest on top */
-.chatSlots{ display:flex; flex-direction:column-reverse; overflow:auto; }
-
-/* Responsiveness: keep panels visible on smaller laptops */
-@media (max-width: 1200px){
-  .content{ gap:12px; }
-  .checklistPanel{ min-width: 260px; }
-}
-@media (max-height: 800px){
-  .bottomPanel, #bottomPanel, .bottomDock, .lowerPanel, .bottomArea, #bottomArea{ min-height: 240px; }
-}
-
-
-/* Patch v1.6.5: allow scrolling inside the Visitor Pass card so rules at the bottom are always reachable */
-#passPanel .cardBody{max-height:320px; overflow-y:auto;}
-
-/* Sign-in: missing required fields */
-#si_company.missing{ border:2px solid #d12d2d !important; box-shadow:none; }
-
-/* Signature box */
-.sigLabel{ display:block; }
-#si_sig{ display:none; }
-.sigBox{
-  width:100%;
-  height:72px;
-  border:2px solid rgba(255,255,255,0.25);
-  border-radius:12px;
-  background:rgba(0,0,0,0.12);
-  overflow:hidden;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-.sigSvg{ width:100%; height:100%; }
-.sigPath{ fill:none; stroke:rgba(255,255,255,0.9); stroke-width:3; stroke-linecap:round; stroke-linejoin:round; stroke-dasharray:900; stroke-dashoffset:900; }
-.sigRun .sigPath{ animation:sigdraw 1.2s ease-out forwards; }
-@keyframes sigdraw{ to{ stroke-dashoffset:0; } }
-
-/* Rules box revealed after signing */
-.rulesBox{
-  margin-top:12px;
-  padding:12px;
-  border-radius:16px;
-  border:1px solid rgba(255,255,255,0.18);
-  background:rgba(14, 89, 255, 0.12);
-}
-.rulesTitle{ font-weight:700; margin-bottom:6px; }
-.rulesLine{ margin-bottom:8px; }
-.rulesList{ margin:0 0 0 18px; padding:0; }
-
-
-/* Sign-in panel: allow scrolling within the register form */
-#signInPanel .cardBody{
-  max-height: 340px;
-  overflow-y: auto;
-}
-
-/* Signature animation (auto-generated, no typing needed) */
-#si_sig{ display:none; }
-.sigBox{ padding: 8px 4px; border-top: 1px dashed rgba(255,255,255,.15); }
-.sigSvg{ width: 100%; height: 72px; }
-.sigPath{
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-dasharray: 900;
-  stroke-dashoffset: 900;
-  opacity: .9;
-}
-.sigBox.sigRun .sigPath{
-  animation: sigDraw 1.2s ease-out forwards;
-}
-@keyframes sigDraw{
-  to { stroke-dashoffset: 0; }
-}
-
-/* Make active card fill available height in bottom panel */
-.panelStack > .card{flex:1;min-height:0;}
-#signInPanel .cardBody{overflow:auto;min-height:0;}
-#passPanel .cardBody{overflow:auto;min-height:0;}
-
-
-.endScenarioBtn{margin-top:auto;}
-
-.bottomPanel .hintBand{margin:8px 0 10px 0;}
-
-
-/* Notes pad */
-.notesBox { margin-top: 10px; border: 1px solid rgba(255,255,255,.12); border-radius: 12px; overflow: hidden; background: rgba(255,255,255,.04); }
-.notesBox summary { cursor: pointer; padding: 10px 12px; font-weight: 600; color: rgba(255,255,255,.92); list-style: none; }
-.notesBox summary::-webkit-details-marker { display:none; }
-.notesBox textarea { width: 100%; box-sizing: border-box; border: 0; outline: none; resize: vertical; min-height: 140px; padding: 10px 12px; background: rgba(0,0,0,.12); color: rgba(255,255,255,.92); font: inherit; }
-.notesBox[open] { box-shadow: 0 6px 18px rgba(0,0,0,.25); }
-
-/* Hold to talk button clarity */
-#holdToTalk { display: inline-flex; gap: 8px; align-items: center; font-weight: 700; }
