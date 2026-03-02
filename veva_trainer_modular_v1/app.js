@@ -780,11 +780,13 @@ function showSignIn(){
 
     // Tabletop render (background + max 6 item PNGs)
     try{
-      window.VEVA_TABLETOP?.render({
-        canvasId: "psTableCanvas",
-        tableSrc: "assets/table/tafelachtergrond.png",
-        items: (ps.items || []).slice(0, 6)
-      });
+      if (window.VEVA_TABLETOP && typeof window.VEVA_TABLETOP.render === "function"){
+        window.VEVA_TABLETOP.render({
+          canvasId: "psTableCanvas",
+          tableSrc: "assets/table/tafelachtergrond.png",
+          items: (ps.items || []).slice(0, 6)
+        });
+      }
     }catch(e){}
 
   }

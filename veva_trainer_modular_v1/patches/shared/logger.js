@@ -12,14 +12,20 @@
     if (!ENDPOINT || !buf.length) { buf.length = 0; return; }
     const payload = { events: buf.splice(0, buf.length) };
     try{
-      await fetch(ENDPOINT, { method:"POST", headers:{ "Content-Type":"application/json" }, body:JSON.stringify(payload), keepalive:true });
+      await fetch(ENDPOINT, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify(payload),
+        keepalive: true
+      });
     }catch(e){
       try{
         const k = "veva.offlineLog";
         const prev = JSON.parse(localStorage.getItem(k) || "[]");
         prev.push(payload);
-        localStorage.setItem(k, JSON.stringify(prev).slice(0, 2_000_000));
-      }catch{}
+        // Avoid numeric separators (older runtimes)
+        localStorage.setItem(k, JSON.stringify(prev).slice(0, 2000000));
+      }catch(e2){}
       console.warn("Logging failed:", e);
     }
   }

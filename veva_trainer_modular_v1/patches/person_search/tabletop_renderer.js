@@ -2,11 +2,6 @@
 (function () {
   "use strict";
 
-  // Minimal tabletop renderer:
-  // - draws a wooden table background image
-  // - draws up to 6 item PNGs (each item is its own PNG with transparency)
-  // - basic 3x2 slot layout, slight rotation, simple shadow
-
   const imgCache = new Map();
 
   function loadImage(src) {
@@ -22,7 +17,6 @@
   }
 
   function drawCover(ctx, img, w, h) {
-    // cover like CSS background-size: cover
     const iw = img.naturalWidth || img.width;
     const ih = img.naturalHeight || img.height;
     const s = Math.max(w / iw, h / ih);
@@ -36,12 +30,11 @@
     return min + Math.random() * (max - min);
   }
 
-  // Default background (your provided wooden table)
+  // Default table background provided in this zip:
   const DEFAULT_TABLE = "assets/table/tafelachtergrond.png";
 
-  // Default asset mapping (adjust to your filenames).
-  // Expected structure (examples):
-  //   assets/items/phone.png, wallet.png, keys.png, notebook.png, ...
+  // Map item names -> sprite paths (you can add/adjust later).
+  // Each sprite should be a single PNG with transparency.
   const ITEM_SPRITES = {
     "Phone": "assets/items/phone.png",
     "Wallet": "assets/items/wallet.png",
@@ -50,7 +43,12 @@
     "Access email printout": "assets/items/printout.png"
   };
 
-  async function render({ canvasId, tableSrc, items }) {
+  async function render(opts) {
+    opts = opts || {};
+    const canvasId = opts.canvasId || "psTableCanvas";
+    const tableSrc = opts.tableSrc || DEFAULT_TABLE;
+    const items = Array.isArray(opts.items) ? opts.items.slice(0, 6) : [];
+
     const canvas = document.getElementById(canvasId);
     if (!canvas) return;
 
@@ -60,48 +58,61 @@
     const W = canvas.width;
     const H = canvas.height;
 
-    // Clear
     ctx.clearRect(0, 0, W, H);
 
-    // Background table
+    // Background
     try {
-      const bg = await loadImage(tableSrc || DEFAULT_TABLE);
+      const bg = await loadImage(tableSrc);
       drawCover(ctx, bg, W, H);
     } catch (e) {
-      // fallback: simple dark fill
       ctx.fillStyle = "#0b1220";
       ctx.fillRect(0, 0, W, H);
     }
 
-    const list = Array.isArray(items) ? items.slice(0, 6) : [];
-
-    // 3x2 slots (percentage positions)
+    // 3x2 slots
     const slots = [
       { x: 0.22, y: 0.30 }, { x: 0.50, y: 0.30 }, { x: 0.78, y: 0.30 },
       { x: 0.22, y: 0.70 }, { x: 0.50, y: 0.70 }, { x: 0.78, y: 0.70 }
     ];
 
-    for (let i = 0; i < list.length; i++) {
-      const it = list[i] || {};
+    for (let i = 0; i < items.length; i++) {
+      const it = items[i] || {};
       const slot = slots[i] || slots[slots.length - 1];
 
-      // src priority: item.src/item.sprite -> mapping by name
       const src = it.src || it.sprite || ITEM_SPRITES[it.name];
-
       const cx = slot.x * W + randBetween(-18, 18);
       const cy = slot.y * H + randBetween(-12, 12);
-      const rot = randBetween(-0.18, 0.18); // ~ -10..+10 degrees
-      const scale = randBetween(0.32, 0.42); // tweak for your look
+      const rot = randBetween(-0.18, 0.18);
+      const scale = randBetween(0.32, 0.42);
 
-      if (!src) continue;
+      if (!src) {
+        // placeholder card when no sprite exists
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(rot);
+        ctx.fillStyle = "rgba(0,0,0,0.30)";
+        ctx.strokeStyle = "rgba(255,255,255,0.18)";
+        ctx.lineWidth = 1;
+        const pw = 220, ph = 90;
+        if (typeof ctx.roundRect === "function") {
+          ctx.beginPath(); ctx.roundRect(-pw/2, -ph/2, pw, ph, 14); ctx.fill(); ctx.stroke();
+        } else {
+          ctx.fillRect(-pw/2, -ph/2, pw, ph); ctx.strokeRect(-pw/2, -ph/2, pw, ph);
+        }
+        ctx.fillStyle = "rgba(255,255,255,0.85)";
+        ctx.font = "700 18px system-ui, -apple-system, Segoe UI, Roboto, Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(String(it.name || "Unknown item"), 0, 0);
+        ctx.restore();
+        continue;
+      }
 
       try {
         const img = await loadImage(src);
-
         const iw = img.naturalWidth || img.width;
         const ih = img.naturalHeight || img.height;
 
-        // Base sizing: scale relative to canvas width
         const targetW = W * scale;
         const s = targetW / iw;
         const dw = iw * s;
@@ -111,7 +122,6 @@
         ctx.translate(cx, cy);
         ctx.rotate(rot);
 
-        // Simple shadow to feel "on table"
         ctx.shadowColor = "rgba(0,0,0,0.28)";
         ctx.shadowBlur = 18;
         ctx.shadowOffsetX = 8;
@@ -120,10 +130,10 @@
         ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
         ctx.restore();
       } catch (e) {
-        // ignore load failures
+        // skip failing sprite loads
       }
     }
   }
 
-  window.VEVA_TABLETOP = { render };
+  window.VEVA_TABLETOP = { render: render };
 })();
