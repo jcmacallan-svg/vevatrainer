@@ -2,27 +2,27 @@
 (function () {
   "use strict";
 
-  const imgCache = new Map();
+  var imgCache = {};
 
   function loadImage(src) {
-    return new Promise((resolve, reject) => {
+    return new Promise(function (resolve, reject) {
       if (!src) return reject(new Error("No src"));
-      if (imgCache.has(src)) return resolve(imgCache.get(src));
+      if (imgCache[src]) return resolve(imgCache[src]);
 
-      const img = new Image();
-      img.onload = () => { imgCache.set(src, img); resolve(img); };
-      img.onerror = () => reject(new Error("Failed to load: " + src));
+      var img = new Image();
+      img.onload = function () { imgCache[src] = img; resolve(img); };
+      img.onerror = function () { reject(new Error("Failed to load: " + src)); };
       img.src = src;
     });
   }
 
   function drawCover(ctx, img, w, h) {
-    const iw = img.naturalWidth || img.width;
-    const ih = img.naturalHeight || img.height;
-    const s = Math.max(w / iw, h / ih);
-    const dw = iw * s, dh = ih * s;
-    const dx = (w - dw) / 2;
-    const dy = (h - dh) / 2;
+    var iw = img.naturalWidth || img.width;
+    var ih = img.naturalHeight || img.height;
+    var s = Math.max(w / iw, h / ih);
+    var dw = iw * s, dh = ih * s;
+    var dx = (w - dw) / 2;
+    var dy = (h - dh) / 2;
     ctx.drawImage(img, dx, dy, dw, dh);
   }
 
@@ -30,12 +30,11 @@
     return min + Math.random() * (max - min);
   }
 
-  // Default table background provided in this zip:
-  const DEFAULT_TABLE = "assets/table/tafelachtergrond.png";
+  // Pas dit aan naar jouw assets
+  var DEFAULT_TABLE = "assets/table/tafelachtergrond.png";
 
-  // Map item names -> sprite paths (you can add/adjust later).
-  // Each sprite should be a single PNG with transparency.
-  const ITEM_SPRITES = {
+  // Mapping name -> sprite (optioneel; je kunt ook it.src meesturen)
+  var ITEM_SPRITES = {
     "Phone": "assets/items/phone.png",
     "Wallet": "assets/items/wallet.png",
     "Keys": "assets/items/keys.png",
@@ -45,83 +44,65 @@
 
   async function render(opts) {
     opts = opts || {};
-    const canvasId = opts.canvasId || "psTableCanvas";
-    const tableSrc = opts.tableSrc || DEFAULT_TABLE;
-    const items = Array.isArray(opts.items) ? opts.items.slice(0, 6) : [];
+    var canvasId = opts.canvasId || "psTableCanvas";
+    var tableSrc = opts.tableSrc || DEFAULT_TABLE;
+    var items = opts.items || [];
 
-    const canvas = document.getElementById(canvasId);
+    var canvas = document.getElementById(canvasId);
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
+    var ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const W = canvas.width;
-    const H = canvas.height;
-
+    var W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
 
     // Background
     try {
-      const bg = await loadImage(tableSrc);
+      var bg = await loadImage(tableSrc);
       drawCover(ctx, bg, W, H);
     } catch (e) {
       ctx.fillStyle = "#0b1220";
       ctx.fillRect(0, 0, W, H);
     }
 
+    var list = items.slice(0, 6);
+
     // 3x2 slots
-    const slots = [
+    var slots = [
       { x: 0.22, y: 0.30 }, { x: 0.50, y: 0.30 }, { x: 0.78, y: 0.30 },
       { x: 0.22, y: 0.70 }, { x: 0.50, y: 0.70 }, { x: 0.78, y: 0.70 }
     ];
 
-    for (let i = 0; i < items.length; i++) {
-      const it = items[i] || {};
-      const slot = slots[i] || slots[slots.length - 1];
+    for (var i = 0; i < list.length; i++) {
+      var it = list[i] || {};
+      var slot = slots[i] || slots[slots.length - 1];
 
-      const src = it.src || it.sprite || ITEM_SPRITES[it.name];
-      const cx = slot.x * W + randBetween(-18, 18);
-      const cy = slot.y * H + randBetween(-12, 12);
-      const rot = randBetween(-0.18, 0.18);
-      const scale = randBetween(0.32, 0.42);
+      var src = it.src || it.sprite || ITEM_SPRITES[it.name];
 
-      if (!src) {
-        // placeholder card when no sprite exists
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.rotate(rot);
-        ctx.fillStyle = "rgba(0,0,0,0.30)";
-        ctx.strokeStyle = "rgba(255,255,255,0.18)";
-        ctx.lineWidth = 1;
-        const pw = 220, ph = 90;
-        if (typeof ctx.roundRect === "function") {
-          ctx.beginPath(); ctx.roundRect(-pw/2, -ph/2, pw, ph, 14); ctx.fill(); ctx.stroke();
-        } else {
-          ctx.fillRect(-pw/2, -ph/2, pw, ph); ctx.strokeRect(-pw/2, -ph/2, pw, ph);
-        }
-        ctx.fillStyle = "rgba(255,255,255,0.85)";
-        ctx.font = "700 18px system-ui, -apple-system, Segoe UI, Roboto, Arial";
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
-        ctx.fillText(String(it.name || "Unknown item"), 0, 0);
-        ctx.restore();
-        continue;
-      }
+      // positie/rotatie/schaal
+      var cx = slot.x * W + randBetween(-18, 18);
+      var cy = slot.y * H + randBetween(-12, 12);
+      var rot = randBetween(-0.18, 0.18);
+      var scale = randBetween(0.32, 0.42);
+
+      if (!src) continue;
 
       try {
-        const img = await loadImage(src);
-        const iw = img.naturalWidth || img.width;
-        const ih = img.naturalHeight || img.height;
+        var img = await loadImage(src);
+        var iw = img.naturalWidth || img.width;
+        var ih = img.naturalHeight || img.height;
 
-        const targetW = W * scale;
-        const s = targetW / iw;
-        const dw = iw * s;
-        const dh = ih * s;
+        var targetW = W * scale;
+        var s = targetW / iw;
+        var dw = iw * s;
+        var dh = ih * s;
 
         ctx.save();
         ctx.translate(cx, cy);
         ctx.rotate(rot);
 
+        // Schaduw
         ctx.shadowColor = "rgba(0,0,0,0.28)";
         ctx.shadowBlur = 18;
         ctx.shadowOffsetX = 8;
@@ -129,8 +110,8 @@
 
         ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
         ctx.restore();
-      } catch (e) {
-        // skip failing sprite loads
+      } catch (e2) {
+        // skip
       }
     }
   }
