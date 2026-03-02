@@ -27,6 +27,9 @@
   const btnSignIn = $("#btnSignIn");
   const btnDeny = $("#btnDeny");
   const btnEndScenario = $("#btnEndScenario");
+  const btnPhrases = $("#btnPhrases");
+  const sidePills = $("#sidePills");
+  const topPills = $("#topPills");
   const summaryModal = $("#summaryModal");
   const summaryStats = $("#summaryStats");
   const summaryHighlights = $("#summaryHighlights");
@@ -85,6 +88,10 @@
   const signInPanel = $("#signInPanel");
   const si_name = $("#si_name");
   const si_company = $("#si_company");
+  const sigBox = $("#sigBox");
+  const si_rulesForm = $("#si_rulesForm");
+  const si_form = $("#si_form");
+  const si_passPreview = $("#si_passPreview");
   const si_poc = $("#si_poc");
   const si_time = $("#si_time");
   const si_loc = $("#si_loc");
@@ -113,17 +120,26 @@
     gate_supervisor: $("#cl_gate_supervisor"),
     gate_rules: $("#cl_gate_rules"),
     gate_send_ps: $("#cl_gate_send_ps"),
+
+    // Person Search
     ps_sharp: $("#cl_ps_sharp"),
-    ps_pockets: $("#cl_ps_pockets"),
-    ps_table: $("#cl_ps_table"),
+    ps_remove: $("#cl_ps_remove"),
     ps_position: $("#cl_ps_position"),
     ps_explain_armpits: $("#cl_ps_explain_armpits"),
     ps_explain_waist: $("#cl_ps_explain_waist"),
-    ps_explain_leg: $("#cl_ps_explain_leg"),
-    ps_resolved: $("#cl_ps_resolved"),
+    ps_leg: $("#cl_ps_leg"),
+    ps_items_ok: $("#cl_ps_items_ok"),
+    ps_cleared: $("#cl_ps_cleared"),
+
+    // Sign-in
+    si_signed: $("#cl_si_signed"),
     si_issued: $("#cl_si_issued"),
-    si_rules: $("#cl_si_rules"),
-    si_close: $("#cl_si_close"),
+    si_pass_no: $("#cl_si_pass_no"),
+    si_visible: $("#cl_si_visible"),
+    si_show: $("#cl_si_show"),
+    si_return: $("#cl_si_return"),
+    si_alarm: $("#cl_si_alarm"),
+    si_closes: $("#cl_si_closes"),
   };
 
   // Login
@@ -172,6 +188,23 @@
 
   function normalize(s){
     return String(s||"").toLowerCase().replace(/[^\p{L}\p{N}: ]/gu," ").replace(/\s+/g," ").trim();
+  }
+
+  // Training language gate: only respond to English.
+  // (If the student types Dutch, we should not "understand" it.)
+  function isLikelyNonEnglish(raw){
+    const t = normalize(raw);
+    if (!t) return false;
+    // Common Dutch function words (very lightweight heuristic)
+    const dutch = ["wat","waar","wanneer","waarom","hoe","wie","welke","kunt","kan","mag","moet","alstublieft","alsjeblieft","meneer","mevrouw","jij","u","uw","jouw","jullie","heb","heeft","zijn","ben","niet","wel","een","de","het","naar","binnen","buiten","afspraak","bedrijf","tijd","locatie","naam"];
+    let hits = 0;
+    for (const w of dutch){ if (new RegExp(`\\b${w}\\b`,`i`).test(t)) hits++; }
+    // Basic English anchors
+    const english = ["what","where","when","why","how","who","do","does","have","any","please","can","could","would","your","you","i","my","name","appointment","meeting","company","time","location","purpose"];
+    let eHits = 0;
+    for (const w of english){ if (new RegExp(`\\b${w}\\b`,`i`).test(t)) eHits++; }
+    // If it looks Dutch and not enough English anchors, treat as non-English.
+    return (hits >= 2 && eHits < 2);
   }
 
   // assets
@@ -236,6 +269,19 @@
     return hhmm;
   }
 
+  function generateCompany(state){
+    const v = state.visitor || {};
+    const first = (v.first||"").replace(/[^A-Za-z]/g,"");
+    const last = (v.last||"").replace(/[^A-Za-z]/g,"");
+    const pool = [
+      "NorthSea Logistics","DeltaTech Services","Orion Maintenance","Aegis Security Systems",
+      "Harborline Transport","Vector IT Consulting","BlueGate Facilities","Atlas Engineering"
+    ];
+    if (last) return `${last} ${pick(["Logistics","Consulting","Services","Transport","Maintenance"])}`;
+    if (first) return `${first}${pick(["Tech","Works","Logistics","Services"])}`;
+    return pick(pool);
+  }
+
   function fill(tpl, state){
     const v = state.visitor;
     state.facts.locationCode = state.facts.locationCode || String(randInt(1,9)).padStart(2,"0");
@@ -281,7 +327,62 @@
     if (/\bplace\s+all\s+items\b|\bon\s+the\s+table\b/i.test(n)) return "ps_items_table";
     if (/\barmpits\b/i.test(n) && /\bsearch|checking\b|\bam\s+going\s+to\b/i.test(n)) return "ps_explain_armpits";
     if (/\bwaist|waistband|belt\b/i.test(n) && /\bcheck|search|checking\b|\bam\s+checking\b/i.test(n)) return "ps_explain_waist";
-    if (/\bleg\b/i.test(n) && /\bknee\b/i.test(n)) return "ps_explain_leg";
+    // "Put your leg on my knee" should count as the leg-on-knee instruction
+    if (/\bleg\b/i.test(n) && /\bknee\b/i.test(n)) return "ps_leg_on_knee";
+
+    
+    // Robust Gate patterns (always-on)
+    if (/\b(what\s*(is|'s)\s*your\s*name|your\s*name\s*please)\b/i.test(n)) return "ask_name";
+    if (/\b(surname|last\s*name|family\s*name)\b/i.test(n) && (/\bwhat\b/i.test(n) || /\byour\b/i.test(n))) return "ask_surname";
+    if (/\b(purpose|reason)\b.*\b(visit|here)\b|\bwhy\s+are\s+you\s+here\b/i.test(n)) return "ask_purpose";
+    if (/\bdo\s+you\s+have\s+an?\s+appointment\b|\bappointment\?\b/i.test(n)) return "ask_appt";
+    if (/\bwho\b.*\b(meeting|appointment|see|seeing|contact)\b|\bpoint\s+of\s+contact\b/i.test(n)) return "ask_who";
+    if (/\bwhat\s+time\b.*\bappointment\b|\bappointment\s+time\b/i.test(n)) return "ask_time";
+    if (/\bwhat\b.*\b(meeting|appointment)\b.*\babout\b|\bmeeting\s+topic\b/i.test(n)) return "ask_about";
+    if (/\bwhere\b.*\b(meeting|appointment|going)\b|\blocation\b/i.test(n)) return "ask_where";
+    if (/\b(company|employer|organization|organisation|firm)\b/i.test(n) && /\b(from|with|work\s*for|represent)\b/i.test(n)) return "ask_company";
+
+    // Person Search patterns
+    if (/\bdo\s+you\s+have\b.*\b(sharp|knife|needle|razor|blade)\b/i.test(n)) return "ps_ask_sharp";
+
+    // Remove outerwear (jacket / headgear)
+    if (/(remove|take\s*off|please\s+remove|could\s+you\s+remove|can\s+you\s+remove)\b.*\b(jacket|coat|cap|hat|headgear|hood|helmet)\b/i.test(n)) return "ps_remove_outer";
+    if (/\b(jacket|coat)\b.*\b(headgear|cap|hat|helmet)\b.*\b(remove|off|take\s*off)\b/i.test(n)) return "ps_remove_outer";
+
+    // Positioning
+    if (/\bstand\s+still\b|\bhands\s+on\s+the\s+wall\b|\bfeet\s+apart\b|\bface\s+the\s+wall\b/i.test(n)) return "ps_position";
+
+    // Search statements (wording can be "I am going to search under/around ...")
+    if (/\b(armpit|armpits)\b/i.test(n) || /\bunder\s+your\s+arms?\b/i.test(n)){
+      if (/(search|check|checking|pat\s*down|going\s+to|i'?m\s+(going\s+to|gonna)|i\s+am\s+(going\s+to|going\s+to\s+be))\b/i.test(n)) return "ps_explain_armpits";
+    }
+    if (/\b(waist|waistband|belt|around\s+your\s+waist|private\s+area|groin)\b/i.test(n)){
+      if (/(search|check|checking|pat\s*down|going\s+to|i'?m\s+(going\s+to|gonna)|i\s+am\s+(going\s+to|going\s+to\s+be))\b/i.test(n)) return "ps_explain_waist";
+    }
+
+    // Leg on knee
+    if (/\b(put|place|lift|raise)\b/i.test(n) && /\b(leg|foot)\b/i.test(n) && /\b(knee|thigh)\b/i.test(n)) return "ps_leg_on_knee";
+    if (/\bleg\b/i.test(n) && /\bon\b/i.test(n) && /\bmy\s+knee\b/i.test(n)) return "ps_leg_on_knee";
+
+    // Items checked
+    if (/\b(i\s*(have\s*)?checked\s+your\s+items?|i\s*am\s*going\s*to\s*check\s+your\s+items?|i\s*will\s*check\s+your\s+items?|i\s*am\s*checking\s+your\s+items?)\b/i.test(n)) return "ps_check_items";
+    if (/\b(everything\s+is\s+ok|looks\s+fine|items?\s+are\s+ok|all\s+items?\s+are\s+ok|nothing\s+found|no\s+issues)\b/i.test(n)) return "ps_check_items";
+    if (/\b(clear(ed)?\s+to\s+(proceed|go)|you\s+are\s+clear|free\s+to\s+proceed|ok(ay)?\s+to\s+proceed)\b/i.test(n) && /\b(sign\s*in|register|sign-in|office)\b/i.test(n)) return "go_sign_in";
+
+    // IMPORTANT: explicit "go to sign-in office" must win over generic "sign in" intent.
+    // Otherwise button text like "Go to Sign-in Office" gets misclassified as si_sign_in.
+    if (/\b(go\s+to|proceed\s+to|walk\s+to)\b.*\b(sign\s*-?in(\s+office)?|reception|sign\s*in\s+desk)\b/i.test(n)) return "go_sign_in";
+
+    
+    // Sign-in intents
+    if (/\b(sign\s*in|register|sign\s+here|signature)\b/i.test(n)) return "si_sign_in";
+    if ((/\b(issue|give|hand)\b/i.test(n) || /\bhere\s+is\b/i.test(n)) && /\b(visitor\s*pass|pass|badge)\b/i.test(n)) return "si_issue_pass";
+    if (/\b(pass|badge)\b/i.test(n) && /\b(VP-\d{4}|\d{3,6})\b/i.test(n)) return "si_pass_no";
+    if ((/\bwear\b/i.test(n) || /\bvisible\b/i.test(n)) && /\bpass|badge\b/i.test(n)) return "si_rule_visible";
+    if (/\b(show|present)\b/i.test(n) && /\b(request|asked)\b/i.test(n)) return "si_rule_show";
+    if (/\breturn\b/i.test(n) && (/\bleave|exit|when\s+you\s+leave|when\s+leaving\b/i.test(n))) return "si_rule_return";
+    if (/\balarm\b/i.test(n) || /\bassembly\s*area\b/i.test(n)) return "si_rule_alarm";
+    if (/\bcloses\b/i.test(n) || /\bclose\b/i.test(n) || /\b4\s*(pm|p\.m\.|o\'clock|oclock)?\b/i.test(n)) return "si_rule_closes";
 
     const list = Array.isArray(window.VEVA_INTENTS) ? window.VEVA_INTENTS : [];
     for (const it of list){ try{ if (it?.rx?.test(raw)) return it.key; }catch{} }
@@ -365,10 +466,30 @@
   }
 
   const q=[]; let tmr=null; let approach=null;
-  function enqueueVisitor(text){
-    const t=String(text||"").trim(); if(!t) return;
-    q.push(t); drain();
+  
+    function enqueueVisitor(text){
+    // Show typing dots for ~2–3s max (fast iteration; length adds but is capped)
+    const t = String(text||"");
+    typingVisitor = true;
+    renderTyping();
+
+    // Base delay 2000–2600ms, plus a small length bonus, hard-capped at 3000ms.
+    const base = 2000 + Math.floor(Math.random() * 601); // 2000..2600
+    const lengthBonus = Math.min(t.length * 10, 700);
+    const delay = Math.min(base + lengthBonus, 3000); 
+
+    setTimeout(()=>{
+      typingVisitor = false;
+      // remove any pending typing placeholder and render
+      addMsg("visitor", t);
+      window.VEVA_LOG?.({type:"visitor", stage: state?.stage, text: t});
+      speakVisitor(t);
+      renderChat();
+      updateHint();
+    }, delay);
   }
+
+
   function drain(){
     if (tmr || !q.length) return;
     // typing dot
@@ -420,6 +541,8 @@
     if (personSearchPanel) personSearchPanel.hidden=true;
     if (signInPanel) signInPanel.hidden=true;
     if (passPanel) passPanel.hidden=true;
+    const portraitRow = $("#portraitRow");
+    if (portraitRow) portraitRow.hidden = false;
   }
 
   function showId(){
@@ -462,13 +585,13 @@
     if (panelSub) panelSub.textContent=state.flowName||"—";
     if (state.stage.startsWith("ps_")){
       if (!state.flags.psSharpAsked) return 'Example: "Do you have any sharp objects on you?"';
-      if (!state.flags.psPocketsEmptied) return 'Example: "Please empty your pockets."';
-      if (!state.flags.psItemsOnTable) return 'Example: "Place all items on the table."';
-      if (!state.flags.psPositioned) return 'Example: "Stand still. Hands on the wall, feet apart."';
+      if (!state.flags.psRemoveOuter) return 'Example: "Please remove your jacket / headgear."';
+      if (!state.flags.psPositioned) return 'Example: "Stand still. Hands on the wall. Feet apart."';
       if (!state.flags.psExplainArmpits) return 'Example: "I am going to search around your armpits."';
-      if (!state.flags.psExplainWaist) return 'Example: "I am checking around your waistband."';
-      if (!state.flags.psExplainLeg) return 'Example: "Please place your leg on my knee."';
-      if (!state.flags.psResolved) return 'Example: "Thank you. You may proceed to sign-in."';
+      if (!state.flags.psExplainWaist) return 'Example: "I am checking around your waistband / private area."';
+      if (!state.flags.psLegOnKnee) return 'Example: "Please place your leg on my knee."';
+      if (!state.flags.psItemsOk) return 'Example: "Everything looks fine. All items are OK."';
+      if (!state.flags.psCleared) return 'Example: "You are cleared. Please proceed to sign-in."';
       return "Proceed to sign-in.";
     }
 if (state.stage.startsWith("si_")) showSignIn();
@@ -485,14 +608,69 @@ if (state.stage.startsWith("si_")) showSignIn();
     renderPS();
     updateHint();
   }
-  function showSignIn(){
+  
+  function setSignInView(mode){
+    // mode: "register" | "rules"
+    const titleEl = signInPanel ? signInPanel.querySelector(".cardTitle") : null;
+    const subEl = signInPanel ? signInPanel.querySelector(".cardSub") : null;
+    const chipEl = signInPanel ? signInPanel.querySelector(".chip") : null;
+
+    const isRules = (mode==="rules");
+    if (si_form){
+      si_form.hidden = isRules;
+      si_form.style.display = isRules ? "none" : "";
+    }
+    const sigLabel = signInPanel ? signInPanel.querySelector(".sigLabel") : null;
+    if (sigLabel){
+      sigLabel.hidden = isRules;
+      sigLabel.style.display = isRules ? "none" : "";
+    }
+    if (si_rulesForm){
+      si_rulesForm.hidden = !isRules;
+      si_rulesForm.style.display = isRules ? "" : "none";
+    }
+
+    if (titleEl) titleEl.textContent = isRules ? "Wachtconsignes" : "Sign-in Register";
+    if (subEl) subEl.textContent = isRules ? "Base rules briefing" : "Fill in the entry log.";
+    if (chipEl) chipEl.textContent = isRules ? "RULES" : "REGISTER";
+  }
+
+function showSignIn(){
     hideAllPanels();
     signInPanel.hidden=false;
     if (panelTitle) panelTitle.textContent="Sign-in";
     if (panelSub) panelSub.textContent="Register + pass";
-    if (si_name) si_name.value=state.visitor.name;
-    if (si_poc) si_poc.value=state.visitor.contact.full;
-    if (si_time) si_time.value=state.facts.meetingTime||"";
+
+    // In sign-in office, hide the portrait guidance block to give the form full space
+    const portraitRow = $("#portraitRow");
+    if (portraitRow){ portraitRow.hidden = true; portraitRow.style.display = "none"; }
+
+    // At arrival, the register starts blank. Fields are filled only when the student asks the questions here.
+    state.flags = state.flags || {};
+    if (!state.flags.siFormInitialized){
+      if (si_name) si_name.value = "";
+      if (si_poc) si_poc.value = "";
+      if (si_time) si_time.value = "";
+      if (si_loc) si_loc.value = "";
+      if (si_company) si_company.value = "";
+      state.flags.siFormInitialized = true;
+    }
+
+    // Missing company should stand out in the form during sign-in.
+    if (si_company){
+      const missing = !si_company.value;
+      si_company.classList.toggle("missing", missing);
+    }
+
+    // Prepare pass number preview (student must state it later)
+    state.pass = state.pass || {};
+    state.pass.id = state.pass.id || ("VP-"+randInt(1000,9999));
+    if (si_passPreview) si_passPreview.textContent = state.pass.id;
+
+    // Signature / rules step:
+    const signed = !!state.flags.siSigned;
+    setSignInView(signed ? "rules" : "register");
+
     updateHint();
   }
   function showPass(){
@@ -576,24 +754,32 @@ if (state.stage.startsWith("si_")) showSignIn();
     if (!el) return;
 
     const fl = state?.flags || {};
-    const locked = !!fl.gateLocked;
-    const snap = state?.lockedGate || {};
-    const doneVal = (locked && key && (key in snap)) ? !!snap[key] : !!done;
+    const gateLocked = !!fl.gateLocked;
+    const psLocked = !!fl.psLocked;
+    const gateSnap = state?.lockedGate || {};
+    const psSnap = state?.lockedPS || {};
+    const isPSKey = !!(key && key.startsWith('ps_'));
+    const doneVal = (gateLocked && key && (key in gateSnap)) ? !!gateSnap[key]
+      : (psLocked && isPSKey && (key in psSnap)) ? !!psSnap[key]
+      : !!done;
     el.classList.toggle("done", doneVal);
     const box = el.querySelector('input[type="checkbox"]');
     if (box){ box.checked = !!doneVal; box.indeterminate = false; }
 
     // missed marking: Gate keys after supervisor contact / move to PS / explicit lock
-    const missableGate = new Set(["gate_name","gate_purpose","gate_appt","gate_who","gate_time","gate_about","gate_where","gate_id","gate_rules"]);
-    const missablePS = new Set(["ps_sharp","ps_pockets","ps_table","ps_position","ps_explain_armpits","ps_explain_waist","ps_explain_leg","ps_resolved"]);
+    const missableGate = new Set(["gate_name","gate_purpose","gate_appt","gate_who","gate_time","gate_about","gate_where","gate_id","gate_supervisor","gate_rules"]);
+    const missablePS = new Set(["ps_sharp","ps_remove","ps_position","ps_explain_armpits","ps_explain_waist","ps_leg","ps_items_ok","ps_cleared"]); 
+    const missableSI = new Set(["si_signed","si_issued","si_pass_no","si_visible","si_show","si_return","si_alarm","si_closes"]);
 
-    const gateMiss = !!fl.reportedSupervisor || !!fl.sentToPersonSearch || !!fl.gateLocked;
+    const gateMiss = !!fl.sentToPersonSearch;
     const psMiss = !!fl.sentToSignIn;
+    const siMiss = !!fl.ended;
 
     const isPS = key && key.startsWith("ps_");
-    const shouldMiss = isPS ? psMiss : gateMiss;
+    const isSI = key && key.startsWith("si_");
+    const shouldMiss = isPS ? psMiss : (isSI ? siMiss : gateMiss);
 
-    const missable = isPS ? missablePS : missableGate;
+    const missable = isPS ? missablePS : (isSI ? missableSI : missableGate);
 
     if (shouldMiss && key && missable.has(key) && !doneVal){
       el.classList.add("missed");
@@ -620,8 +806,59 @@ if (state.stage.startsWith("si_")) showSignIn();
     };
   }
 
+  function lockPSNow(){
+    state.flags = state.flags || {};
+    const fl = state.flags;
+    fl.psLocked = true;
+    state.lockedPS = {
+      ps_sharp: !!fl.psSharpAsked,
+      ps_remove: !!fl.psRemoveOuter,
+      ps_position: !!fl.psPositioned,
+      ps_explain_armpits: !!fl.psExplainArmpits,
+      ps_explain_waist: !!fl.psExplainWaist,
+      ps_leg: !!fl.psLegOnKnee,
+      ps_items_ok: !!fl.psItemsOk,
+      ps_cleared: !!fl.psCleared
+    };
+  }
 
-  function buildScenarioSummary(){
+
+  
+  // Example sentences for feedback
+  function exampleFor(key){
+    const ex = {
+      gate_name: 'Example: "What is your name?"',
+      gate_purpose: 'Example: "What is the purpose of your visit?"',
+      gate_appt: 'Example: "Do you have an appointment?"',
+      gate_who: 'Example: "Who are you meeting with?"',
+      gate_time: 'Example: "What time is your appointment?"',
+      gate_about: 'Example: "What is the meeting about?"',
+      gate_where: 'Example: "Where is the meeting / location?"',
+      gate_id: 'Example: "May I see your ID, please?"',
+      gate_supervisor: 'Example: "I will contact my supervisor and report this."',
+      gate_rules: 'Example: "Do you have any illegal items—weapons, drugs, or alcohol?"',
+      gate_send_ps: 'Example: "Please follow me to the person search area."',
+      ps_pockets: 'Example: "Please empty your pockets on the table."',
+      ps_position: 'Example: "Stand still, hands on the wall, feet apart."',
+      ps_remove: 'Example: "Please remove your jacket and headgear."',
+      ps_armpits: 'Example: "I am going to search under your armpits."',
+      ps_waist: 'Example: "I am going to search around your waist / belt area."',
+      ps_leg: 'Example: "Please put your leg on my knee."',
+      ps_items_ok: 'Example: "I have checked your items and they are okay."',
+      ps_cleared: 'Example: "You are clear to proceed to the sign-in office."',
+      si_register: 'Example: "Please sign in here."',
+      si_pass_no: 'Example: "I am issuing visitor pass VP-1234."',
+      si_pass_hand: 'Example: "Here is your visitor pass."',
+      si_rule_visible: 'Example: "Keep the pass visible at all times."',
+      si_rule_show: 'Example: "Show it on request."',
+      si_rule_return: 'Example: "Return it when you leave."',
+      si_rule_alarm: 'Example: "In an alarm, go to the assembly point."',
+      si_rule_closes: 'Example: "The base closes at 1700."',
+    };
+    return ex[key] || "";
+  }
+
+function buildScenarioSummary(){
     try{
       updateChecklist();
 
@@ -658,52 +895,69 @@ if (state.stage.startsWith("si_")) showSignIn();
         rows.push({key, label, status: isDone ? "ok" : (isMiss ? "miss" : "todo"), section: sec});
       }
 
-      const total = ok + miss + todo;
-      const score = total ? Math.round((ok / total) * 100) : 0;
-
-      // top strengths: first 3 ok items by section order
-      const strengths = rows.filter(r=>r.status==="ok").slice(0,3).map(r=>r.label);
-
-      // improvements: prioritize missed first, then todo
-      const misses = rows.filter(r=>r.status==="miss");
-      const todos = rows.filter(r=>r.status==="todo");
-
-      // Map from key to example sentence
-      const exampleFor = (key)=>{
-        const ex = {
-          gate_name: 'Example: "What is your name?"',
-          gate_purpose: 'Example: "What is the purpose of your visit?"',
-          gate_appt: 'Example: "Do you have an appointment?"',
-          gate_who: 'Example: "Who are you meeting with?"',
-          gate_time: 'Example: "What time is your appointment?"',
-          gate_about: 'Example: "What is the meeting about?"',
-          gate_where: 'Example: "Where is the meeting / location?"',
-          gate_id: 'Example: "May I see your ID, please?"',
-          gate_supervisor: 'Example: "I will contact my supervisor and report this."',
-          gate_rules: 'Example: "Do you have any illegal items—weapons, drugs, or alcohol?"',
-          gate_send_ps: 'Example: "Please follow me to the person search area."',
-          ps_pockets: 'Example: "Please empty your pockets on the table."',
-          ps_position: 'Example: "Stand still, hands on the wall, feet apart."',
-          ps_resolved: 'Example: "Thank you. You can proceed."',
-          si_start: 'Example: "Please sign in here."',
-          si_badge: 'Example: "Here is your visitor badge—wear it visibly."',
-        };
-        return ex[key] || "";
+      // Score: only score sections the student actually reached.
+      // - Gate is always applicable.
+      // - Person search is applicable after being sent to PS (or later).
+      // - Sign-in is applicable after being sent to sign-in (or later).
+      const reachedPS = !!state?.flags?.sentToPersonSearch || (state?.stage||"").startsWith("ps_") || (state?.stage||"").startsWith("si_");
+      const reachedSI = !!state?.flags?.sentToSignIn || (state?.stage||"").startsWith("si_") || !!state?.flags?.ended;
+      const isApplicable = (key)=>{
+        if (!key) return true;
+        if (key.startsWith("gate_")) return true;
+        if (key.startsWith("ps_")) return reachedPS;
+        if (key.startsWith("si_")) return reachedSI;
+        return true;
       };
+
+      const applicable = rows.filter(r=>isApplicable(r.key));
+      const total = applicable.length;
+      const okA = applicable.filter(r=>r.status==="ok").length;
+      const missA = applicable.filter(r=>r.status==="miss").length;
+      const todoA = applicable.filter(r=>r.status==="todo").length;
+      const score = total ? Math.round((okA / total) * 100) : 0;
+
+      // Per-section scores (only meaningful when section was reached)
+      const gateSt = sectionStats["Gate"] || {ok:0,total:0};
+      const psSt = sectionStats["Person search"] || {ok:0,total:0};
+      const siSt = sectionStats["Sign-in"] || {ok:0,total:0};
+      const gateScore = gateSt.total ? Math.round((gateSt.ok / gateSt.total) * 100) : 0;
+      const psScore = reachedPS ? (psSt.total ? Math.round((psSt.ok / psSt.total) * 100) : 0) : null;
+      const siScore = reachedSI ? (siSt.total ? Math.round((siSt.ok / siSt.total) * 100) : 0) : null;
+
+      const grade = (score>=90) ? "Excellent" : (score>=75) ? "Good" : (score>=60) ? "Needs improvement" : "Poor";
+      const gradeHint = (grade==="Excellent") ? "Very strong performance—keep this pace." :
+        (grade==="Good") ? "Solid run. Tighten up the missed steps for a higher score." :
+        (grade==="Needs improvement") ? "You covered some key steps, but missed several required actions." :
+        "Many required steps were missed—slow down and follow the checklist.";
+
+      // top strengths: first 3 ok items (applicable only)
+      const strengths = applicable.filter(r=>r.status==="ok").slice(0,3).map(r=>r.label);
+
+      // improvements: prioritize missed first, then todo (applicable only)
+      const misses = applicable.filter(r=>r.status==="miss");
+      const todos = applicable.filter(r=>r.status==="todo");
 
       const topFixes = [...misses, ...todos].slice(0,3).map(r=>({label:r.label, hint: exampleFor(r.key)}));
 
-      return {ok, miss, todo, total, score, rows, sectionStats, strengths, topFixes};
+      // Return both raw and applicable counts for display.
+      return {
+        ok, miss, todo,
+        totalRaw: (ok+miss+todo),
+        okA, missA, todoA, total,
+        score, grade, gradeHint,
+        gateScore, psScore, siScore,
+        rows, sectionStats, strengths, topFixes
+      };
     }catch(e){
-      return {ok:0, miss:0, todo:0, total:0, score:0, rows:[], sectionStats:{}, strengths:[], topFixes:[]};
+      return {ok:0, miss:0, todo:0, totalRaw:0, okA:0, missA:0, todoA:0, total:0, score:0, grade:"—", gradeHint:"", rows:[], sectionStats:{}, strengths:[], topFixes:[]};
     }
   }
 
-  function showScenarioSummary(){
-    const sum = buildScenarioSummary();
+  function showScenarioSummary(sum){
+    sum = sum || buildScenarioSummary();
 
     if (summaryStats){
-      summaryStats.textContent = `Score: ${sum.score}%  •  Done: ${sum.ok}  •  Missed: ${sum.miss}  •  Remaining: ${sum.todo}`;
+      summaryStats.textContent = `${sum.grade} — ${sum.score}%  •  Done: ${sum.okA}/${sum.total}  •  Missed: ${sum.missA}  •  Remaining: ${sum.todoA}  •  ${sum.gradeHint}`;
     }
 
     // KPIs per section
@@ -759,12 +1013,54 @@ if (state.stage.startsWith("si_")) showSignIn();
     if (summaryModal) summaryModal.hidden=false;
   }
 
+  // --- Results logging (Google Sheets via Apps Script Web App) ---
+  function logResultsToSheets(sum){
+    try{
+      const url = window.CONFIG?.logEndpoint;
+      if (!url) return;
+
+      const student = (session?.surname || "").trim();
+      const className = (session?.group || "").trim();
+      const difficulty = (session?.difficulty || "standard").trim();
+      state.runId = state.runId || ("RUN-"+randInt(100000,999999));
+
+      const payload = {
+        ts: new Date().toISOString(),
+        event: "endScenario",
+        student,
+        className,
+        runId: state.runId,
+        stats: {
+          difficulty,
+          totalScore: (sum?.score ?? ""),
+          gateScore: (sum?.gateScore ?? ""),
+          personSearchScore: (sum?.psScore==null) ? "" : sum.psScore,
+          signInScore: (sum?.siScore==null) ? "" : sum.siScore,
+          top3: sum?.topFixes || [],
+          build: String(BUILD?.version || ""),
+          userAgent: navigator.userAgent
+        },
+        userAgent: navigator.userAgent
+      };
+
+      fetch(url, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      }).catch(()=>{});
+    }catch{}
+  }
+
   function endScenarioNow(){
     state.flags.ended = true;
     try{ inputEl.disabled = true; }catch{}
     try{ sendBtn.disabled = true; }catch{}
     try{ btnEndScenario.disabled = true; }catch{}
-    showScenarioSummary();
+    const sum = buildScenarioSummary();
+    showScenarioSummary(sum);
+    // Fire-and-forget Google Sheets logging
+    try{ logResultsToSheets(sum); }catch{}
   }
 
 function updateChecklist(){
@@ -785,14 +1081,23 @@ function updateChecklist(){
     setChecklistDone(checklistEls.gate_rules, !!fl.illegalDone, "gate_rules");
     setChecklistDone(checklistEls.gate_send_ps, !!fl.sentToPersonSearch, "gate_send_ps");
 
-    setChecklistDone(checklistEls.ps_started, !!fl.psStarted);
-    setChecklistDone(checklistEls.ps_position, !!fl.psPositioned);
-    setChecklistDone(checklistEls.ps_resolved, !!fl.psResolved, "ps_resolved");
+    setChecklistDone(checklistEls.ps_sharp, !!fl.psSharpAsked, "ps_sharp");
+    setChecklistDone(checklistEls.ps_remove, !!fl.psRemoveOuter, "ps_remove");
+    setChecklistDone(checklistEls.ps_position, !!fl.psPositioned, "ps_position");
+    setChecklistDone(checklistEls.ps_explain_armpits, !!fl.psExplainArmpits, "ps_explain_armpits");
+    setChecklistDone(checklistEls.ps_explain_waist, !!fl.psExplainWaist, "ps_explain_waist");
+    setChecklistDone(checklistEls.ps_leg, !!fl.psLegOnKnee, "ps_leg");
+    setChecklistDone(checklistEls.ps_items_ok, !!fl.psItemsOk, "ps_items_ok");
+    setChecklistDone(checklistEls.ps_cleared, !!fl.psCleared, "ps_cleared");
 
-    setChecklistDone(checklistEls.si_issued, !!fl.siIssued);
-    // not implemented separately yet — best effort:
-    setChecklistDone(checklistEls.si_rules, !!fl.siIssued);
-    setChecklistDone(checklistEls.si_close, state.stage === "done");
+    setChecklistDone(checklistEls.si_signed, !!fl.siSigned, "si_signed");
+    setChecklistDone(checklistEls.si_issued, !!fl.siIssued, "si_issued");
+    setChecklistDone(checklistEls.si_pass_no, !!fl.siPassNoStated, "si_pass_no");
+    setChecklistDone(checklistEls.si_visible, !!fl.siRuleVisible, "si_visible");
+    setChecklistDone(checklistEls.si_show, !!fl.siRuleShowOnRequest, "si_show");
+    setChecklistDone(checklistEls.si_return, !!fl.siRuleReturnOnExit, "si_return");
+    setChecklistDone(checklistEls.si_alarm, !!fl.siRuleAlarmAssembly, "si_alarm");
+    setChecklistDone(checklistEls.si_closes, !!fl.siRuleBaseCloses, "si_closes");
   }
   function nextHint(){
     if (state.stage.startsWith("gate_")){
@@ -835,7 +1140,7 @@ function updateChecklist(){
       flowName:"Gate", stage:"gate_approach", misses:0, lastIntent:"", lastAsked:"",
       visitor:v,
       facts:{ name:"", purpose:"", appt:"yes", who:"", time:"", about:"", location:"", meetingTime:"", locationCode:"" },
-      flags:{ idChecked:false, reportedSupervisor:false, rulesDone:false, sentToPersonSearch:false, psSharpAsked:false, psPocketsEmptied:false, psItemsOnTable:false, psPositioned:false, psExplainArmpits:false, psExplainWaist:false, psExplainLeg:false, psResolved:false, siIssued:false },
+      flags:{ idChecked:false, reportedSupervisor:false, rulesDone:false, sentToPersonSearch:false, psSharpAsked:false, psRemoveOuter:false, psPositioned:false, psExplainArmpits:false, psExplainWaist:false, psLegOnKnee:false, psItemsOk:false, psCleared:false, siIssued:false, siRuleVisible:false, siRuleShowOnRequest:false, siRuleReturnOnExit:false, siRuleAlarmAssembly:false, siRuleBaseCloses:false },
       ui:{ idVisible:false, supervisorVisible:false },
       ps:null, pass:null,
       evasiveFor: pick(["purpose","who_meeting","about_meeting","where_meeting","time_meeting"])
@@ -878,18 +1183,19 @@ function updateChecklist(){
   }
 
   function handleGate(intent, raw){
-    if (state.stage==="gate_start"){
-      if (intent==="greet"){ state.stage="gate_help"; enqueueVisitor(phrase("shared","need_help",state)); updateHint(); return; }
-      miss("Try greeting first."); return;
-    }
-    if (state.stage==="gate_help"){
-      if (intent==="help_open"){ state.stage="gate_5wh"; enqueueVisitor("I have an appointment on base."); state.facts.purpose="known"; updateHint(); return; }
-      miss('Try: “How can I help you?”'); return;
+    // Normalize intent keys (detectIntent uses ask_*; handlers use legacy keys)
+    const rawN = String(raw||"");
+    const map = { ask_purpose:"purpose", ask_where:"where_meeting", ask_appt:"has_appointment", ask_who:"who_meeting", ask_time:"time_meeting", ask_about:"about_meeting" };
+    if (map[intent]) intent = map[intent];
+
+    if (state.stage==="gate_start" || state.stage==="gate_help"){
+      // Allow jumping straight into questions (no mandatory "How can I help")
+      state.stage="gate_5wh";
     }
 
     if (intent==="ask_name"){
       state.flags.nameAsked = true;
-      updateChecklist(); state.facts.name=state.visitor.name; enqueueVisitor(`My name is ${state.visitor.first} ${state.visitor.last}.`); updateHint(); return; }
+      updateChecklist(); state.facts.name=state.visitor.name; enqueueVisitor(`My name is ${state.visitor.first}.`); updateHint(); return; }
     if (intent==="ask_surname"){
       state.flags.nameAsked = true;
       updateChecklist(); enqueueVisitor(`My surname is ${state.visitor.last}.`); updateHint(); return; }
@@ -959,7 +1265,19 @@ function updateChecklist(){
 
     if (intent==="ask_illegal"){
       state.flags.illegalAsked = true;
-      enqueueVisitor("What do you mean by illegal items?");
+      // For training: asking the illegal items question counts as completing the illegal-items check.
+      state.flags.illegalDone = true;
+      // If the student asks specifically about weapons/drugs/alcohol, visitor can answer directly.
+      if (/\b(weapons?|knife|knives|gun|firearm|ammo|drugs?|narcotics?|alcohol)\b/i.test(rawN)){
+        if (state.visitor?.illegalItem){
+          enqueueVisitor(`Yes. I have ${state.visitor.illegalItem}.`);
+        } else {
+          enqueueVisitor("No, I don\'t have any weapons, drugs or alcohol with me.");
+        }
+      } else {
+        enqueueVisitor("What do you mean by illegal items?");
+      }
+      updateChecklist();
       updateHint();
       return;
     }
@@ -986,6 +1304,8 @@ function updateChecklist(){
     }
 
     if (intent==="go_person_search"){
+      // Lock gate results now so later questions cannot retroactively fix earlier misses
+      try{ lockGateNow(); }catch(e){}
       state.flags.sentToPersonSearch=true;
       updateChecklist();
       enqueueVisitor("Okay.");
@@ -1007,14 +1327,21 @@ function updateChecklist(){
     miss('Example: "What is the purpose of your visit today?" or "Can I see your ID, please?" or "I will contact my supervisor."');
   }
 
-  function handlePS(intent){
+  function handlePS(intent, raw){
     showPersonSearch();
 
-    // Normalize legacy keys to new ones
+    // If PS has been locked (jumped forward), do not award retroactive credit.
+    if (state?.flags?.psLocked){
+      enqueueVisitor("Understood.");
+      updateHint();
+      return;
+    }
+
+    // Normalize legacy keys
     if (intent==="ps_any_sharp") intent = "ps_ask_sharp";
     if (intent==="ps_position_arms" || intent==="ps_position_legs") intent = "ps_position";
     if (intent==="ps_search_areas") intent = "ps_explain_waist";
-    if (intent==="ps_leg_on_knee") intent = "ps_explain_leg";
+    if (intent==="ps_leg_on_knee") intent = "ps_leg_on_knee";
 
     if (intent==="ps_ask_sharp"){
       state.flags.psSharpAsked = true;
@@ -1030,18 +1357,10 @@ function updateChecklist(){
       return;
     }
 
-    if (intent==="ps_empty_pockets"){
-      state.flags.psPocketsEmptied = true;
+    if (intent==="ps_remove_outer"){
+      state.flags.psRemoveOuter = true;
       updateChecklist();
-      enqueueVisitor("Okay. I'm emptying my pockets now.");
-      updateHint();
-      return;
-    }
-
-    if (intent==="ps_items_table"){
-      state.flags.psItemsOnTable = true;
-      updateChecklist();
-      enqueueVisitor("Okay. I'll place everything on the table.");
+      enqueueVisitor("Okay. I'll remove my jacket / headgear.");
       updateHint();
       return;
     }
@@ -1054,6 +1373,7 @@ function updateChecklist(){
       return;
     }
 
+    // Explain where you will search (must mention at least armpits + waistband/private)
     if (intent==="ps_explain_armpits"){
       state.flags.psExplainArmpits = true;
       updateChecklist();
@@ -1068,38 +1388,237 @@ function updateChecklist(){
       updateHint();
       return;
     }
-    if (intent==="ps_explain_leg"){
-      state.flags.psExplainLeg = true;
+
+    if (intent==="ps_leg_on_knee"){
+      state.flags.psLegOnKnee = true;
       updateChecklist();
       enqueueVisitor("Okay.");
       updateHint();
       return;
     }
 
-    if (intent==="ps_resolve" || intent==="ps_clear" || intent==="go_sign_in"){
-      state.flags.psResolved = true;
+    if (intent==="ps_check_items"){
+      state.flags.psItemsOk = true;
+      updateChecklist();
+      enqueueVisitor("Okay.");
+
+      // If the student combines "items are OK" with a clearance instruction, allow immediate transition.
+      const n = normalize(raw||"");
+      if (/\b(clear(ed)?\s+to\s+(proceed|go)|you\s+are\s+clear|free\s+to\s+proceed|ok(ay)?\s+to\s+proceed)\b/i.test(n) && /\b(sign\s*in|register|sign-in|office)\b/i.test(n)){
+        state.flags.psCleared = true;
+        state.flags.sentToSignIn = true;
+        updateChecklist();
+        state.flowName="Sign-in";
+        state.stage="si_arrival";
+        showSignIn();
+        enqueueVisitor("Okay. I will proceed to sign-in.");
+      }
+
+      updateHint();
+      return;
+    }
+
+    if (intent==="ps_clear" || intent==="ps_resolve" || intent==="go_sign_in"){
+      // Only clear after key steps have been covered; student can still proceed, misses are marked at transition.
+      state.flags.psCleared = true;
       state.flags.sentToSignIn = true; // finalize PS misses on transition
       updateChecklist();
       state.flowName="Sign-in";
       state.stage="si_arrival";
       showSignIn();
-      enqueueVisitor("Okay. Please proceed to sign-in.");
+      enqueueVisitor("Okay. You are cleared. Please proceed to sign-in.");
       updateHint();
       return;
     }
 
-    miss('Person Search: ask about sharp objects, then empty pockets, place items on the table, give positioning, and explain your actions.');
+    miss('Person Search: ask about sharp objects, ask them to remove jacket/headgear, give positioning, explain where you will search (armpits + waistband), give the leg-on-knee instruction, check the items, then clear them to sign-in.');
   }
 
-  function handleSI(){
+  
+  function maybeCompleteSignIn(){
+    if (!state || state.flowName!=="Sign-in") return;
+    const rulesOk = !!(state.flags.siRuleVisible && state.flags.siRuleShowOnRequest && state.flags.siRuleReturnOnExit && state.flags.siRuleAlarmAssembly && state.flags.siRuleBaseCloses);
+    if (state.flags.siComplete) return;
+    if (state.flags.siSigned && state.flags.siIssued && state.flags.siPassNoStated && rulesOk){
+      state.flags.siComplete = true;
+      updateChecklist();
+      showPass();
+      enqueueVisitor("Thank you.");
+      updateHint();
+    }
+  }
+
+function handleSI(intent, raw){
     showSignIn();
-    miss("Fill in the register on the right, then issue the visitor pass.");
+    const n = String(raw||"");
+
+    if (intent==="ask_name" || intent==="ask_surname"){
+      state.flags.nameAsked = true;
+      if (si_name) si_name.value = state.visitor?.name || "";
+      enqueueVisitor(`My name is ${state.visitor?.name || "—"}.`);
+      updateHint();
+      return;
+    }
+
+    // Allow asking remaining 5W/H details at the sign-in office (if not already asked at the gate)
+    if (intent==="ask_company"){
+      state.flags.companyAsked = true;
+      state.facts.company = state.facts.company || generateCompany(state);
+      if (si_company && !si_company.value) si_company.value = state.facts.company;
+      enqueueVisitor(`I'm from ${state.facts.company}.`);
+      updateHint();
+      return;
+    }
+    if (intent==="ask_purpose" || intent==="purpose"){
+      state.flags.purposeAsked = true;
+      state.facts.purpose = state.facts.purpose || "known";
+      enqueueVisitor(phrase("gate","purpose",state, state.flags.forcedCoop ? "open":null));
+      updateHint();
+      return;
+    }
+    if (intent==="ask_who" || intent==="who_meeting"){
+      state.flags.whoAsked = true;
+      state.facts.who = state.facts.who || "known";
+      enqueueVisitor(phrase("gate","who_meeting",state, state.flags.forcedCoop ? "open":null));
+      updateHint();
+      return;
+    }
+    if (intent==="ask_time" || intent==="time_meeting"){
+      state.flags.timeAsked = true;
+      state.facts.time = state.facts.time || "known";
+      enqueueVisitor(`My appointment is at ${getMeetingTime(state)}.`);
+      updateHint();
+      return;
+    }
+    if (intent==="ask_about" || intent==="about_meeting"){
+      state.flags.aboutAsked = true;
+      state.facts.about = state.facts.about || "known";
+      enqueueVisitor(phrase("gate","about_meeting",state, state.flags.forcedCoop ? "open":null));
+      updateHint();
+      return;
+    }
+    if (intent==="ask_where" || intent==="where_meeting"){
+      state.flags.whereAsked = true;
+      state.facts.location = state.facts.location || "known";
+      enqueueVisitor(`At reception, building ${state.facts.locationCode}.`);
+      updateHint();
+      return;
+    }
+    if (intent==="ask_appt" || intent==="has_appointment"){
+      state.flags.apptAsked = true;
+      enqueueVisitor(phrase("gate","has_appointment_yes",state));
+      updateHint();
+      return;
+    }
+    if (intent==="si_sign_in"){
+      // Student initiates signing the register
+      state.flags.siSigned = true;
+
+      // Fill only what has been asked at sign-in (values are set when the student asks the questions).
+      // For safety, if fields are still empty, we can at least insert known values (name / time / location).
+      if (si_name && !si_name.value) si_name.value = state.visitor?.name || "";
+      if (si_time && !si_time.value) si_time.value = getMeetingTime(state);
+      if (si_loc && !si_loc.value) si_loc.value = state.facts.locationCode ? `Building ${state.facts.locationCode}` : (state.facts.location||"");
+
+      // Animate signature inside the signature box
+      if (sigBox){ sigBox.classList.remove("sigRun"); void sigBox.offsetWidth; sigBox.classList.add("sigRun"); }
+      if (si_sig) si_sig.value = "signed";
+
+      // Mark checklist immediately, then transition the UI to the base-rules screen after the signature animation starts.
+      updateChecklist();
+      enqueueVisitor("Okay.");
+
+      // After the signature is drawn, switch to the rules overview (register form hides, rules appear).
+      setTimeout(()=>{ try{ setSignInView("rules"); }catch(e){} }, 850);
+
+      updateHint();
+      return;
+    }
+    if (intent==="si_issue_pass"){
+      state.flags.siIssued = true;
+      // Keep the rules form visible; issuing is confirmed by the student's statement.
+      showSignIn();
+
+      // Student must *state* which pass is being issued (e.g., "I am issuing pass VP-1234")
+      const pid = state?.pass?.id || "";
+      const statedExact = pid && new RegExp("\\b"+pid.replace(/[-/\\^$*+?.()|[\]{}]/g,'\\$&')+"\\b","i").test(n);
+      const statedGeneric = /\b(pass|badge)\b/i.test(n) && /\b(VP-\d{4}|\d{3,6})\b/i.test(n);
+      if (statedExact || statedGeneric) state.flags.siPassNoStated = true;
+
+      updateChecklist();
+      enqueueVisitor("Okay.");
+      maybeCompleteSignIn();
+      updateHint();
+      return;
+    }
+    if (intent==="si_pass_no"){
+      state.flags.siPassNoStated = true;
+      updateChecklist();
+      enqueueVisitor("Understood.");
+      maybeCompleteSignIn();
+      updateHint();
+      return;
+    }
+    if (intent==="si_rule_visible"){
+      state.flags.siRuleVisible = true;
+      updateChecklist();
+      enqueueVisitor("Okay. I will wear it visibly.");
+      maybeCompleteSignIn();
+      updateHint();
+      return;
+    }
+    if (intent==="si_rule_show"){
+      state.flags.siRuleShowOnRequest = true;
+      updateChecklist();
+      enqueueVisitor("Understood. I will show it on request.");
+      maybeCompleteSignIn();
+      updateHint();
+      return;
+    }
+    if (intent==="si_rule_return"){
+      state.flags.siRuleReturnOnExit = true;
+      updateChecklist();
+      enqueueVisitor("Okay. I'll return it when I leave.");
+      maybeCompleteSignIn();
+      updateHint();
+      return;
+    }
+    if (intent==="si_rule_alarm"){
+      state.flags.siRuleAlarmAssembly = true;
+      updateChecklist();
+      enqueueVisitor("Okay. I will go to the assembly area if there is an alarm.");
+      maybeCompleteSignIn();
+      updateHint();
+      return;
+    }
+    if (intent==="si_rule_closes"){
+      state.flags.siRuleBaseCloses = true;
+      updateChecklist();
+      enqueueVisitor("Okay.");
+      maybeCompleteSignIn();
+      updateHint();
+      return;
+    }
+    miss("Sign-in: sign the register, issue the visitor pass, then explain the pass rules.");
   }
 
   function handleStudent(raw){
     const txt=String(raw||"").trim();
     if (!txt || !state) return;
-    if (state.stage==="gate_approach") return;
+
+    // Only English input is accepted for intent detection.
+    if (isLikelyNonEnglish(txt)){
+      addMsg("student", txt);
+      enqueueVisitor("Please use English during this training.");
+      return;
+    }
+    if (state.stage==="gate_approach"){
+      // Allow immediate interaction; skip the approach timer so checklist can start right away
+      try{ if (approach) clearTimeout(approach); }catch{}
+      state.stage="gate_start";
+      enqueueVisitor(phrase("shared","greeting",state));
+      updateHint();
+    }
 
     addMsg("student", txt);
     window.VEVA_LOG?.({type:"student", stage:state.stage, text:txt});
@@ -1109,15 +1628,43 @@ function updateChecklist(){
 
     if (intent==="deny"){ enqueueVisitor(phrase("shared","deny_why",state)); return; }
 
-    // --- Global identity / control questions (available in any gate stage) ---
+    // Force jump to the sign-in office when requested (training focus mode).
+    if (intent==="go_sign_in"){
+      // Mark earlier steps as missed (red crosses) but do not block the transition.
+      // Also lock earlier phases so they cannot be fixed retroactively.
+      try{ lockGateNow(); }catch(e){}
+      try{ lockPSNow(); }catch(e){}
+      state.flags.sentToPersonSearch = true;
+      state.flags.sentToSignIn = true;
+      state.flowName="Sign-in";
+      state.stage="si_arrival";
+      updateChecklist();
+      showSignIn();
+      enqueueVisitor("Okay. I will proceed to the sign-in office.");
+      updateHint();
+      return;
+    }
+
+
+    // --- Global identity / control questions (available in any stage) ---
     if (intent === "ask_name"){
-      state.facts.name = true;
+      if (String(state.stage||"").startsWith("gate_")){
+        state.flags.nameAsked = true;
+        state.facts.name = "known";
+        updateChecklist();
+      }
       enqueueVisitor(`My name is ${state.visitor.first}.`);
+      updateHint();
       return;
     }
     if (intent === "ask_surname"){
-      state.facts.surname = true;
+      if (String(state.stage||"").startsWith("gate_")){
+        state.flags.nameAsked = true;
+        state.facts.name = "known";
+        updateChecklist();
+      }
       enqueueVisitor(`My last name is ${state.visitor.last}.`);
+      updateHint();
       return;
     }
     if (intent === "spell_last_name"){
@@ -1127,6 +1674,7 @@ function updateChecklist(){
         .split("");
       const spelled = letters.length ? letters.join("-") : String(state.visitor.last || "").toUpperCase();
       enqueueVisitor(spelled || `My surname is ${state.visitor.last}.`);
+      updateHint();
       return;
     }
     if (intent === "ask_age" || intent === "confirm_age"){
@@ -1171,8 +1719,8 @@ function updateChecklist(){
     }
 
     if (state.stage.startsWith("gate_")) return handleGate(intent, txt);
-    if (state.stage.startsWith("ps_")) return handlePS(intent);
-    if (state.stage.startsWith("si_")) return handleSI(intent);
+    if (state.stage.startsWith("ps_")) return handlePS(intent, txt);
+    if (state.stage.startsWith("si_")) return handleSI(intent, txt);
 
     enqueueVisitor("Okay.");
   }
@@ -1198,12 +1746,13 @@ btnSend?.addEventListener("click", ()=>{
     textInput.disabled=false; btnSend.disabled=false; holdToTalk.disabled=false;
     resetScenario();
   });
-  btnReset?.addEventListener("click", ()=>{ if(loginModal){ loginModal.hidden=false; loginModal.style.display=""; } history=[]; renderChat(); hideAllPanels(); if(textInput) textInput.value=""; });
+  btnPhrases?.addEventListener("click", ()=>{ window.open("VEVA_Checkpoint_Trainer_Woordenlijst_EN-NL.pdf","_blank","noopener"); });
 
   btnPersonSearch?.addEventListener("click", ()=> handleStudent("Go to person search"));
   btnSignIn?.addEventListener("click", ()=> handleStudent("Go to sign-in office"));
+  btnEndScenario?.addEventListener("click", ()=> endScenarioNow());
+  btnCloseSummary?.addEventListener("click", ()=>{ if(summaryModal) summaryModal.hidden=true; });
   btnDeny?.addEventListener("click", ()=> enqueueVisitor(phrase("shared","deny_why",state)));
-  btnReturn?.addEventListener("click", ()=> enqueueVisitor("Return (placeholder)."));
 
   btnReturnId?.addEventListener("click", ()=>{ if(state?.ui?.idVisible){ hideId(); enqueueVisitor(phrase("gate","return_id",state)); window.VEVA_LOG?.({type:"id", action:"returned_btn"}); } });
 
@@ -1219,28 +1768,16 @@ btnSend?.addEventListener("click", ()=>{
     window.VEVA_LOG?.({type:"supervisor_report", stage:state.stage, report, visitor:{name:state.visitor.name,idNo:state.visitor.idNo}, student:session});
     addMsg("student","[Report sent to supervisor]","NL 5W/H logged");
     state.flags.reportedSupervisor = true;
-    // After report: lock in what was NOT asked as missed (red crosses) and move to rules step
     updateChecklist();
     backToVisitor();
     enqueueVisitor("Understood. Thank you.");
     updateHint();
   });
 
-  btnSignInIssue?.addEventListener("click", ()=>{
-    const entry={
-      name:(si_name?.value||state.visitor.name).trim(),
-      company:(si_company?.value||"").trim(),
-      poc:(si_poc?.value||state.visitor.contact.full).trim(),
-      time:(si_time?.value||state.facts.meetingTime||"").trim(),
-      location:(si_loc?.value||state.facts.location||"").trim(),
-      signature:(si_sig?.value||"").trim(),
-    };
-    if(!entry.signature){ miss("Ask the visitor to sign (type name) before issuing the pass."); return; }
-    state.flags.siIssued=true;
-    window.VEVA_LOG?.({type:"sign_in", action:"issue_pass", entry, visitor:state.visitor, student:session});
-    showPass();
-    enqueueVisitor("Here is your visitor pass. Please wear it visibly at all times.");
-    updateHint();
+  // Live highlight: company is the common remaining field at sign-in
+  si_company?.addEventListener("input", ()=>{
+    const missing = !(si_company.value||"").trim();
+    si_company.classList.toggle("missing", missing);
   });
 
   btnPassReturn?.addEventListener("click", ()=>{
@@ -1480,7 +2017,7 @@ btnChecklistCollapse?.addEventListener("click", ()=>{
   loginModal.hidden=false;
 
   // initial dummy
-  state={flowName:"Gate", stage:"idle", visitor:{...makeRandomVisitor(), contact:makeContact()}, facts:{}, flags:{}, ui:{idVisible:false,supervisorVisible:false}, misses:0, visitorDeclaredAppt:null};
+  state={flowName:"Gate", stage:"idle", visitor:{...makeRandomVisitor(), contact:makeContact(), illegalItem: pick([null,null,null,null,"a small pocket knife","a needle","a razor blade"] )}, facts:{}, flags:{}, ui:{idVisible:false,supervisorVisible:false}, misses:0, visitorDeclaredAppt:null};
   if(portraitPhoto) portraitPhoto.src=state.visitor.photoSrc||TRANSPARENT_PX;
   if(supervisorPhoto) supervisorPhoto.src=supervisorAvatar.src||soldierAvatar.src;
   hideAllPanels();
