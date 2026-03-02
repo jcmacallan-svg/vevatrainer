@@ -23,7 +23,6 @@
         const k = "veva.offlineLog";
         const prev = JSON.parse(localStorage.getItem(k) || "[]");
         prev.push(payload);
-        // Avoid numeric separators (older runtimes)
         localStorage.setItem(k, JSON.stringify(prev).slice(0, 2000000));
       }catch(e2){}
       console.warn("Logging failed:", e);

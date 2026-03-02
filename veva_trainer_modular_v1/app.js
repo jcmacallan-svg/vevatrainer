@@ -780,7 +780,7 @@ function showSignIn(){
 
     // Tabletop render (background + max 6 item PNGs)
     try{
-      if (window.VEVA_TABLETOP && typeof window.VEVA_TABLETOP.render === "function"){
+      if (window.VEVA_TABLETOP && window.VEVA_TABLETOP.render){
         window.VEVA_TABLETOP.render({
           canvasId: "psTableCanvas",
           tableSrc: "assets/table/tafelachtergrond.png",

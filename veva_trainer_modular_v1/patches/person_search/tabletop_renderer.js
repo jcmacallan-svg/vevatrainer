@@ -30,10 +30,8 @@
     return min + Math.random() * (max - min);
   }
 
-  // Pas dit aan naar jouw assets
   var DEFAULT_TABLE = "assets/table/tafelachtergrond.png";
 
-  // Mapping name -> sprite (optioneel; je kunt ook it.src meesturen)
   var ITEM_SPRITES = {
     "Phone": "assets/items/phone.png",
     "Wallet": "assets/items/wallet.png",
@@ -57,7 +55,6 @@
     var W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
 
-    // Background
     try {
       var bg = await loadImage(tableSrc);
       drawCover(ctx, bg, W, H);
@@ -68,7 +65,6 @@
 
     var list = items.slice(0, 6);
 
-    // 3x2 slots
     var slots = [
       { x: 0.22, y: 0.30 }, { x: 0.50, y: 0.30 }, { x: 0.78, y: 0.30 },
       { x: 0.22, y: 0.70 }, { x: 0.50, y: 0.70 }, { x: 0.78, y: 0.70 }
@@ -80,7 +76,6 @@
 
       var src = it.src || it.sprite || ITEM_SPRITES[it.name];
 
-      // positie/rotatie/schaal
       var cx = slot.x * W + randBetween(-18, 18);
       var cy = slot.y * H + randBetween(-12, 12);
       var rot = randBetween(-0.18, 0.18);
@@ -102,7 +97,6 @@
         ctx.translate(cx, cy);
         ctx.rotate(rot);
 
-        // Schaduw
         ctx.shadowColor = "rgba(0,0,0,0.28)";
         ctx.shadowBlur = 18;
         ctx.shadowOffsetX = 8;
@@ -110,9 +104,7 @@
 
         ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
         ctx.restore();
-      } catch (e2) {
-        // skip
-      }
+      } catch (e2) {}
     }
   }
 
