@@ -777,7 +777,7 @@ function showSignIn(){
         psCards.appendChild(c);
       }
     }
-
+  
     // Tabletop render (background + max 6 item PNGs)
     try{
       if (window.VEVA_TABLETOP && window.VEVA_TABLETOP.render){
@@ -788,8 +788,7 @@ function showSignIn(){
         });
       }
     }catch(e){}
-
-  }
+}
 
   // Hints
   function shouldHints(){ return (session.difficulty||"standard")!=="advanced"; }
