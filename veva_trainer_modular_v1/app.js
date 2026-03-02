@@ -89,6 +89,8 @@
   const si_name = $("#si_name");
   const si_company = $("#si_company");
   const sigBox = $("#sigBox");
+  const si_rulesBox = $("#si_rulesBox");
+  const si_passPreview = $("#si_passPreview");
   const si_poc = $("#si_poc");
   const si_time = $("#si_time");
   const si_loc = $("#si_loc");
@@ -129,6 +131,7 @@
     ps_cleared: $("#cl_ps_cleared"),
 
     // Sign-in
+    si_signed: $("#cl_si_signed"),
     si_issued: $("#cl_si_issued"),
     si_pass_no: $("#cl_si_pass_no"),
     si_visible: $("#cl_si_visible"),
@@ -367,7 +370,7 @@
 
     
     // Sign-in intents
-    if (/\b(sign\s*in|register)\b/i.test(n)) return "si_sign_in";
+    if (/\b(sign\s*in|register|sign\s+here|signature)\b/i.test(n)) return "si_sign_in";
     if (/\b(issue|give|hand)\b/i.test(n) && /\b(visitor\s*pass|pass|badge)\b/i.test(n)) return "si_issue_pass";
     if (/\b(pass|badge)\b/i.test(n) && /\b(VP-\d{4}|\d{3,6})\b/i.test(n)) return "si_pass_no";
     if ((/\bwear\b/i.test(n) || /\bvisible\b/i.test(n)) && /\bpass|badge\b/i.test(n)) return "si_rule_visible";
@@ -614,6 +617,22 @@ if (state.stage.startsWith("si_")) showSignIn();
       si_loc.value = f.whereAsked ? loc : "";
     }
     if (si_company) si_company.value = f.companyAsked ? (state.facts.company||"") : "";
+
+    // Missing company should stand out in the form during sign-in.
+    if (si_company){
+      const missing = !si_company.value;
+      si_company.classList.toggle("missing", missing);
+    }
+
+    // Prepare pass number preview (student must state it later)
+    state.pass = state.pass || {};
+    state.pass.id = state.pass.id || ("VP-"+randInt(1000,9999));
+    if (si_passPreview) si_passPreview.textContent = state.pass.id;
+
+    // Signature box is always visible; rules appear only after the student asks to sign.
+    if (sigBox){ sigBox.classList.remove("sigRun"); }
+    if (si_rulesBox) si_rulesBox.hidden = !state.flags.siSigned;
+    if (btnSignInIssue) btnSignInIssue.disabled = !state.flags.siSigned;
     updateHint();
   }
   function showPass(){
@@ -707,7 +726,7 @@ if (state.stage.startsWith("si_")) showSignIn();
     // missed marking: Gate keys after supervisor contact / move to PS / explicit lock
     const missableGate = new Set(["gate_name","gate_purpose","gate_appt","gate_who","gate_time","gate_about","gate_where","gate_id","gate_supervisor","gate_rules"]);
     const missablePS = new Set(["ps_sharp","ps_remove","ps_position","ps_explain_armpits","ps_explain_waist","ps_leg","ps_items_ok","ps_cleared"]); 
-    const missableSI = new Set(["si_issued","si_pass_no","si_visible","si_show","si_return","si_alarm","si_closes"]);
+    const missableSI = new Set(["si_signed","si_issued","si_pass_no","si_visible","si_show","si_return","si_alarm","si_closes"]);
 
     const gateMiss = !!fl.sentToPersonSearch;
     const psMiss = !!fl.sentToSignIn;
@@ -918,6 +937,7 @@ function updateChecklist(){
     setChecklistDone(checklistEls.ps_items_ok, !!fl.psItemsOk, "ps_items_ok");
     setChecklistDone(checklistEls.ps_cleared, !!fl.psCleared, "ps_cleared");
 
+    setChecklistDone(checklistEls.si_signed, !!fl.siSigned, "si_signed");
     setChecklistDone(checklistEls.si_issued, !!fl.siIssued, "si_issued");
     setChecklistDone(checklistEls.si_pass_no, !!fl.siPassNoStated, "si_pass_no");
     setChecklistDone(checklistEls.si_visible, !!fl.siRuleVisible, "si_visible");
@@ -1313,7 +1333,14 @@ function updateChecklist(){
       if (si_poc && !si_poc.value) si_poc.value = state.visitor?.contact?.full || "";
       if (si_time && !si_time.value) si_time.value = getMeetingTime(state);
       if (si_loc && !si_loc.value) si_loc.value = state.facts.locationCode ? `Building ${state.facts.locationCode}` : (state.facts.location||"");
-      if (sigBox){ sigBox.hidden = false; sigBox.classList.remove("sigRun"); void sigBox.offsetWidth; sigBox.classList.add("sigRun"); }
+      // Animate signature inside the signature box
+      if (sigBox){ sigBox.classList.remove("sigRun"); void sigBox.offsetWidth; sigBox.classList.add("sigRun"); }
+      // store a simple marker so older code paths don't treat it as "empty"
+      if (si_sig) si_sig.value = "signed";
+      // Reveal rules + enable pass issuance
+      if (si_rulesBox) si_rulesBox.hidden = false;
+      if (btnSignInIssue) btnSignInIssue.disabled = false;
+      updateChecklist();
       enqueueVisitor("Okay.");
       updateHint();
       return;
@@ -1542,14 +1569,21 @@ btnSend?.addEventListener("click", ()=>{
       location:(si_loc?.value||state.facts.location||"").trim(),
       signature:(si_sig?.value||"").trim(),
     };
-    if(!entry.signature){ miss("Ask the visitor to sign (type name) before issuing the pass."); return; }
+    if(!state.flags.siSigned){ miss("Ask the visitor to sign the register before issuing the pass."); return; }
     state.flags.siIssued=true;
       // Try to enter fullscreen after sign-in (user gesture)
       try{ if(!document.fullscreenElement){ document.documentElement.requestFullscreen?.(); } }catch(e){}
     window.VEVA_LOG?.({type:"sign_in", action:"issue_pass", entry, visitor:state.visitor, student:session});
     showPass();
-    enqueueVisitor("Here is your visitor pass. Please wear it visibly at all times.");
+    // The student must say the briefing lines (rules + pass number). Visitor only acknowledges.
+    enqueueVisitor("Thank you.");
     updateHint();
+  });
+
+  // Live highlight: company is the common remaining field at sign-in
+  si_company?.addEventListener("input", ()=>{
+    const missing = !(si_company.value||"").trim();
+    si_company.classList.toggle("missing", missing);
   });
 
   btnPassReturn?.addEventListener("click", ()=>{
