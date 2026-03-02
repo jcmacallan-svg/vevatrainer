@@ -777,6 +777,16 @@ function showSignIn(){
         psCards.appendChild(c);
       }
     }
+
+    // Tabletop render (background + max 6 item PNGs)
+    try{
+      window.VEVA_TABLETOP?.render({
+        canvasId: "psTableCanvas",
+        tableSrc: "assets/table/tafelachtergrond.png",
+        items: (ps.items || []).slice(0, 6)
+      });
+    }catch(e){}
+
   }
 
   // Hints

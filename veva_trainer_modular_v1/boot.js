@@ -29,6 +29,7 @@ window.BUILD = { version: "8.0.5-modular+v1_7_20", name: "VEVA Ingang/Uitgang Tr
                 load("patches/person_search/intents_person_search_en.js", function(){
                   load("patches/person_search/phrasebank_person_search_en.js", function(){
                     load("patches/person_search/visuals_person_search.js", function(){
+                      load("patches/person_search/tabletop_renderer.js", function(){
                       load("patches/person_search/flow_person_search.js", function(){
 
                         load("patches/sign_in/intents_signin_en.js", function(){
@@ -44,7 +45,9 @@ window.BUILD = { version: "8.0.5-modular+v1_7_20", name: "VEVA Ingang/Uitgang Tr
                               });
 
                             });
-                          });
+                    
+                      });
+      });
                         });
 
                       });

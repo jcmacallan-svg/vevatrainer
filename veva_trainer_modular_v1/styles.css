@@ -136,6 +136,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 .superGrid input,.superGrid select{background:var(--field);color:var(--text);border:1px solid var(--border);border-radius:12px;padding:10px 10px;outline:none;}
 .superGrid input:focus,.superGrid select:focus{border-color:rgba(58,167,255,.55);}
 .psOutfit{color:var(--muted);font-size:13px;line-height:1.35;margin-bottom:10px;}
+.psTableCanvas{width:100%;height:auto;display:block;margin:10px 0 12px;border-radius:14px;border:1px solid var(--border);background:rgba(255,255,255,0.03);}
 .cards{display:grid;grid-template-columns: 1fr 0.20fr;gap:10px;}
 .itemCard{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:14px;padding:10px;}
 .itemCard .t{font-weight:800;}
