@@ -100,6 +100,29 @@
   const btnSignInIssue = $("#btnSignInIssue");
 
   const passPanel = $("#passPanel");
+
+  // Central portrait (photo + mood strip) visibility controller.
+  // Rule: if any bottom popup/panel (ID, Supervisor, PS, Sign-in, Pass) is visible, hide portraitRow.
+  function syncPortraitVisibility(){
+    const portraitRow = $("#portraitRow");
+    if(!portraitRow) return;
+
+    const els = [
+      $("#idCardWrap"),
+      $("#supervisorPanel"),
+      $("#personSearchPanel"),
+      $("#signInPanel"),
+      $("#passPanel"),
+    ].filter(Boolean);
+
+    const anyVisible = els.some(el=>{
+      const cs = window.getComputedStyle(el);
+      return cs.display !== "none" && cs.visibility !== "hidden" && !el.hidden;
+    });
+
+    portraitRow.hidden = !!anyVisible;
+    portraitRow.style.display = anyVisible ? "none" : "";
+  }
   const passNo = $("#passNo");
   const passName = $("#passName");
   const passUntil = $("#passUntil");
@@ -549,7 +572,9 @@
     if (signInPanel) signInPanel.hidden=true;
     if (passPanel) passPanel.hidden=true;
     const portraitRow = $("#portraitRow");
-    if (portraitRow){ portraitRow.hidden = false; portraitRow.style.display = ""; }
+  // portrait visibility handled by syncPortraitVisibility()  // portrait visibility handled by syncPortraitVisibility()
+    syncPortraitVisibility();
+
   }
 
   function showId(){
@@ -558,7 +583,7 @@
 
     // Hide the portrait guidance row to give the ID card full space
     const portraitRow = $("#portraitRow");
-    if (portraitRow){ portraitRow.hidden = true; portraitRow.style.display = "none"; }
+  // portrait visibility handled by syncPortraitVisibility()  // portrait visibility handled by syncPortraitVisibility()
 
     idCardWrap.hidden=false;
 
@@ -578,14 +603,15 @@
   function hideId(){
     if (!idCardWrap) return;
     idCardWrap.hidden=true; state.ui.idVisible=false; updateHint();
+    syncPortraitVisibility();
+
   }
 
   function showSupervisor(){
     hideAllPanels();
-    // Keep portrait row visible in the default (no-panel) view
+    // When a bottom-panel card is shown (Supervisor), hide the portrait + mood row.
     const portraitRow = $("#portraitRow");
-    if (portraitRow){ portraitRow.hidden = false; portraitRow.style.display = ""; }
-
+  // portrait visibility handled by syncPortraitVisibility()  // portrait visibility handled by syncPortraitVisibility()
     // Auto-fill fields ONLY for items the student already asked (green tickmarks).
     // Missing items remain empty so the student still notices what's incomplete.
     const fl = state.flags || {};
@@ -622,6 +648,8 @@ if (state.stage.startsWith("si_")) showSignIn();
     else if (state.ui.idVisible) idCardWrap.hidden=false;
     else hideAllPanels();
     updateHint();
+    syncPortraitVisibility();
+
   }
 
   function showPersonSearch(){
@@ -632,6 +660,8 @@ personSearchPanel.hidden=false;
     if (panelSub) panelSub.textContent="Search procedure";
     renderPS();
     updateHint();
+  
+    syncPortraitVisibility();
   }
   
   function setSignInView(mode){
@@ -668,7 +698,7 @@ function showSignIn(){
 
     // In sign-in office, hide the portrait guidance block to give the form full space
     const portraitRow = $("#portraitRow");
-    if (portraitRow){ portraitRow.hidden = true; portraitRow.style.display = "none"; }
+  // portrait visibility handled by syncPortraitVisibility()  // portrait visibility handled by syncPortraitVisibility()
 
     // At arrival, the register starts blank. Fields are filled only when the student asks the questions here.
     state.flags = state.flags || {};
@@ -701,7 +731,7 @@ function showSignIn(){
   function showPass(){
     hideAllPanels();
     const portraitRow = $("#portraitRow");
-    if (portraitRow){ portraitRow.hidden = true; portraitRow.style.display = "none"; }
+  // portrait visibility handled by syncPortraitVisibility()  // portrait visibility handled by syncPortraitVisibility()
     passPanel.hidden=false;
     if (panelTitle) panelTitle.textContent="Sign-in";
     if (panelSub) panelSub.textContent="Visitor pass issued";
@@ -712,6 +742,8 @@ function showSignIn(){
     if (passName) passName.textContent=state.visitor.name;
     if (passUntil) passUntil.textContent=state.pass.until;
     updateHint();
+    syncPortraitVisibility();
+
   }
 
   function renderPS(){
@@ -1210,7 +1242,7 @@ function nextHint(){
     hideAllPanels();
     const portraitRow = $("#portraitRow");
     // Default: show portrait + mood indicator when no bottom panel is active.
-    if (portraitRow){ portraitRow.hidden = false; portraitRow.style.display = "flex"; }
+  // portrait visibility handled by syncPortraitVisibility()  // portrait visibility handled by syncPortraitVisibility()
 
     if (portraitPhoto) portraitPhoto.src = v.photoSrc || TRANSPARENT_PX;
     if (portraitMood) portraitMood.textContent = `A visitor is approaching the gate. ${currentMood.line}`;
