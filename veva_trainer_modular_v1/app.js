@@ -308,6 +308,8 @@
 
   function detectIntent(raw){
     const n = normalize(raw);
+    // Press for answer / ultimatum (used when visitor is evasive)
+    if (/\b(please\s+answer|answer\s+(the\s+)?question|answer\s+directly|i\s+need\s+an\s+answer|i\s+need\s+a\s+clear\s+answer|stop\s+avoiding|don\'?t\s+avoid|cooperate|non\-?cooperative|if\s+you\s+don\'?t\s+cooperate|otherwise\s+entry\s+will\s+be\s+denied|i\s+will\s+deny\s+(your\s+)?entry|you\s+must\s+answer)\b/i.test(n)) return "press_for_answer";
     // Priority disambiguation for 5W appointment questions
     if (/\b(with\s+who(m)?|appointment\s+with|who\s+are\s+you\s+(meeting|seeing))\b/i.test(n)) return "who_meeting";
     if ((/\bwhat\s+time\b/i.test(n) || /\bwhen\b/i.test(n)) && /\b(appointment|meeting)\b/i.test(n)) return "time_meeting";
@@ -378,11 +380,11 @@
     if (/\b(sign\s*in|register|sign\s+here|signature)\b/i.test(n)) return "si_sign_in";
     if ((/\b(issue|give|hand)\b/i.test(n) || /\bhere\s+is\b/i.test(n)) && /\b(visitor\s*pass|pass|badge)\b/i.test(n)) return "si_issue_pass";
     if (/\b(pass|badge)\b/i.test(n) && /\b(VP-\d{4}|\d{3,6})\b/i.test(n)) return "si_pass_no";
-    if ((/\bwear\b/i.test(n) || /\bvisible\b/i.test(n)) && /\bpass|badge\b/i.test(n)) return "si_rule_visible";
-    if (/\b(show|present)\b/i.test(n) && /\b(request|asked)\b/i.test(n)) return "si_rule_show";
-    if (/\breturn\b/i.test(n) && (/\bleave|exit|when\s+you\s+leave|when\s+leaving\b/i.test(n))) return "si_rule_return";
-    if (/\balarm\b/i.test(n) || /\bassembly\s*area\b/i.test(n)) return "si_rule_alarm";
-    if (/\bcloses\b/i.test(n) || /\bclose\b/i.test(n) || /\b4\s*(pm|p\.m\.|o\'clock|oclock)?\b/i.test(n)) return "si_rule_closes";
+    if (/\b(pass|badge)\b/i.test(n) && (/\b(visible|wear|display)\b/i.test(n) || (/\bkeep\b/i.test(n) && /\bvisible\b/i.test(n)))) return "si_rule_visible";
+    if ((/\b(show|present|display)\b/i.test(n)) && (/\b(on\s+request|when\s+asked|if\s+asked|upon\s+request|requested)\b/i.test(n) || (/\brequest\b/i.test(n) && /\b(show|present|display)\b/i.test(n)))) return "si_rule_show";
+    if ((/\b(return|hand\s+back|give\s+back)\b/i.test(n)) && (/\b(on\s+exit|when\s+you\s+leave|when\s+leaving|when\s+you\s+exit|before\s+you\s+leave|at\s+the\s+gate)\b/i.test(n) || /\b(exit|leave)\b/i.test(n))) return "si_rule_return";
+    if (/\b(alarm|fire\s+alarm|assembly\s*(point|area)|muster\s*point)\b/i.test(n)) return "si_rule_alarm";
+    if (/\b(base\s+closes|closing\s+time|closes\s+at|closed\s+at)\b/i.test(n) || /\bcloses\b/i.test(n) || /\b4\s*(pm|p\.m\.|o\'clock|oclock)?\b/i.test(n)) return "si_rule_closes";
 
     const list = Array.isArray(window.VEVA_INTENTS) ? window.VEVA_INTENTS : [];
     for (const it of list){ try{ if (it?.rx?.test(raw)) return it.key; }catch{} }
@@ -542,11 +544,19 @@
     if (signInPanel) signInPanel.hidden=true;
     if (passPanel) passPanel.hidden=true;
     const portraitRow = $("#portraitRow");
-    if (portraitRow) portraitRow.hidden = false;
+    if (portraitRow){ portraitRow.hidden = false; portraitRow.style.display = ""; }
   }
 
   function showId(){
+    hideAllPanels();
     if (!idCardWrap) return;
+
+    // Hide the portrait guidance row to give the ID card full space
+    const portraitRow = $("#portraitRow");
+    if (portraitRow){ portraitRow.hidden = true; portraitRow.style.display = "none"; }
+
+    idCardWrap.hidden=false;
+
     if (idScenario) idScenario.textContent = state.flowName || "Gate";
     if (idLevel) idLevel.textContent = String(session.difficulty||"standard").toUpperCase();
     if (idName) idName.textContent=state.visitor.name;
@@ -556,8 +566,7 @@
     if (idNo) idNo.textContent=state.visitor.idNo;
     if (idPhoto) idPhoto.src=state.visitor.photoSrc||TRANSPARENT_PX;
     if (idBarcode) idBarcode.textContent=`VEVA|${state.visitor.idNo}|${state.visitor.dob}|${state.visitor.nat}`;
-    hideAllPanels();
-    idCardWrap.hidden=false;
+
     state.ui.idVisible=true;
     updateHint();
   }
@@ -568,6 +577,8 @@
 
   function showSupervisor(){
     hideAllPanels();
+    const portraitRow = $("#portraitRow");
+    if (portraitRow){ portraitRow.hidden = true; portraitRow.style.display = "none"; }
     // Always start empty: student must fill everything themselves.
     for (const el of [sv_wie, sv_wat, sv_waar, sv_wanneer, sv_waarom]){ if (el) el.value = ""; }
     if (sv_note) sv_note.textContent = "";
@@ -602,6 +613,8 @@ if (state.stage.startsWith("si_")) showSignIn();
 
   function showPersonSearch(){
     hideAllPanels();
+    const portraitRow = $("#portraitRow");
+    if (portraitRow){ portraitRow.hidden = true; portraitRow.style.display = "none"; }
     personSearchPanel.hidden=false;
     if (panelTitle) panelTitle.textContent="Person Search";
     if (panelSub) panelSub.textContent="Search procedure";
@@ -675,6 +688,8 @@ function showSignIn(){
   }
   function showPass(){
     hideAllPanels();
+    const portraitRow = $("#portraitRow");
+    if (portraitRow){ portraitRow.hidden = true; portraitRow.style.display = "none"; }
     passPanel.hidden=false;
     if (panelTitle) panelTitle.textContent="Sign-in";
     if (panelSub) panelSub.textContent="Visitor pass issued";
@@ -1148,6 +1163,8 @@ function updateChecklist(){
 
     history=[]; renderChat();
     hideAllPanels();
+    const portraitRow = $("#portraitRow");
+    if (portraitRow){ portraitRow.hidden = true; portraitRow.style.display = "none"; }
 
     if (portraitPhoto) portraitPhoto.src = v.photoSrc || TRANSPARENT_PX;
     if (portraitMood) portraitMood.textContent = `A visitor walks up to the gate. ${currentMood.line}`;
