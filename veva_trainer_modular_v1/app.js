@@ -636,28 +636,6 @@ if (state.stage.startsWith("si_")) showSignIn();
     if (sigBox) sigBox.parentElement && (sigBox.parentElement.hidden = signed); // signature label hidden after signature
     if (si_rulesForm) si_rulesForm.hidden = !signed;
 
-    // Issue button becomes available only after the student has said the briefing lines (pass + rules).
-    if (btnSignInIssue) btnSignInIssue.disabled = !(state.flags.siIssued && state.flags.siPassNoStated);
-
-    updateHint();
-  }
-    if (si_company) si_company.value = f.companyAsked ? (state.facts.company||"") : "";
-
-    // Missing company should stand out in the form during sign-in.
-    if (si_company){
-      const missing = !si_company.value;
-      si_company.classList.toggle("missing", missing);
-    }
-
-    // Prepare pass number preview (student must state it later)
-    state.pass = state.pass || {};
-    state.pass.id = state.pass.id || ("VP-"+randInt(1000,9999));
-    if (si_passPreview) si_passPreview.textContent = state.pass.id;
-
-    // Signature box is always visible; rules appear only after the student asks to sign.
-    if (sigBox){ sigBox.classList.remove("sigRun"); }
-    if (si_rulesForm) si_rulesForm.hidden = !state.flags.siSigned;
-    if (btnSignInIssue) btnSignInIssue.disabled = !state.flags.siSigned;
     updateHint();
   }
   function showPass(){
@@ -1328,7 +1306,21 @@ function updateChecklist(){
     miss('Person Search: ask about sharp objects, ask them to remove jacket/headgear, give positioning, explain where you will search (armpits + waistband), give the leg-on-knee instruction, check the items, then clear them to sign-in.');
   }
 
-  function handleSI(intent, raw){
+  
+  function maybeCompleteSignIn(){
+    if (!state || state.flowName!=="Sign-in") return;
+    const rulesOk = !!(state.flags.siRuleVisible && state.flags.siRuleShowOnRequest && state.flags.siRuleReturnOnExit && state.flags.siRuleAlarmAssembly && state.flags.siRuleBaseCloses);
+    if (state.flags.siComplete) return;
+    if (state.flags.siSigned && state.flags.siIssued && state.flags.siPassNoStated && rulesOk){
+      state.flags.siComplete = true;
+      updateChecklist();
+      showPass();
+      enqueueVisitor("Thank you.");
+      updateHint();
+    }
+  }
+
+function handleSI(intent, raw){
     showSignIn();
     const n = String(raw||"");
 
@@ -1403,8 +1395,7 @@ function updateChecklist(){
       if (si_sig) si_sig.value = "signed";
       // Reveal rules + enable pass issuance
       if (si_rulesForm) si_rulesForm.hidden = false;
-      if (btnSignInIssue) btnSignInIssue.disabled = false;
-      updateChecklist();
+updateChecklist();
       enqueueVisitor("Okay.");
       updateHint();
       return;
@@ -1421,7 +1412,8 @@ function updateChecklist(){
       if (statedExact || statedGeneric) state.flags.siPassNoStated = true;
 
       updateChecklist();
-      enqueueVisitor("Thank you.");
+      enqueueVisitor("Okay.");
+      maybeCompleteSignIn();
       updateHint();
       return;
     }
@@ -1429,6 +1421,7 @@ function updateChecklist(){
       state.flags.siPassNoStated = true;
       updateChecklist();
       enqueueVisitor("Understood.");
+      maybeCompleteSignIn();
       updateHint();
       return;
     }
@@ -1436,6 +1429,7 @@ function updateChecklist(){
       state.flags.siRuleVisible = true;
       updateChecklist();
       enqueueVisitor("Okay. I will wear it visibly.");
+      maybeCompleteSignIn();
       updateHint();
       return;
     }
@@ -1443,6 +1437,7 @@ function updateChecklist(){
       state.flags.siRuleShowOnRequest = true;
       updateChecklist();
       enqueueVisitor("Understood. I will show it on request.");
+      maybeCompleteSignIn();
       updateHint();
       return;
     }
@@ -1450,6 +1445,7 @@ function updateChecklist(){
       state.flags.siRuleReturnOnExit = true;
       updateChecklist();
       enqueueVisitor("Okay. I'll return it when I leave.");
+      maybeCompleteSignIn();
       updateHint();
       return;
     }
@@ -1457,6 +1453,7 @@ function updateChecklist(){
       state.flags.siRuleAlarmAssembly = true;
       updateChecklist();
       enqueueVisitor("Okay. I will go to the assembly area if there is an alarm.");
+      maybeCompleteSignIn();
       updateHint();
       return;
     }
@@ -1464,6 +1461,7 @@ function updateChecklist(){
       state.flags.siRuleBaseCloses = true;
       updateChecklist();
       enqueueVisitor("Okay.");
+      maybeCompleteSignIn();
       updateHint();
       return;
     }
@@ -1495,6 +1493,21 @@ function updateChecklist(){
     setDebug(`Intent: ${intent} · Stage: ${state.stage}`);
 
     if (intent==="deny"){ enqueueVisitor(phrase("shared","deny_why",state)); return; }
+
+    // Force jump to the sign-in office when requested (training focus mode).
+    if (intent==="go_sign_in"){
+      // Mark earlier steps as missed (they will show red crosses) but do not block the transition.
+      state.flags.psCleared = true;
+      state.flags.sentToSignIn = true;
+      state.flowName="Sign-in";
+      state.stage="si_arrival";
+      updateChecklist();
+      showSignIn();
+      enqueueVisitor("Okay. I will proceed to the sign-in office.");
+      updateHint();
+      return;
+    }
+
 
     // --- Global identity / control questions (available in any stage) ---
     if (intent === "ask_name"){
@@ -1617,33 +1630,10 @@ btnSend?.addEventListener("click", ()=>{
     window.VEVA_LOG?.({type:"supervisor_report", stage:state.stage, report, visitor:{name:state.visitor.name,idNo:state.visitor.idNo}, student:session});
     addMsg("student","[Report sent to supervisor]","NL 5W/H logged");
     state.flags.reportedSupervisor = true;
-    // After report: lock in what was NOT asked as missed (red crosses) and move to rules step
     updateChecklist();
     backToVisitor();
     enqueueVisitor("Understood. Thank you.");
-    updateHintbtnSignInIssue?.addEventListener("click", ()=>{
-    const entry={
-      name:(si_name?.value||"").trim(),
-      company:(si_company?.value||"").trim(),
-      poc:(si_poc?.value||"").trim(),
-      time:(si_time?.value||"").trim(),
-      location:(si_loc?.value||"").trim(),
-      signature:(si_sig?.value||"").trim(),
-    };
-    if(!state.flags.siSigned){ miss("Ask the visitor to sign the register before issuing the pass."); return; }
-
-    const rulesOk = !!(state.flags.siRuleVisible && state.flags.siRuleShowOnRequest && state.flags.siRuleReturnOnExit && state.flags.siRuleAlarmAssembly && state.flags.siRuleBaseCloses);
-    if(!state.flags.siIssued){ miss("Say: 'Here is your visitor pass.'"); return; }
-    if(!state.flags.siPassNoStated){ miss("State the pass number out loud (e.g., 'I am issuing pass VP-1234')."); return; }
-    if(!rulesOk){ miss("Brief the visitor on all base rules before issuing the pass."); return; }
-
-    // Log + show pass
-    window.VEVA_LOG?.({type:"sign_in", action:"issue_pass", entry, visitor:state.visitor, student:session});
-    showPass();
-    enqueueVisitor("Thank you.");
     updateHint();
-  });
-int();
   });
 
   // Live highlight: company is the common remaining field at sign-in
