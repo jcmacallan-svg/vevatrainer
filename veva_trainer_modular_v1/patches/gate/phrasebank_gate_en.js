@@ -4,8 +4,7 @@
   const P = window.VEVA_PHRASES;
 
   /**
-   * Map "mood" -> response "band".
-   * Bands are about how cooperative/verbose the phrasing is.
+   * Mood -> band. Band influences how cooperative/verbose the NPC sounds.
    */
   function bandFromMood(moodKey) {
     if (moodKey === "relaxed") return "open";
@@ -17,9 +16,8 @@
   }
 
   /**
-   * After being asked "why are you nervous/cautious/etc?" and answering,
-   * the character typically relaxes a bit — except when truly irritated.
-   * Your dialogue logic can optionally apply this.
+   * After the guard asks "why are you nervous/cautious/etc?",
+   * NPC typically relaxes a bit—except when irritated.
    */
   function nextMoodAfterWhy(moodKey) {
     if (moodKey === "nervous") return "neutral";
@@ -31,8 +29,7 @@
   }
 
   /**
-   * Optional: when the guard keeps pressing and the character is irritated,
-   * responses get shorter/snubbier. Your logic can use pressCount -> 1/2/3.
+   * Optional helper: if you track pressCount, you can pick pressed_details/_2/_3.
    */
   function snubLevelFromPressCount(pressCount) {
     if (pressCount >= 3) return 3;
@@ -45,7 +42,7 @@
     nextMoodAfterWhy,
     snubLevelFromPressCount,
 
-    // --- ID / entry mechanics -------------------------------------------------
+    // --- ID / entry mechanics (NPC replies to guard) --------------------------
     ask_id: {
       open: [
         "Sure — here you go.",
@@ -78,20 +75,8 @@
         "Perfect — thank you.",
         "Cheers. Thanks."
       ],
-      cautious: [
-        "Thank you.",
-        "Thanks.",
-        "Alright, thanks.",
-        "Got it. Thanks.",
-        "Okay. Thank you."
-      ],
-      evasive: [
-        "Thanks.",
-        "Finally. Thanks.",
-        "Yeah. Thanks.",
-        "Alright.",
-        "Mm. Thanks."
-      ]
+      cautious: ["Thank you.", "Thanks.", "Alright, thanks.", "Got it. Thanks.", "Okay. Thank you."],
+      evasive: ["Thanks.", "Finally. Thanks.", "Yeah. Thanks.", "Alright.", "Mm. Thanks."]
     },
 
     sign_in: {
@@ -115,7 +100,7 @@
       ]
     },
 
-    // --- Purpose / appointment ------------------------------------------------
+    // --- Purpose / appointment (NPC replies to guard questions) ---------------
     purpose: {
       open: [
         "I’m here to see someone inside.",
@@ -141,27 +126,9 @@
     },
 
     has_appointment_yes: {
-      open: [
-        "Yes — it’s scheduled.",
-        "Yeah, I’m expected.",
-        "I’ve got it arranged, yes.",
-        "Yes, it’s on the calendar.",
-        "Yes — I’m booked in."
-      ],
-      cautious: [
-        "Yes.",
-        "Yes, I’m expected.",
-        "That’s right.",
-        "Yes — it’s arranged.",
-        "Correct."
-      ],
-      evasive: [
-        "Yes… can we move on?",
-        "Yes, I’m expected.",
-        "Yeah — it’s sorted.",
-        "Yes, I was told to come down and check in.",
-        "Yes. I’m just trying to get inside on time."
-      ]
+      open: ["Yes — it’s scheduled.", "Yeah, I’m expected.", "I’ve got it arranged, yes.", "Yes, it’s on the calendar.", "Yes — I’m booked in."],
+      cautious: ["Yes.", "Yes, I’m expected.", "That’s right.", "Yes — it’s arranged.", "Correct."],
+      evasive: ["Yes… can we move on?", "Yes, I’m expected.", "Yeah — it’s sorted.", "Yes, I was told to come down and check in.", "Yes. I’m just trying to get inside on time."]
     },
 
     has_appointment_no: {
@@ -177,15 +144,10 @@
         "No — I’m expected, just not on the calendar.",
         "Not officially. My contact said to come now."
       ],
-      evasive: [
-        "Not a formal one.",
-        "No. I was told to check in here.",
-        "No, but it’s arranged.",
-        "No appointment — I’m just supposed to get signed in."
-      ]
+      evasive: ["Not a formal one.", "No. I was told to check in here.", "No, but it’s arranged.", "No appointment — I’m just supposed to get signed in."]
     },
 
-    // --- Meeting details (plausible; no weird “appointment today” answer) -----
+    // --- Meeting details (NPC replies; plausible) -----------------------------
     about_meeting: {
       open: [
         "It’s a quick check-in about site access and today’s work.",
@@ -235,44 +197,18 @@
     },
 
     meeting_time: {
-      open: [
-        "We said around {meetingTime}.",
-        "They asked me to arrive for {meetingTime}.",
-        "It’s for {meetingTime}, give or take.",
-        "I was told to come in at {meetingTime}."
-      ],
-      cautious: [
-        "Around {meetingTime}.",
-        "{meetingTime}.",
-        "I was told {meetingTime}.",
-        "Roughly {meetingTime}."
-      ],
-      evasive: [
-        "It’s now-ish. I’m checking in as instructed.",
-        "I was told to come by reception and they’d take it from there.",
-        "I’m expected — the timing should be on their side."
-      ]
+      open: ["We said around {meetingTime}.", "They asked me to arrive for {meetingTime}.", "It’s for {meetingTime}, give or take.", "I was told to come in at {meetingTime}."],
+      cautious: ["Around {meetingTime}.", "{meetingTime}.", "I was told {meetingTime}.", "Roughly {meetingTime}."],
+      evasive: ["It’s now-ish. I’m checking in as instructed.", "I was told to come by reception and they’d take it from there.", "I’m expected — the timing should be on their side."]
     },
 
     meeting_location: {
-      open: [
-        "Reception first, then I’m headed up to {meetingPlace}.",
-        "I’m supposed to check in here and then go to {meetingPlace}.",
-        "They said to meet at {meetingPlace} after I get a badge."
-      ],
-      cautious: [
-        "I’m checking in at reception, then {meetingPlace}.",
-        "{meetingPlace}, after I’m signed in.",
-        "Reception, then upstairs."
-      ],
-      evasive: [
-        "Reception will direct me.",
-        "I’m supposed to be escorted from here.",
-        "I was told to check in here first."
-      ]
+      open: ["Reception first, then I’m headed up to {meetingPlace}.", "I’m supposed to check in here and then go to {meetingPlace}.", "They said to meet at {meetingPlace} after I get a badge."],
+      cautious: ["I’m checking in at reception, then {meetingPlace}.", "{meetingPlace}, after I’m signed in.", "Reception, then upstairs."],
+      evasive: ["Reception will direct me.", "I’m supposed to be escorted from here.", "I was told to check in here first."]
     },
 
-    // --- “Pressed for details” ------------------------------------------------
+    // --- “Pressed for details” (NPC elaborates; then can get snubby) ----------
     pressed_details: {
       open: [
         "It’s straightforward — I check in, get a visitor badge, and my contact escorts me to where we’re meeting.",
@@ -300,27 +236,17 @@
         "I’ve said what I can: visitor check-in, contact confirms, then escort.",
         "I’m checking in for {pocRank} {pocLast}. You can call and confirm."
       ],
-      evasive: [
-        "I’ve answered that.",
-        "Please just call my contact.",
-        "I’m not discussing it further out here."
-      ]
+      evasive: ["I’ve answered that.", "Please just call my contact.", "I’m not discussing it further out here."]
     },
 
     pressed_details_3: {
-      open: [
-        "I don’t mind clarifying, but I’d rather keep details private — one call to my contact will confirm it."
-      ],
-      cautious: [
-        "Please call my contact. That’s the fastest way to confirm."
-      ],
-      evasive: [
-        "Call them. Or I’ll leave."
-      ]
+      open: ["I don’t mind clarifying, but I’d rather keep details private — one call to my contact will confirm it."],
+      cautious: ["Please call my contact. That’s the fastest way to confirm."],
+      evasive: ["Call them. Or I’ll leave."]
     },
 
-    // --- Search / threat (verhoogde dreiging) ---------------------------------
-    // Visitor responses to “We need to search you / pat-down / bag check”
+    // --- Search / frisk / elevated threat (guard input -> NPC replies) --------
+    // Guard: “You will be searched / pat-down / bag check”
     search_announce: {
       open: [
         "Understood — go ahead.",
@@ -328,21 +254,11 @@
         "Sure. I get it.",
         "Alright — tell me where you want me to stand."
       ],
-      cautious: [
-        "Alright.",
-        "Okay.",
-        "If that’s procedure, fine.",
-        "Understood."
-      ],
-      evasive: [
-        "Is that really necessary?",
-        "Okay… just be quick about it.",
-        "Right. Let’s get it over with.",
-        "Fine — just be professional, please."
-      ]
+      cautious: ["Alright.", "Okay.", "If that’s procedure, fine.", "Understood."],
+      evasive: ["Is that really necessary?", "Okay… just be quick about it.", "Right. Let’s get it over with.", "Fine — just be professional, please."]
     },
 
-    // Visitor responses to “Why do we search / everyone is searched due to elevated threat”
+    // Guard: “Why is everyone being searched / threat level explanation”
     search_reason: {
       open: [
         "That makes sense. Thanks for the heads-up.",
@@ -350,156 +266,69 @@
         "Got it. Safety first.",
         "Alright — if the threat’s elevated, I understand."
       ],
-      cautious: [
-        "Alright. I understand.",
-        "Okay. Thanks for clarifying.",
-        "Fair enough.",
-        "Understood."
-      ],
-      evasive: [
-        "Okay… if everyone has to do it.",
-        "Fine. Just be professional about it.",
-        "Right. Let’s keep it moving.",
-        "Yeah, okay."
-      ]
+      cautious: ["Alright. I understand.", "Okay. Thanks for clarifying.", "Fair enough.", "Understood."],
+      evasive: ["Okay… if everyone has to do it.", "Fine. Just be professional about it.", "Right. Let’s keep it moving.", "Yeah, okay."]
     },
 
-    // Guard/NPC policy line (use only if your system supports guard outputs)
-    guard_search_policy_threat: {
-      neutral: [
-        "Just so you know, everyone is searched today due to an increased threat level."
-      ],
-      firm: [
-        "Everyone is searched today because of an increased threat level. It’s not personal."
-      ]
-    },
-
-    // If you only store visitor lines, use this acknowledgement instead of guard lines
-    visitor_ack_search_policy: {
+    // Guard states policy explicitly: “Everyone is searched today due to increased threat.”
+    // NPC acknowledgement specifically mirrors that wording (your “checkmark” requirement).
+    threat_policy_ack: {
       open: [
-        "Okay — if everyone is being searched due to an increased threat, that’s fair."
+        "Okay — if everyone is being searched today due to an increased threat, that’s fair.",
+        "Understood. Increased threat level — I get why you’re searching everyone."
       ],
       cautious: [
-        "Alright. Increased threat, everyone gets searched — I understand."
+        "Alright. Increased threat and everyone gets searched — I understand.",
+        "Okay. If it’s because of an increased threat, that makes sense."
       ],
       evasive: [
-        "Fine. If it’s everyone because of an increased threat, just get on with it."
+        "Fine. If it’s everyone because of an increased threat, just get on with it.",
+        "Yeah. Increased threat. I get it. Let’s move."
       ]
     },
 
-    // --- “Why are you nervous/cautious/irritated?” ----------------------------
+    // --- “Why are you nervous/cautious/irritated?” (guard asks; NPC answers) --
     why_mood: {
       open: [
         "Oh — nothing major. I’m just trying to be on time, that’s all.",
         "Sorry, didn’t mean to come off that way. Long morning — I’m fine.",
         "All good. I’m just a bit rushed today.",
-        "No issue — I appreciate you doing your job. I’m okay."
+        "No issue — I know you’re doing your job. I’m okay."
       ],
-      cautious: [
-        "Just a bit rushed, that’s all.",
-        "Nothing personal — I’m fine.",
-        "I’m okay. Just trying to get this sorted quickly.",
-        "Sorry. Busy day."
-      ],
-      evasive: [
-        "I’m fine.",
-        "Just tired.",
-        "It’s been a day.",
-        "Nothing to do with you. Can we continue?",
-        "I don’t want to get into it."
-      ]
+      cautious: ["Just a bit rushed, that’s all.", "Nothing personal — I’m fine.", "I’m okay. Just trying to get this sorted quickly.", "Sorry. Busy day."],
+      evasive: ["I’m fine.", "Just tired.", "It’s been a day.", "Nothing to do with you. Can we continue?", "I don’t want to get into it."]
     },
 
+    // Optional follow-up line your logic can emit after nextMoodAfterWhy relaxes
     acknowledge_and_relax: {
-      open: [
-        "Thanks — I appreciate it.",
-        "Yeah, sorry about that. Thanks for your help.",
-        "Alright. Appreciate you sorting it."
-      ],
-      cautious: [
-        "Thanks.",
-        "Okay, thank you.",
-        "Alright."
-      ],
-      evasive: [
-        "Fine.",
-        "Thanks.",
-        "Yeah."
-      ]
+      open: ["Thanks — I appreciate it.", "Yeah, sorry about that. Thanks for your help.", "Alright. Appreciate you sorting it."],
+      cautious: ["Thanks.", "Okay, thank you.", "Alright."],
+      evasive: ["Fine.", "Thanks.", "Yeah."]
     },
 
-    // --- Small talk / procedural questions -----------------------------------
+    // --- Misc procedural (guard asks; NPC answers) ----------------------------
     belongings: {
-      open: [
-        "No problem — I don’t have anything restricted. Just my phone and keys.",
-        "Sure. I’ve only got the basics — phone, keys, wallet.",
-        "Nothing unusual — just a small bag and my phone."
-      ],
-      cautious: [
-        "Just the basics.",
-        "Phone, keys, wallet.",
-        "A small bag, that’s it."
-      ],
-      evasive: [
-        "Nothing you need to worry about.",
-        "Just personal items.",
-        "Just my phone and keys.",
-        "Do you need a full list?"
-      ]
+      open: ["No problem — I don’t have anything restricted. Just my phone and keys.", "Sure. I’ve only got the basics — phone, keys, wallet.", "Nothing unusual — just a small bag and my phone."],
+      cautious: ["Just the basics.", "Phone, keys, wallet.", "A small bag, that’s it."],
+      evasive: ["Nothing you need to worry about.", "Just personal items.", "Just my phone and keys.", "Do you need a full list?"]
     },
 
     prohibited_items_no: {
-      open: [
-        "No, nothing like that.",
-        "No — nothing prohibited.",
-        "No. Just normal personal stuff."
-      ],
-      cautious: [
-        "No.",
-        "No, nothing prohibited.",
-        "No."
-      ],
-      evasive: [
-        "No.",
-        "Nothing like that.",
-        "No — can we move on?"
-      ]
+      open: ["No, nothing like that.", "No — nothing prohibited.", "No. Just normal personal stuff."],
+      cautious: ["No.", "No, nothing prohibited.", "No."],
+      evasive: ["No.", "Nothing like that.", "No — can we move on?"]
     },
 
     waiting: {
-      open: [
-        "No problem — I can wait here.",
-        "Sure. I’ll wait in reception.",
-        "Absolutely — I’ll stand over there."
-      ],
-      cautious: [
-        "Okay, I’ll wait here.",
-        "Alright.",
-        "Sure."
-      ],
-      evasive: [
-        "Fine.",
-        "Okay.",
-        "Yeah."
-      ]
+      open: ["No problem — I can wait here.", "Sure. I’ll wait in reception.", "Absolutely — I’ll stand over there."],
+      cautious: ["Okay, I’ll wait here.", "Alright.", "Sure."],
+      evasive: ["Fine.", "Okay.", "Yeah."]
     },
 
     thanks_guard: {
-      open: [
-        "Thanks for your help.",
-        "Appreciate it.",
-        "Thank you — I know it’s procedure."
-      ],
-      cautious: [
-        "Thanks.",
-        "Thank you.",
-        "Okay, thanks."
-      ],
-      evasive: [
-        "Yeah.",
-        "Thanks.",
-        "Mm."
-      ]
+      open: ["Thanks for your help.", "Appreciate it.", "Thank you — I know it’s procedure."],
+      cautious: ["Thanks.", "Thank you.", "Okay, thanks."],
+      evasive: ["Yeah.", "Thanks.", "Mm."]
     }
   };
 })();
