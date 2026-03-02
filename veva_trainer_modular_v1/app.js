@@ -186,6 +186,23 @@
     return String(s||"").toLowerCase().replace(/[^\p{L}\p{N}: ]/gu," ").replace(/\s+/g," ").trim();
   }
 
+  // Training language gate: only respond to English.
+  // (If the student types Dutch, we should not "understand" it.)
+  function isLikelyNonEnglish(raw){
+    const t = normalize(raw);
+    if (!t) return false;
+    // Common Dutch function words (very lightweight heuristic)
+    const dutch = ["wat","waar","wanneer","waarom","hoe","wie","welke","kunt","kan","mag","moet","alstublieft","alsjeblieft","meneer","mevrouw","jij","u","uw","jouw","jullie","heb","heeft","zijn","ben","niet","wel","een","de","het","naar","binnen","buiten","afspraak","bedrijf","tijd","locatie","naam"];
+    let hits = 0;
+    for (const w of dutch){ if (new RegExp(`\\b${w}\\b`,`i`).test(t)) hits++; }
+    // Basic English anchors
+    const english = ["what","where","when","why","how","who","do","does","have","any","please","can","could","would","your","you","i","my","name","appointment","meeting","company","time","location","purpose"];
+    let eHits = 0;
+    for (const w of english){ if (new RegExp(`\\b${w}\\b`,`i`).test(t)) eHits++; }
+    // If it looks Dutch and not enough English anchors, treat as non-English.
+    return (hits >= 2 && eHits < 2);
+  }
+
   // assets
   const soldierAvatar = new Image();
   soldierAvatar.src = `${ASSET_BASE}/soldier.png`;
@@ -586,9 +603,17 @@ if (state.stage.startsWith("si_")) showSignIn();
     signInPanel.hidden=false;
     if (panelTitle) panelTitle.textContent="Sign-in";
     if (panelSub) panelSub.textContent="Register + pass";
-    if (si_name) si_name.value=state.visitor.name;
-    if (si_poc) si_poc.value=state.visitor.contact.full;
-    if (si_time) si_time.value=state.facts.meetingTime||"";
+    // Only pre-fill fields that have been asked & answered.
+    // If a checklist item is missed (red), the field should remain empty.
+    const f = state.flags||{};
+    if (si_name) si_name.value = f.nameAsked ? state.visitor.name : "";
+    if (si_poc) si_poc.value = f.whoAsked ? (state.visitor.contact?.full||"") : "";
+    if (si_time) si_time.value = f.timeAsked ? (state.facts.meetingTime||"") : "";
+    if (si_loc){
+      const loc = state.facts.destination || (state.facts.locationCode ? `Building ${state.facts.locationCode}` : "");
+      si_loc.value = f.whereAsked ? loc : "";
+    }
+    if (si_company) si_company.value = f.companyAsked ? (state.facts.company||"") : "";
     updateHint();
   }
   function showPass(){
@@ -1357,6 +1382,13 @@ function updateChecklist(){
   function handleStudent(raw){
     const txt=String(raw||"").trim();
     if (!txt || !state) return;
+
+    // Only English input is accepted for intent detection.
+    if (isLikelyNonEnglish(txt)){
+      addMsg("student", txt);
+      enqueueVisitor("Please use English during this training.");
+      return;
+    }
     if (state.stage==="gate_approach"){
       // Allow immediate interaction; skip the approach timer so checklist can start right away
       try{ if (approach) clearTimeout(approach); }catch{}
