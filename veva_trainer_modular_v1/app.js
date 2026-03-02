@@ -1456,13 +1456,12 @@ btnSend?.addEventListener("click", ()=>{
     textInput.disabled=false; btnSend.disabled=false; holdToTalk.disabled=false;
     resetScenario();
   });
-  btnReset?.addEventListener("click", ()=>{ if(loginModal){ loginModal.hidden=false; loginModal.style.display=""; } history=[]; renderChat(); hideAllPanels(); if(textInput) textInput.value=""; });
   btnPhrases?.addEventListener("click", ()=>{ window.open("VEVA_Checkpoint_Trainer_Woordenlijst_EN-NL.pdf","_blank","noopener"); });
 
   btnPersonSearch?.addEventListener("click", ()=> handleStudent("Go to person search"));
   btnSignIn?.addEventListener("click", ()=> handleStudent("Go to sign-in office"));
+  btnEndScenario?.addEventListener("click", ()=> endScenarioNow());
   btnDeny?.addEventListener("click", ()=> enqueueVisitor(phrase("shared","deny_why",state)));
-  btnReturn?.addEventListener("click", ()=> enqueueVisitor("Return (placeholder)."));
 
   btnReturnId?.addEventListener("click", ()=>{ if(state?.ui?.idVisible){ hideId(); enqueueVisitor(phrase("gate","return_id",state)); window.VEVA_LOG?.({type:"id", action:"returned_btn"}); } });
 
