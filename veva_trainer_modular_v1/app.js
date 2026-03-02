@@ -43,6 +43,7 @@
   const textInput = $("#textInput");
   const btnSend = $("#btnSend");
   const holdToTalk = $("#holdToTalk");
+  const notesPad = $("#notesPad");
 
   // Chat
   const chatSlots = $("#chatSlots");
@@ -172,6 +173,7 @@
 
   // student session
   const STUDENT_KEY = "veva.student.v3";
+  const NOTES_KEY = "veva.notes.v1";
   let session = { surname:"", group:"", difficulty:"standard" };
   function loadStudent(){ try{ return JSON.parse(localStorage.getItem(STUDENT_KEY)||"null"); }catch{ return null; } }
   function saveStudent(v){ try{ localStorage.setItem(STUDENT_KEY, JSON.stringify(v)); }catch{} }
@@ -181,6 +183,9 @@
     const cap = (s)=>(s||"").charAt(0).toUpperCase()+(s||"").slice(1);
     studentPill.textContent = `Student: ${session.surname} | Group: ${session.group} | ${cap(session.difficulty)}`;
   }
+
+  function loadNotes(){ try{ return String(localStorage.getItem(NOTES_KEY)||""); }catch{ return ""; } }
+  function saveNotes(v){ try{ localStorage.setItem(NOTES_KEY, String(v||"")); }catch{} }
 
   const pad2 = (n)=>String(n).padStart(2,"0");
   const pick = (arr)=> (Array.isArray(arr)&&arr.length) ? arr[Math.floor(Math.random()*arr.length)] : "";
@@ -308,6 +313,8 @@
 
   function detectIntent(raw){
     const n = normalize(raw);
+    // Press for answer / ultimatum (used when visitor is evasive)
+    if (/\b(please\s+answer|answer\s+(the\s+)?question|answer\s+directly|i\s+need\s+an\s+answer|i\s+need\s+a\s+clear\s+answer|stop\s+avoiding|don\'?t\s+avoid|cooperate|non\-?cooperative|if\s+you\s+don\'?t\s+cooperate|otherwise\s+entry\s+will\s+be\s+denied|i\s+will\s+deny\s+(your\s+)?entry|you\s+must\s+answer)\b/i.test(n)) return "press_for_answer";
     // Priority disambiguation for 5W appointment questions
     if (/\b(with\s+who(m)?|appointment\s+with|who\s+are\s+you\s+(meeting|seeing))\b/i.test(n)) return "who_meeting";
     if ((/\bwhat\s+time\b/i.test(n) || /\bwhen\b/i.test(n)) && /\b(appointment|meeting)\b/i.test(n)) return "time_meeting";
@@ -378,11 +385,11 @@
     if (/\b(sign\s*in|register|sign\s+here|signature)\b/i.test(n)) return "si_sign_in";
     if ((/\b(issue|give|hand)\b/i.test(n) || /\bhere\s+is\b/i.test(n)) && /\b(visitor\s*pass|pass|badge)\b/i.test(n)) return "si_issue_pass";
     if (/\b(pass|badge)\b/i.test(n) && /\b(VP-\d{4}|\d{3,6})\b/i.test(n)) return "si_pass_no";
-    if ((/\bwear\b/i.test(n) || /\bvisible\b/i.test(n)) && /\bpass|badge\b/i.test(n)) return "si_rule_visible";
-    if (/\b(show|present)\b/i.test(n) && /\b(request|asked)\b/i.test(n)) return "si_rule_show";
-    if (/\breturn\b/i.test(n) && (/\bleave|exit|when\s+you\s+leave|when\s+leaving\b/i.test(n))) return "si_rule_return";
-    if (/\balarm\b/i.test(n) || /\bassembly\s*area\b/i.test(n)) return "si_rule_alarm";
-    if (/\bcloses\b/i.test(n) || /\bclose\b/i.test(n) || /\b4\s*(pm|p\.m\.|o\'clock|oclock)?\b/i.test(n)) return "si_rule_closes";
+    if (/\b(pass|badge)\b/i.test(n) && (/\b(visible|wear|display)\b/i.test(n) || (/\bkeep\b/i.test(n) && /\bvisible\b/i.test(n)))) return "si_rule_visible";
+    if ((/\b(show|present|display)\b/i.test(n)) && (/\b(on\s+request|when\s+asked|if\s+asked|upon\s+request|requested)\b/i.test(n) || (/\brequest\b/i.test(n) && /\b(show|present|display)\b/i.test(n)))) return "si_rule_show";
+    if ((/\b(return|hand\s+back|give\s+back)\b/i.test(n)) && (/\b(on\s+exit|when\s+you\s+leave|when\s+leaving|when\s+you\s+exit|before\s+you\s+leave|at\s+the\s+gate)\b/i.test(n) || /\b(exit|leave)\b/i.test(n))) return "si_rule_return";
+    if (/\b(alarm|fire\s+alarm|assembly\s*(point|area)|muster\s*point)\b/i.test(n)) return "si_rule_alarm";
+    if (/\b(base\s+closes|closing\s+time|closes\s+at|closed\s+at)\b/i.test(n) || /\bcloses\b/i.test(n) || /\b4\s*(pm|p\.m\.|o\'clock|oclock)?\b/i.test(n)) return "si_rule_closes";
 
     const list = Array.isArray(window.VEVA_INTENTS) ? window.VEVA_INTENTS : [];
     for (const it of list){ try{ if (it?.rx?.test(raw)) return it.key; }catch{} }
@@ -542,11 +549,19 @@
     if (signInPanel) signInPanel.hidden=true;
     if (passPanel) passPanel.hidden=true;
     const portraitRow = $("#portraitRow");
-    if (portraitRow) portraitRow.hidden = false;
+    if (portraitRow){ portraitRow.hidden = false; portraitRow.style.display = ""; }
   }
 
   function showId(){
+    hideAllPanels();
     if (!idCardWrap) return;
+
+    // Hide the portrait guidance row to give the ID card full space
+    const portraitRow = $("#portraitRow");
+    if (portraitRow){ portraitRow.hidden = true; portraitRow.style.display = "none"; }
+
+    idCardWrap.hidden=false;
+
     if (idScenario) idScenario.textContent = state.flowName || "Gate";
     if (idLevel) idLevel.textContent = String(session.difficulty||"standard").toUpperCase();
     if (idName) idName.textContent=state.visitor.name;
@@ -556,8 +571,7 @@
     if (idNo) idNo.textContent=state.visitor.idNo;
     if (idPhoto) idPhoto.src=state.visitor.photoSrc||TRANSPARENT_PX;
     if (idBarcode) idBarcode.textContent=`VEVA|${state.visitor.idNo}|${state.visitor.dob}|${state.visitor.nat}`;
-    hideAllPanels();
-    idCardWrap.hidden=false;
+
     state.ui.idVisible=true;
     updateHint();
   }
@@ -568,8 +582,18 @@
 
   function showSupervisor(){
     hideAllPanels();
-    // Always start empty: student must fill everything themselves.
-    for (const el of [sv_wie, sv_wat, sv_waar, sv_wanneer, sv_waarom]){ if (el) el.value = ""; }
+    // Keep portrait row visible in the default (no-panel) view
+    const portraitRow = $("#portraitRow");
+    if (portraitRow){ portraitRow.hidden = false; portraitRow.style.display = ""; }
+
+    // Auto-fill fields ONLY for items the student already asked (green tickmarks).
+    // Missing items remain empty so the student still notices what's incomplete.
+    const fl = state.flags || {};
+    if (sv_wie) sv_wie.value = fl.nameAsked ? (state.visitor?.name || "") : "";
+    if (sv_wat) sv_wat.value = fl.purposeAsked ? (state.facts?.purposeText || "") : "";
+    if (sv_waar) sv_waar.value = fl.whereAsked ? (state.facts?.whereText || (state.facts?.locationCode ? `Gebouw ${state.facts.locationCode}` : "")) : "";
+    if (sv_wanneer) sv_wanneer.value = fl.timeAsked ? (state.facts?.meetingTime || getMeetingTime(state)) : "";
+    if (sv_waarom) sv_waarom.value = fl.aboutAsked ? (state.facts?.aboutText || "") : "";
     if (sv_note) sv_note.textContent = "";
     supervisorPanel.hidden=false;
     if (supervisorPhoto) supervisorPhoto.src = supervisorAvatar.src || soldierAvatar.src;
@@ -602,7 +626,8 @@ if (state.stage.startsWith("si_")) showSignIn();
 
   function showPersonSearch(){
     hideAllPanels();
-    personSearchPanel.hidden=false;
+    // Keep portrait row visible during Person Search
+personSearchPanel.hidden=false;
     if (panelTitle) panelTitle.textContent="Person Search";
     if (panelSub) panelSub.textContent="Search procedure";
     renderPS();
@@ -675,6 +700,8 @@ function showSignIn(){
   }
   function showPass(){
     hideAllPanels();
+    const portraitRow = $("#portraitRow");
+    if (portraitRow){ portraitRow.hidden = true; portraitRow.style.display = "none"; }
     passPanel.hidden=false;
     if (panelTitle) panelTitle.textContent="Sign-in";
     if (panelSub) panelSub.textContent="Visitor pass issued";
@@ -1098,8 +1125,36 @@ function updateChecklist(){
     setChecklistDone(checklistEls.si_return, !!fl.siRuleReturnOnExit, "si_return");
     setChecklistDone(checklistEls.si_alarm, !!fl.siRuleAlarmAssembly, "si_alarm");
     setChecklistDone(checklistEls.si_closes, !!fl.siRuleBaseCloses, "si_closes");
+
+    checkAutoEnd();
   }
-  function nextHint(){
+  
+
+
+  function checkAutoEnd(){
+    if (!state || state.autoEnded) return;
+    // Auto-end only when user reached Sign-in and completed all required items for reached phases
+    const fl = state.flags || {};
+    if (!state.reachedSI) return;
+
+    const gateOk = !!fl.nameAsked && !!fl.purposeAsked && !!fl.apptAsked && !!fl.whoAsked && !!fl.timeAsked && !!fl.aboutAsked && !!fl.whereAsked
+      && !!fl.idChecked && !!fl.reportedSupervisor && !!fl.illegalDone && !!fl.sentToPersonSearch;
+
+    const psOk = !state.reachedPS || (
+      !!fl.psSharpAsked && !!fl.psRemoveOuter && !!fl.psPositioned && !!fl.psExplainArmpits && !!fl.psExplainWaist
+      && !!fl.psLegOnKnee && !!fl.psItemsOk && !!fl.psCleared
+    );
+
+    const siOk = !!fl.siSigned && !!fl.siIssued && !!fl.siPassNoStated && !!fl.siRuleVisible && !!fl.siRuleShowOnRequest
+      && !!fl.siRuleReturnOnExit && !!fl.siRuleAlarmAssembly && !!fl.siRuleBaseCloses;
+
+    if (gateOk && psOk && siOk){
+      state.autoEnded = true;
+      // tiny delay so UI updates render before modal appears
+      setTimeout(()=>{ try{ endScenario(); } catch(e){} }, 250);
+    }
+  }
+function nextHint(){
     if (state.stage.startsWith("gate_")){
       const f=state.facts;
       if (!f.name) return 'Example: "What is your full name?"';
@@ -1139,7 +1194,7 @@ function updateChecklist(){
     state = {
       flowName:"Gate", stage:"gate_approach", misses:0, lastIntent:"", lastAsked:"",
       visitor:v,
-      facts:{ name:"", purpose:"", appt:"yes", who:"", time:"", about:"", location:"", meetingTime:"", locationCode:"" },
+      facts:{ name:"", purpose:"", appt:"yes", who:"", time:"", about:"", location:"", meetingTime:"", locationCode:"", purposeText:"", whoText:"", aboutText:"", whereText:"", company:"" },
       flags:{ idChecked:false, reportedSupervisor:false, rulesDone:false, sentToPersonSearch:false, psSharpAsked:false, psRemoveOuter:false, psPositioned:false, psExplainArmpits:false, psExplainWaist:false, psLegOnKnee:false, psItemsOk:false, psCleared:false, siIssued:false, siRuleVisible:false, siRuleShowOnRequest:false, siRuleReturnOnExit:false, siRuleAlarmAssembly:false, siRuleBaseCloses:false },
       ui:{ idVisible:false, supervisorVisible:false },
       ps:null, pass:null,
@@ -1147,11 +1202,22 @@ function updateChecklist(){
     };
 
     history=[]; renderChat();
+
+    // New scenario => clear notes
+    if (notesPad){ notesPad.value = ""; }
+    saveNotes("");
+
     hideAllPanels();
+    const portraitRow = $("#portraitRow");
+    // Default: show portrait + mood indicator when no bottom panel is active.
+    if (portraitRow){ portraitRow.hidden = false; portraitRow.style.display = "flex"; }
 
     if (portraitPhoto) portraitPhoto.src = v.photoSrc || TRANSPARENT_PX;
-    if (portraitMood) portraitMood.textContent = `A visitor walks up to the gate. ${currentMood.line}`;
+    if (portraitMood) portraitMood.textContent = `A visitor is approaching the gate. ${currentMood.line}`;
     if (portraitDesc) portraitDesc.textContent = "";
+
+    // Add a short scene-setting line in the chat at scenario start.
+    addMsg("visitor", "A visitor is approaching the gate.");
 
     if (approach) clearTimeout(approach);
     approach=setTimeout(()=>{
@@ -1206,7 +1272,9 @@ function updateChecklist(){
       if (state.evasiveFor==="purpose" && bandFromMood()==="evasive" && !state.flags.forcedCoop){
         enqueueVisitor("It’s personal."); showHint(PRESS_HINT_TEXT); return;
       }
-      enqueueVisitor(phrase("gate","purpose",state, state.flags.forcedCoop ? "open":null));
+      const resp = phrase("gate","purpose",state, state.flags.forcedCoop ? "open":null);
+      state.facts.purposeText = resp;
+      enqueueVisitor(resp);
       updateHint(); return;
     }
     if (intent==="has_appointment"){ state.flags.apptAsked = true; updateChecklist(); state.visitorDeclaredAppt = "yes"; /* info only */ enqueueVisitor(phrase("gate","has_appointment_yes",state)); updateHint(); return; }
@@ -1219,19 +1287,42 @@ function updateChecklist(){
         state.flags.evasiveUsed=true;
         enqueueVisitor("Someone inside."); showHint(PRESS_HINT_TEXT); return;
       }
-      enqueueVisitor(phrase("gate","who_meeting",state, state.flags.forcedCoop ? "open":null));
+      const resp = phrase("gate","who_meeting",state, state.flags.forcedCoop ? "open":null);
+      state.facts.whoText = resp;
+      enqueueVisitor(resp);
       updateHint();
       return;
     }
     if (intent==="time_meeting"){
       state.flags.timeAsked = true;
-      updateChecklist(); state.facts.time="known"; enqueueVisitor(`My appointment is at ${getMeetingTime(state)}.`); updateHint(); return; }
+      updateChecklist();
+      state.facts.time="known";
+      const t = getMeetingTime(state);
+      state.facts.meetingTime = t;
+      enqueueVisitor(`My appointment is at ${t}.`);
+      updateHint();
+      return;
+    }
     if (intent==="about_meeting"){
       state.flags.aboutAsked = true;
-      updateChecklist(); state.facts.about="known"; enqueueVisitor(phrase("gate","about_meeting",state, state.flags.forcedCoop ? "open":null)); updateHint(); return; }
+      updateChecklist();
+      state.facts.about="known";
+      const resp = phrase("gate","about_meeting",state, state.flags.forcedCoop ? "open":null);
+      state.facts.aboutText = resp;
+      enqueueVisitor(resp);
+      updateHint();
+      return;
+    }
     if (intent==="where_meeting"){
       state.flags.whereAsked = true;
-      updateChecklist(); state.facts.location="known"; enqueueVisitor(`At reception, building ${state.facts.locationCode}.`); updateHint(); return; }
+      updateChecklist();
+      state.facts.location="known";
+      const resp = `At reception, building ${state.facts.locationCode}.`;
+      state.facts.whereText = `Gebouw ${state.facts.locationCode}`;
+      enqueueVisitor(resp);
+      updateHint();
+      return;
+    }
 
     if (intent==="ask_id"){
       state.flags.idChecked=true;
@@ -1472,35 +1563,48 @@ function handleSI(intent, raw){
     if (intent==="ask_purpose" || intent==="purpose"){
       state.flags.purposeAsked = true;
       state.facts.purpose = state.facts.purpose || "known";
-      enqueueVisitor(phrase("gate","purpose",state, state.flags.forcedCoop ? "open":null));
+      const resp = phrase("gate","purpose",state, state.flags.forcedCoop ? "open":null);
+      state.facts.purposeText = resp;
+      enqueueVisitor(resp);
       updateHint();
       return;
     }
     if (intent==="ask_who" || intent==="who_meeting"){
       state.flags.whoAsked = true;
       state.facts.who = state.facts.who || "known";
-      enqueueVisitor(phrase("gate","who_meeting",state, state.flags.forcedCoop ? "open":null));
+      const resp = phrase("gate","who_meeting",state, state.flags.forcedCoop ? "open":null);
+      state.facts.whoText = resp;
+      if (si_poc && !si_poc.value) si_poc.value = state.visitor?.contact?.full || "";
+      enqueueVisitor(resp);
       updateHint();
       return;
     }
     if (intent==="ask_time" || intent==="time_meeting"){
       state.flags.timeAsked = true;
       state.facts.time = state.facts.time || "known";
-      enqueueVisitor(`My appointment is at ${getMeetingTime(state)}.`);
+      const t = getMeetingTime(state);
+      state.facts.meetingTime = t;
+      if (si_time && !si_time.value) si_time.value = t;
+      enqueueVisitor(`My appointment is at ${t}.`);
       updateHint();
       return;
     }
     if (intent==="ask_about" || intent==="about_meeting"){
       state.flags.aboutAsked = true;
       state.facts.about = state.facts.about || "known";
-      enqueueVisitor(phrase("gate","about_meeting",state, state.flags.forcedCoop ? "open":null));
+      const resp = phrase("gate","about_meeting",state, state.flags.forcedCoop ? "open":null);
+      state.facts.aboutText = resp;
+      enqueueVisitor(resp);
       updateHint();
       return;
     }
     if (intent==="ask_where" || intent==="where_meeting"){
       state.flags.whereAsked = true;
       state.facts.location = state.facts.location || "known";
-      enqueueVisitor(`At reception, building ${state.facts.locationCode}.`);
+      const resp = `At reception, building ${state.facts.locationCode}.`;
+      state.facts.whereText = `Gebouw ${state.facts.locationCode}`;
+      if (si_loc && !si_loc.value) si_loc.value = `Building ${state.facts.locationCode}`;
+      enqueueVisitor(resp);
       updateHint();
       return;
     }
@@ -2013,6 +2117,13 @@ btnChecklistCollapse?.addEventListener("click", ()=>{
     session={...session,...pre};
   }
   updateStudentPill();
+
+  // notes pad (left sidebar)
+  if (notesPad){
+    notesPad.value = loadNotes();
+    notesPad.addEventListener("input", ()=> saveNotes(notesPad.value));
+  }
+
   setupSpeech();
   loginModal.hidden=false;
 

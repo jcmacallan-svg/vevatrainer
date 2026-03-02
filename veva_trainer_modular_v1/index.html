@@ -32,12 +32,17 @@
 
       <button id="btnPersonSearch" class="sideBtn">Go to Person Search</button>
       <button id="btnSignIn" class="sideBtn">Go to Sign-in Office</button>
-      <button id="btnEndScenario" class="sideBtn ghost">End Scenario</button>
       <button id="btnNewScenario" class="sideBtn">Start Scenario</button>
       <button id="btnDeny" class="sideBtn danger">Deny Entrance</button>
       <button id="btnPhrases" class="sideBtn primary">Te vragen zinnen</button>
 
-      <div class="sidePills" id="sidePills"></div>
+      <div class="notesWrap" aria-label="Notes">
+        <div class="notesTitle">🗒️ Notes</div>
+        <textarea id="notesPad" class="notesPad" placeholder="Write notes here… (auto-saved)"></textarea>
+      </div>
+
+      <button id="btnEndScenario" class="sideBtn danger endScenarioBtn">End Scenario</button>
+
     </aside>
 
     <main class="main">
@@ -100,10 +105,6 @@
 </ul>
           </div>
         </aside>
-
-
-        <div id="hintBand" class="hintBand" hidden>
-          <div class="dividerLine"></div>
           <div id="hintBandText" class="hintText"></div>
           <div class="dividerLine"></div>
         </div>
@@ -111,6 +112,12 @@
         <section class="rightPanel bottomPanel" aria-label="Bottom panel">
           <div class="panelHeader">
             <div class="panelTitle" id="panelTitle">Visitor</div>
+          <div id="hintBand" class="hintBand" hidden>
+            <div class="dividerLine"></div>
+            <div id="hintBandText" class="hintText"></div>
+            <div class="dividerLine"></div>
+          </div>
+
             <div class="panelSub" id="panelSub">—</div>
           </div>
 
@@ -264,7 +271,7 @@
 
 <div class="inputBar">
           <input id="textInput" type="text" placeholder="Type or speak your English…" />
-          <button id="holdToTalk" type="button">Hold</button>
+          <button id="holdToTalk" type="button" title="Hold to talk (microphone)">🎤 Hold to Talk</button>
           <button id="btnSend" type="button">Send</button>
         </div>
 
