@@ -801,15 +801,39 @@ if (state.stage.startsWith("si_")) showSignIn();
         rows.push({key, label, status: isDone ? "ok" : (isMiss ? "miss" : "todo"), section: sec});
       }
 
-      const total = ok + miss + todo;
-      const score = total ? Math.round((ok / total) * 100) : 0;
+      // Score: only score sections the student actually reached.
+      // - Gate is always applicable.
+      // - Person search is applicable after being sent to PS (or later).
+      // - Sign-in is applicable after being sent to sign-in (or later).
+      const reachedPS = !!state?.flags?.sentToPersonSearch || (state?.stage||"").startsWith("ps_") || (state?.stage||"").startsWith("si_");
+      const reachedSI = !!state?.flags?.sentToSignIn || (state?.stage||"").startsWith("si_") || !!state?.flags?.ended;
+      const isApplicable = (key)=>{
+        if (!key) return true;
+        if (key.startsWith("gate_")) return true;
+        if (key.startsWith("ps_")) return reachedPS;
+        if (key.startsWith("si_")) return reachedSI;
+        return true;
+      };
 
-      // top strengths: first 3 ok items by section order
-      const strengths = rows.filter(r=>r.status==="ok").slice(0,3).map(r=>r.label);
+      const applicable = rows.filter(r=>isApplicable(r.key));
+      const total = applicable.length;
+      const okA = applicable.filter(r=>r.status==="ok").length;
+      const missA = applicable.filter(r=>r.status==="miss").length;
+      const todoA = applicable.filter(r=>r.status==="todo").length;
+      const score = total ? Math.round((okA / total) * 100) : 0;
 
-      // improvements: prioritize missed first, then todo
-      const misses = rows.filter(r=>r.status==="miss");
-      const todos = rows.filter(r=>r.status==="todo");
+      const grade = (score>=90) ? "Excellent" : (score>=75) ? "Good" : (score>=60) ? "Needs improvement" : "Poor";
+      const gradeHint = (grade==="Excellent") ? "Very strong performance—keep this pace." :
+        (grade==="Good") ? "Solid run. Tighten up the missed steps for a higher score." :
+        (grade==="Needs improvement") ? "You covered some key steps, but missed several required actions." :
+        "Many required steps were missed—slow down and follow the checklist.";
+
+      // top strengths: first 3 ok items (applicable only)
+      const strengths = applicable.filter(r=>r.status==="ok").slice(0,3).map(r=>r.label);
+
+      // improvements: prioritize missed first, then todo (applicable only)
+      const misses = applicable.filter(r=>r.status==="miss");
+      const todos = applicable.filter(r=>r.status==="todo");
 
       // Map from key to example sentence
       const exampleFor = (key)=>{
@@ -836,9 +860,16 @@ if (state.stage.startsWith("si_")) showSignIn();
 
       const topFixes = [...misses, ...todos].slice(0,3).map(r=>({label:r.label, hint: exampleFor(r.key)}));
 
-      return {ok, miss, todo, total, score, rows, sectionStats, strengths, topFixes};
+      // Return both raw and applicable counts for display.
+      return {
+        ok, miss, todo,
+        totalRaw: (ok+miss+todo),
+        okA, missA, todoA, total,
+        score, grade, gradeHint,
+        rows, sectionStats, strengths, topFixes
+      };
     }catch(e){
-      return {ok:0, miss:0, todo:0, total:0, score:0, rows:[], sectionStats:{}, strengths:[], topFixes:[]};
+      return {ok:0, miss:0, todo:0, totalRaw:0, okA:0, missA:0, todoA:0, total:0, score:0, grade:"—", gradeHint:"", rows:[], sectionStats:{}, strengths:[], topFixes:[]};
     }
   }
 
@@ -846,7 +877,7 @@ if (state.stage.startsWith("si_")) showSignIn();
     const sum = buildScenarioSummary();
 
     if (summaryStats){
-      summaryStats.textContent = `Score: ${sum.score}%  •  Done: ${sum.ok}  •  Missed: ${sum.miss}  •  Remaining: ${sum.todo}`;
+      summaryStats.textContent = `${sum.grade} — ${sum.score}%  •  Done: ${sum.okA}/${sum.total}  •  Missed: ${sum.missA}  •  Remaining: ${sum.todoA}  •  ${sum.gradeHint}`;
     }
 
     // KPIs per section
