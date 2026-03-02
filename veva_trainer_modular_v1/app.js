@@ -577,9 +577,11 @@
 
   function showSupervisor(){
     hideAllPanels();
+    // Keep portrait row visible in the default (no-panel) view
     const portraitRow = $("#portraitRow");
-    if (portraitRow){ portraitRow.hidden = true; portraitRow.style.display = "none"; }
-    // Always start empty: student must fill everything themselves.
+    if (portraitRow){ portraitRow.hidden = false; portraitRow.style.display = ""; }
+
+// Always start empty: student must fill everything themselves.
     for (const el of [sv_wie, sv_wat, sv_waar, sv_wanneer, sv_waarom]){ if (el) el.value = ""; }
     if (sv_note) sv_note.textContent = "";
     supervisorPanel.hidden=false;
@@ -613,9 +615,8 @@ if (state.stage.startsWith("si_")) showSignIn();
 
   function showPersonSearch(){
     hideAllPanels();
-    const portraitRow = $("#portraitRow");
-    if (portraitRow){ portraitRow.hidden = true; portraitRow.style.display = "none"; }
-    personSearchPanel.hidden=false;
+    // Keep portrait row visible during Person Search
+personSearchPanel.hidden=false;
     if (panelTitle) panelTitle.textContent="Person Search";
     if (panelSub) panelSub.textContent="Search procedure";
     renderPS();
