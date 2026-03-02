@@ -7,7 +7,7 @@ html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;overflow:hidden;}
 .topPills{position:fixed;top:10px;left:10px;right:10px;display:flex;gap:10px;z-index:50;pointer-events:none;}
 .pill{pointer-events:auto;background:rgba(22,27,34,.9);border:1px solid var(--border);padding:8px 12px;border-radius:999px;color:var(--text);font-size:13px;box-shadow:var(--shadow);}
-.app{height:100vh;display:flex;padding-top:54px;}
+.app{height:100vh;display:grid;grid-template-columns:300px 1fr 360px;gap:0;padding-top:54px;}
 .sidebar{width:300px;min-width:260px;background:var(--panel);border-right:1px solid var(--border);padding:16px;display:flex;flex-direction:column;gap:10px;}
 .brand{padding:10px 10px 14px;border-bottom:1px solid var(--border);margin-bottom:8px;}
 .brandTitle{font-weight:800;letter-spacing:.2px;}
@@ -18,18 +18,9 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 .sideBtn.danger{background:linear-gradient(180deg, rgba(255,77,77,.25), rgba(255,77,77,.10));border:1px solid rgba(255,77,77,.45);}
 .sideBtn.primary{background:linear-gradient(180deg, rgba(58,167,255,.38), rgba(58,167,255,.18));border:1px solid rgba(58,167,255,.55);}
 .sideBtn.small{padding:8px 10px;border-radius:10px;font-size:13px;}
-.main{flex:1;display:flex;padding:16px;}
-.content{
-  flex:1;
-  display:grid;
-  /* Two columns on top (chat + checklist), bottom panel spans full width */
-  grid-template-columns: 1fr auto;
-  grid-template-rows: 1fr auto auto auto;
-  gap:12px;
-  width:100%;
-  min-height:0;
-}
-.chatPanel{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:14px;overflow:hidden;min-height:0;display:flex;}
+.main{display:flex;flex-direction:column;min-width:0;min-height:0;padding:16px;}
+.content{display:flex;flex-direction:column;gap:12px;width:100%;height:100%;min-height:0;min-width:0;}
+.chatPanel{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:14px;overflow:hidden;min-height:0;display:flex;flex:1 1 auto;}
 .chatSlots{
   flex: 1;
   overflow: auto;
@@ -68,21 +59,14 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 }
 
 /* Place the bottom panel under both columns */
-.bottomPanel{grid-column: 1 / span 2;}
+.bottomPanel{background:var(--panel);border:1px solid var(--border);border-radius:18px;overflow:hidden;min-height:260px;max-height:42vh;flex:0 0 auto;}
 
 /* Hint band + input should span full width */
 .hintBand{grid-column: 1 / span 2;}
-.inputBar{grid-column: 1 / span 2;}
+.inputBar{display:flex;gap:10px;align-items:center;background:rgba(22,27,34,.92);border:1px solid var(--border);border-radius:16px;padding:10px;position:sticky;bottom:0;flex:0 0 auto;}
 
 /* Checklist */
-.checklistPanel{
-  background:var(--panel);
-  border:1px solid var(--border);
-  border-radius:18px;
-  padding:14px;
-  min-height:0;
-  overflow:auto;
-}
+.checklistPanel{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:14px;min-height:0;overflow:auto;margin:16px 16px 16px 0;height:calc(100vh - 54px - 32px);}
 .panelHead{margin-bottom:10px;}
 .panelTitle{font-weight:800;letter-spacing:.2px;}
 .panelSub{color:var(--muted);font-size:12px;margin-top:2px;}

@@ -47,67 +47,12 @@
     <main class="main">
       <div class="content">
 
-        <!-- TOP-LEFT: chat -->
+        <!-- CENTER: chat -->
         <section class="chatPanel" aria-label="Chat">
           <div id="chatSlots" class="chatSlots"></div>
         </section>
 
-        <!-- TOP-RIGHT: checklist -->
-        <aside id="checklistPanel" class="checklistPanel" aria-label="Checklist">
-          <div class="panelHead">
-            <button id="btnChecklistCollapse" class="checkCollapseBtn" type="button" aria-label="Collapse checklist" title="Collapse checklist">▸</button>
-            <div class="panelTitle">Checklist</div>
-</div>
-
-          <div class="checkSection">
-            <div class="checkTitle">Gate (5W/H + ID)</div>
-            <ul id="checklistList" class="checkList">
-              <li id="cl_gate_name">Asked name</li>
-              <li id="cl_gate_purpose">Purpose of visit</li>
-              <li id="cl_gate_appt">Appointment?</li>
-              <li id="cl_gate_who">Point of contact</li>
-              <li id="cl_gate_time">Appointment time</li>
-              <li id="cl_gate_about">Meeting topic</li>
-              <li id="cl_gate_where">Location</li>
-              <li id="cl_gate_id">Checked ID</li>
-              <li id="cl_gate_supervisor">Reported to supervisor (NL)</li>
-              <li id="cl_gate_rules">Illegal items check</li>
-              <li id="cl_gate_send_ps">Sent to person search</li>
-            </ul>
-          </div>
-
-          <div class="checkSection">
-            <div class="checkTitle">Person search</div>
-            <ul class="checkList">
-              <li id="cl_ps_sharp">Asked about sharp objects</li>
-              <li id="cl_ps_remove">Remove jacket / headgear</li>
-              <li id="cl_ps_position">Positioning instructions</li>
-              <li id="cl_ps_explain_armpits">Search: armpits</li>
-              <li id="cl_ps_explain_waist">Search: waistband / private area</li>
-              <li id="cl_ps_leg">Instruction: leg on knee</li>
-              <li id="cl_ps_items_ok">Items checked (OK)</li>
-              <li id="cl_ps_cleared">Cleared → sign-in</li>
-</ul>
-          </div>
-
-          <div class="checkSection">
-            <div class="checkTitle">Sign-in</div>
-            <ul class="checkList">
-              <li id="cl_si_signed">Signed the register</li>
-              <li id="cl_si_issued">Visitor pass issued</li>
-              <li id="cl_si_pass_no">Stated pass number</li>
-              <li id="cl_si_visible">Pass worn visibly</li>
-              <li id="cl_si_show">Show pass on request</li>
-              <li id="cl_si_return">Return pass when leaving</li>
-              <li id="cl_si_alarm">Alarm: go to assembly area</li>
-              <li id="cl_si_closes">Base closes at 4 PM</li>
-</ul>
-          </div>
-        </aside>
-          <div id="hintBandText" class="hintText"></div>
-          <div class="dividerLine"></div>
-        </div>
-
+        <!-- CENTER: visitor / forms -->
         <section class="rightPanel bottomPanel" aria-label="Bottom panel">
           <div class="panelHeader">
             <div class="panelTitle" id="panelTitle">Visitor</div>
@@ -268,7 +213,8 @@
           </div>
         </section>
 
-<div class="inputBar">
+        <!-- BOTTOM: input -->
+        <div class="inputBar">
           <input id="textInput" type="text" placeholder="Type or speak your English…" />
           <button id="holdToTalk" type="button" title="Hold to speak (microphone)" aria-label="Hold to talk">🎤 Hold to Talk</button>
           <button id="btnSend" type="button">Send</button>
@@ -276,6 +222,60 @@
 
       </div>
     </main>
+
+    <!-- RIGHT: checklist -->
+    <aside id="checklistPanel" class="checklistPanel" aria-label="Checklist">
+          <div class="panelHead">
+            <button id="btnChecklistCollapse" class="checkCollapseBtn" type="button" aria-label="Collapse checklist" title="Collapse checklist">▸</button>
+            <div class="panelTitle">Checklist</div>
+</div>
+
+          <div class="checkSection">
+            <div class="checkTitle">Gate (5W/H + ID)</div>
+            <ul id="checklistList" class="checkList">
+              <li id="cl_gate_name">Asked name</li>
+              <li id="cl_gate_purpose">Purpose of visit</li>
+              <li id="cl_gate_appt">Appointment?</li>
+              <li id="cl_gate_who">Point of contact</li>
+              <li id="cl_gate_time">Appointment time</li>
+              <li id="cl_gate_about">Meeting topic</li>
+              <li id="cl_gate_where">Location</li>
+              <li id="cl_gate_id">Checked ID</li>
+              <li id="cl_gate_supervisor">Reported to supervisor (NL)</li>
+              <li id="cl_gate_rules">Illegal items check</li>
+              <li id="cl_gate_send_ps">Sent to person search</li>
+            </ul>
+          </div>
+
+          <div class="checkSection">
+            <div class="checkTitle">Person search</div>
+            <ul class="checkList">
+              <li id="cl_ps_sharp">Asked about sharp objects</li>
+              <li id="cl_ps_remove">Remove jacket / headgear</li>
+              <li id="cl_ps_position">Positioning instructions</li>
+              <li id="cl_ps_explain_armpits">Search: armpits</li>
+              <li id="cl_ps_explain_waist">Search: waistband / private area</li>
+              <li id="cl_ps_leg">Instruction: leg on knee</li>
+              <li id="cl_ps_items_ok">Items checked (OK)</li>
+              <li id="cl_ps_cleared">Cleared → sign-in</li>
+</ul>
+          </div>
+
+          <div class="checkSection">
+            <div class="checkTitle">Sign-in</div>
+            <ul class="checkList">
+              <li id="cl_si_signed">Signed the register</li>
+              <li id="cl_si_issued">Visitor pass issued</li>
+              <li id="cl_si_pass_no">Stated pass number</li>
+              <li id="cl_si_visible">Pass worn visibly</li>
+              <li id="cl_si_show">Show pass on request</li>
+              <li id="cl_si_return">Return pass when leaving</li>
+              <li id="cl_si_alarm">Alarm: go to assembly area</li>
+              <li id="cl_si_closes">Base closes at 4 PM</li>
+</ul>
+          </div>
+        </aside>
+
   </div>
 
   <div id="loginModal" class="modal" hidden>
