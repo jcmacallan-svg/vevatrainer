@@ -701,3 +701,19 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 .panelStack > .card{flex:1;min-height:0;}
 #signInPanel .cardBody{overflow:auto;min-height:0;}
 #passPanel .cardBody{overflow:auto;min-height:0;}
+
+
+.endScenarioBtn{margin-top:auto;}
+
+.bottomPanel .hintBand{margin:8px 0 10px 0;}
+
+
+/* Notes pad */
+.notesBox { margin-top: 10px; border: 1px solid rgba(255,255,255,.12); border-radius: 12px; overflow: hidden; background: rgba(255,255,255,.04); }
+.notesBox summary { cursor: pointer; padding: 10px 12px; font-weight: 600; color: rgba(255,255,255,.92); list-style: none; }
+.notesBox summary::-webkit-details-marker { display:none; }
+.notesBox textarea { width: 100%; box-sizing: border-box; border: 0; outline: none; resize: vertical; min-height: 140px; padding: 10px 12px; background: rgba(0,0,0,.12); color: rgba(255,255,255,.92); font: inherit; }
+.notesBox[open] { box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+
+/* Hold to talk button clarity */
+#holdToTalk { display: inline-flex; gap: 8px; align-items: center; font-weight: 700; }

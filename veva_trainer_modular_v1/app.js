@@ -43,6 +43,8 @@
   const textInput = $("#textInput");
   const btnSend = $("#btnSend");
   const holdToTalk = $("#holdToTalk");
+  const notesPad = $("#notesPad");
+  const notesBox = $("#notesBox");
 
   // Chat
   const chatSlots = $("#chatSlots");
@@ -175,6 +177,10 @@
   let session = { surname:"", group:"", difficulty:"standard" };
   function loadStudent(){ try{ return JSON.parse(localStorage.getItem(STUDENT_KEY)||"null"); }catch{ return null; } }
   function saveStudent(v){ try{ localStorage.setItem(STUDENT_KEY, JSON.stringify(v)); }catch{} }
+  const NOTES_KEY = "veva.notes.v1";
+  function loadNotes(){ try{ return localStorage.getItem(NOTES_KEY)||""; }catch{ return ""; } }
+  function saveNotes(t){ try{ localStorage.setItem(NOTES_KEY, t||""); }catch{} }
+  function clearNotes(){ try{ localStorage.removeItem(NOTES_KEY); }catch{} if (notesPad) notesPad.value=""; }
   function updateStudentPill(){
     if (!studentPill) return;
     if (!session.surname || !session.group){ studentPill.textContent = "Student: —"; return; }
@@ -581,8 +587,14 @@
     const portraitRow = $("#portraitRow");
     if (portraitRow){ portraitRow.hidden = false; portraitRow.style.display = ""; }
 
-// Always start empty: student must fill everything themselves.
-    for (const el of [sv_wie, sv_wat, sv_waar, sv_wanneer, sv_waarom]){ if (el) el.value = ""; }
+// Prefill with already-asked (green) 5W/H facts. Leave missed (red) items blank.
+    const fl = state.flags || {};
+    const f = state.facts || {};
+    if (sv_wie) sv_wie.value = fl.nameAsked ? (f.name || state.visitor?.name || "") : "";
+    if (sv_wat) sv_wat.value = fl.purposeAsked ? (f.purpose || "") : "";
+    if (sv_waar) sv_waar.value = fl.whereAsked ? (f.location || "") : "";
+    if (sv_wanneer) sv_wanneer.value = fl.timeAsked ? (f.time || "") : "";
+    if (sv_waarom) sv_waarom.value = fl.aboutAsked ? (f.about || "") : "";
     if (sv_note) sv_note.textContent = "";
     supervisorPanel.hidden=false;
     if (supervisorPhoto) supervisorPhoto.src = supervisorAvatar.src || soldierAvatar.src;
@@ -1114,8 +1126,36 @@ function updateChecklist(){
     setChecklistDone(checklistEls.si_return, !!fl.siRuleReturnOnExit, "si_return");
     setChecklistDone(checklistEls.si_alarm, !!fl.siRuleAlarmAssembly, "si_alarm");
     setChecklistDone(checklistEls.si_closes, !!fl.siRuleBaseCloses, "si_closes");
+
+    checkAutoEnd();
   }
-  function nextHint(){
+  
+
+
+  function checkAutoEnd(){
+    if (!state || state.autoEnded) return;
+    // Auto-end only when user reached Sign-in and completed all required items for reached phases
+    const fl = state.flags || {};
+    if (!state.reachedSI) return;
+
+    const gateOk = !!fl.nameAsked && !!fl.purposeAsked && !!fl.apptAsked && !!fl.whoAsked && !!fl.timeAsked && !!fl.aboutAsked && !!fl.whereAsked
+      && !!fl.idChecked && !!fl.reportedSupervisor && !!fl.illegalDone && !!fl.sentToPersonSearch;
+
+    const psOk = !state.reachedPS || (
+      !!fl.psSharpAsked && !!fl.psRemoveOuter && !!fl.psPositioned && !!fl.psExplainArmpits && !!fl.psExplainWaist
+      && !!fl.psLegOnKnee && !!fl.psItemsOk && !!fl.psCleared
+    );
+
+    const siOk = !!fl.siSigned && !!fl.siIssued && !!fl.siPassNoStated && !!fl.siRuleVisible && !!fl.siRuleShowOnRequest
+      && !!fl.siRuleReturnOnExit && !!fl.siRuleAlarmAssembly && !!fl.siRuleBaseCloses;
+
+    if (gateOk && psOk && siOk){
+      state.autoEnded = true;
+      // tiny delay so UI updates render before modal appears
+      setTimeout(()=>{ try{ endScenario(); } catch(e){} }, 250);
+    }
+  }
+function nextHint(){
     if (state.stage.startsWith("gate_")){
       const f=state.facts;
       if (!f.name) return 'Example: "What is your full name?"';
@@ -1149,6 +1189,7 @@ function updateChecklist(){
   let state = null;
 
   function resetScenario(){
+    clearNotes();
     currentMood = MOODS[randInt(0, MOODS.length-1)];
     const v = makeRandomVisitor();
     v.contact = makeContact();
@@ -1165,11 +1206,15 @@ function updateChecklist(){
     history=[]; renderChat();
     hideAllPanels();
     const portraitRow = $("#portraitRow");
-    if (portraitRow){ portraitRow.hidden = true; portraitRow.style.display = "none"; }
+    // Default: show portrait + mood indicator when no bottom panel is active.
+    if (portraitRow){ portraitRow.hidden = false; portraitRow.style.display = "flex"; }
 
     if (portraitPhoto) portraitPhoto.src = v.photoSrc || TRANSPARENT_PX;
-    if (portraitMood) portraitMood.textContent = `A visitor walks up to the gate. ${currentMood.line}`;
+    if (portraitMood) portraitMood.textContent = `A visitor is approaching the gate. ${currentMood.line}`;
     if (portraitDesc) portraitDesc.textContent = "";
+
+    // Add a short scene-setting line in the chat at scenario start.
+    addMsg("visitor", "A visitor is approaching the gate.");
 
     if (approach) clearTimeout(approach);
     approach=setTimeout(()=>{
@@ -1216,15 +1261,21 @@ function updateChecklist(){
       updateChecklist(); state.facts.name=state.visitor.name; enqueueVisitor(`My name is ${state.visitor.first}.`); updateHint(); return; }
     if (intent==="ask_surname"){
       state.flags.nameAsked = true;
-      updateChecklist(); enqueueVisitor(`My surname is ${state.visitor.last}.`); updateHint(); return; }
+      state.facts.name = state.visitor.name;
+      updateChecklist();
+      enqueueVisitor(`My surname is ${state.visitor.last}.`);
+      updateHint();
+      return;
+    }
     if (intent==="purpose"){
       state.flags.purposeAsked = true;
       updateChecklist();
-      state.facts.purpose="known";
       if (state.evasiveFor==="purpose" && bandFromMood()==="evasive" && !state.flags.forcedCoop){
         enqueueVisitor("It’s personal."); showHint(PRESS_HINT_TEXT); return;
       }
-      enqueueVisitor(phrase("gate","purpose",state, state.flags.forcedCoop ? "open":null));
+      const resp = phrase("gate","purpose",state, state.flags.forcedCoop ? "open":null);
+      state.facts.purpose = resp;
+      enqueueVisitor(resp);
       updateHint(); return;
     }
     if (intent==="has_appointment"){ state.flags.apptAsked = true; updateChecklist(); state.visitorDeclaredAppt = "yes"; /* info only */ enqueueVisitor(phrase("gate","has_appointment_yes",state)); updateHint(); return; }
@@ -1232,24 +1283,44 @@ function updateChecklist(){
     if (intent==="who_meeting"){
       state.flags.whoAsked = true;
       updateChecklist();
-      state.facts.who="known";
       if (state.evasiveFor==="who_meeting" && bandFromMood()==="evasive" && !state.flags.forcedCoop && !state.flags.evasiveUsed){
         state.flags.evasiveUsed=true;
         enqueueVisitor("Someone inside."); showHint(PRESS_HINT_TEXT); return;
       }
-      enqueueVisitor(phrase("gate","who_meeting",state, state.flags.forcedCoop ? "open":null));
+      const resp = phrase("gate","who_meeting",state, state.flags.forcedCoop ? "open":null);
+      state.facts.who = resp;
+      enqueueVisitor(resp);
       updateHint();
       return;
     }
     if (intent==="time_meeting"){
       state.flags.timeAsked = true;
-      updateChecklist(); state.facts.time="known"; enqueueVisitor(`My appointment is at ${getMeetingTime(state)}.`); updateHint(); return; }
+      updateChecklist();
+      const t = getMeetingTime(state);
+      const resp = `My appointment is at ${t}.`;
+      state.facts.time = resp;
+      enqueueVisitor(resp);
+      updateHint();
+      return;
+    }
     if (intent==="about_meeting"){
       state.flags.aboutAsked = true;
-      updateChecklist(); state.facts.about="known"; enqueueVisitor(phrase("gate","about_meeting",state, state.flags.forcedCoop ? "open":null)); updateHint(); return; }
+      updateChecklist();
+      const resp = phrase("gate","about_meeting",state, state.flags.forcedCoop ? "open":null);
+      state.facts.about = resp;
+      enqueueVisitor(resp);
+      updateHint();
+      return;
+    }
     if (intent==="where_meeting"){
       state.flags.whereAsked = true;
-      updateChecklist(); state.facts.location="known"; enqueueVisitor(`At reception, building ${state.facts.locationCode}.`); updateHint(); return; }
+      updateChecklist();
+      const resp = `At reception, building ${state.facts.locationCode}.`;
+      state.facts.location = resp;
+      enqueueVisitor(resp);
+      updateHint();
+      return;
+    }
 
     if (intent==="ask_id"){
       state.flags.idChecked=true;
@@ -1787,9 +1858,20 @@ btnSend?.addEventListener("click", ()=>{
     addMsg("student","[Report sent to supervisor]","NL 5W/H logged");
     state.flags.reportedSupervisor = true;
     updateChecklist();
-    backToVisitor();
-    enqueueVisitor("Understood. Thank you.");
-    updateHint();
+
+    // Lock the supervisor panel for a moment, then auto-close after 5 seconds.
+    if (btnSupervisorSend) btnSupervisorSend.disabled = true;
+    for (const el of [sv_wie, sv_wat, sv_waar, sv_wanneer, sv_waarom]){ if (el) el.disabled = true; }
+    if (sv_note) sv_note.textContent = "Report sent. Closing supervisor channel in 5 seconds…";
+
+    setTimeout(()=>{
+      backToVisitor();
+      enqueueVisitor("Understood. Thank you.");
+      updateHint();
+      for (const el of [sv_wie, sv_wat, sv_waar, sv_wanneer, sv_waarom]){ if (el) el.disabled = false; }
+      if (btnSupervisorSend) btnSupervisorSend.disabled = false;
+      if (sv_note) sv_note.textContent = "";
+    }, 5000);
   });
 
   // Live highlight: company is the common remaining field at sign-in
@@ -2031,6 +2113,7 @@ btnChecklistCollapse?.addEventListener("click", ()=>{
     session={...session,...pre};
   }
   updateStudentPill();
+  if (notesPad){ notesPad.value = loadNotes(); notesPad.addEventListener("input", ()=>saveNotes(notesPad.value)); }
   setupSpeech();
   loginModal.hidden=false;
 
