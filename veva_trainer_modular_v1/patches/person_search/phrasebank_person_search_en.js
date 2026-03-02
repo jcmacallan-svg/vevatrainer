@@ -3,7 +3,7 @@
   window.VEVA_PHRASES = window.VEVA_PHRASES || {};
   const P = window.VEVA_PHRASES;
   P.person_search = {
-    arrival: ["You arrive at the person search area."],
+    arrival: ["hello is this the person search area?"],
     comply: ["Okay.", "Alright.", "Understood."],
     sharp_q: ["No, nothing sharp.", "No, I don’t have anything sharp."],
     pockets_ack: ["Okay — I’ll empty my pockets.", "Sure."],
