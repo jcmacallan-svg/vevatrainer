@@ -102,12 +102,12 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 .panelHeader{display:flex;flex-direction:column;gap:2px;padding-bottom:10px;border-bottom:1px solid var(--border);}
 .panelTitle{font-weight:800;}
 .panelSub{color:var(--muted);font-size:12px;}
-.panelBody{overflow:auto;padding-top:12px;}
+.panelBody{overflow:hidden;padding-top:12px;display:flex;flex-direction:column;min-height:0;}
 .portraitRow{display:flex;gap:12px;align-items:flex-start;margin-bottom:12px;}
 .portraitPhoto{width:84px;height:84px;border-radius:18px;border:1px solid var(--border);background:#0b1220;}
 .portraitMood{font-weight:700;}
 .portraitDesc{color:var(--muted);margin-top:6px;font-size:13px;line-height:1.35;}
-.panelStack{display:flex;flex-direction:column;gap:12px;}
+.panelStack{display:flex;flex-direction:column;gap:12px;flex:1;min-height:0;}
 .card{border:1px solid var(--border);border-radius:18px;background:var(--panel2);overflow:hidden;}
 
 /* Keep the ID card at a readable width (not full screen width) */
@@ -696,3 +696,8 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 @keyframes sigDraw{
   to { stroke-dashoffset: 0; }
 }
+
+/* Make active card fill available height in bottom panel */
+.panelStack > .card{flex:1;min-height:0;}
+#signInPanel .cardBody{overflow:auto;min-height:0;}
+#passPanel .cardBody{overflow:auto;min-height:0;}

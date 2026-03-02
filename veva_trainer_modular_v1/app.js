@@ -541,6 +541,8 @@
     if (personSearchPanel) personSearchPanel.hidden=true;
     if (signInPanel) signInPanel.hidden=true;
     if (passPanel) passPanel.hidden=true;
+    const portraitRow = $("#portraitRow");
+    if (portraitRow) portraitRow.hidden = false;
   }
 
   function showId(){
@@ -611,6 +613,10 @@ if (state.stage.startsWith("si_")) showSignIn();
     signInPanel.hidden=false;
     if (panelTitle) panelTitle.textContent="Sign-in";
     if (panelSub) panelSub.textContent="Register + pass";
+
+    // In sign-in office, hide the portrait guidance block to give the form full space
+    const portraitRow = $("#portraitRow");
+    if (portraitRow) portraitRow.hidden = true;
 
     // At arrival, the register starts blank. Fields are filled only when the student asks the questions here.
     state.flags = state.flags || {};
@@ -1399,20 +1405,26 @@ function handleSI(intent, raw){
       return;
     }
     if (intent==="si_sign_in"){
-      // Visitor signs the register (student initiated)
+      // Student initiates signing the register
       state.flags.siSigned = true;
+
+      // Fill only what has been asked at sign-in (values are set when the student asks the questions).
+      // For safety, if fields are still empty, we can at least insert known values (name / time / location).
       if (si_name && !si_name.value) si_name.value = state.visitor?.name || "";
-      if (si_poc && !si_poc.value) si_poc.value = state.visitor?.contact?.full || "";
       if (si_time && !si_time.value) si_time.value = getMeetingTime(state);
       if (si_loc && !si_loc.value) si_loc.value = state.facts.locationCode ? `Building ${state.facts.locationCode}` : (state.facts.location||"");
+
       // Animate signature inside the signature box
       if (sigBox){ sigBox.classList.remove("sigRun"); void sigBox.offsetWidth; sigBox.classList.add("sigRun"); }
-      // store a simple marker so older code paths don't treat it as "empty"
       if (si_sig) si_sig.value = "signed";
-      // Reveal rules + enable pass issuance
-      if (si_rulesForm) si_rulesForm.hidden = false;
-updateChecklist();
+
+      // Mark checklist immediately, then transition the UI to the base-rules screen after the signature animation starts.
+      updateChecklist();
       enqueueVisitor("Okay.");
+
+      // After the signature is drawn, switch to the rules overview (register form hides, rules appear).
+      setTimeout(()=>{ try{ showSignIn(); }catch(e){} }, 900);
+
       updateHint();
       return;
     }
@@ -1630,6 +1642,7 @@ btnSend?.addEventListener("click", ()=>{
   btnPersonSearch?.addEventListener("click", ()=> handleStudent("Go to person search"));
   btnSignIn?.addEventListener("click", ()=> handleStudent("Go to sign-in office"));
   btnEndScenario?.addEventListener("click", ()=> endScenarioNow());
+  btnCloseSummary?.addEventListener("click", ()=>{ if(summaryModal) summaryModal.hidden=true; });
   btnDeny?.addEventListener("click", ()=> enqueueVisitor(phrase("shared","deny_why",state)));
 
   btnReturnId?.addEventListener("click", ()=>{ if(state?.ui?.idVisible){ hideId(); enqueueVisitor(phrase("gate","return_id",state)); window.VEVA_LOG?.({type:"id", action:"returned_btn"}); } });
