@@ -542,25 +542,44 @@
   }
 
 
-  function hideAllPanels(){
-    if (idCardWrap) idCardWrap.hidden=true;
-    if (supervisorPanel) supervisorPanel.hidden=true;
-    if (personSearchPanel) personSearchPanel.hidden=true;
-    if (signInPanel) signInPanel.hidden=true;
-    if (passPanel) passPanel.hidden=true;
+  function isPanelShown(el){
+    if (!el) return false;
+    if (el.hidden) return false;
+    // Some panels use display none; treat that as hidden.
+    if (el.style && el.style.display === "none") return false;
+    return true;
+  }
+
+  function syncPortraitVisibility(){
     const portraitRow = $("#portraitRow");
-    if (portraitRow){ portraitRow.hidden = false; portraitRow.style.display = ""; }
+    if (!portraitRow) return;
+    const anyPopup = [
+      idCardWrap,
+      supervisorPanel,
+      personSearchPanel,
+      signInPanel,
+      passPanel
+    ].some(isPanelShown);
+
+    portraitRow.hidden = anyPopup;
+    portraitRow.style.display = anyPopup ? "none" : "";
+  }
+
+  function hideAllPanels(){
+    if (idCardWrap){ idCardWrap.hidden=true; idCardWrap.style.display="none"; }
+    if (supervisorPanel){ supervisorPanel.hidden=true; supervisorPanel.style.display="none"; }
+    if (personSearchPanel){ personSearchPanel.hidden=true; personSearchPanel.style.display="none"; }
+    if (signInPanel){ signInPanel.hidden=true; signInPanel.style.display="none"; }
+    if (passPanel){ passPanel.hidden=true; passPanel.style.display="none"; }
+    syncPortraitVisibility();
   }
 
   function showId(){
     hideAllPanels();
     if (!idCardWrap) return;
 
-    // Hide the portrait guidance row to give the ID card full space
-    const portraitRow = $("#portraitRow");
-    if (portraitRow){ portraitRow.hidden = true; portraitRow.style.display = "none"; }
-
-    idCardWrap.hidden=false;
+    idCardWrap.hidden=false; idCardWrap.style.display="";
+    syncPortraitVisibility();
 
     if (idScenario) idScenario.textContent = state.flowName || "Gate";
     if (idLevel) idLevel.textContent = String(session.difficulty||"standard").toUpperCase();
@@ -577,15 +596,11 @@
   }
   function hideId(){
     if (!idCardWrap) return;
-    idCardWrap.hidden=true; state.ui.idVisible=false; updateHint();
+    idCardWrap.hidden=true; idCardWrap.style.display="none"; state.ui.idVisible=false; syncPortraitVisibility(); updateHint();
   }
 
   function showSupervisor(){
     hideAllPanels();
-    // Keep portrait row visible in the default (no-panel) view
-    const portraitRow = $("#portraitRow");
-    if (portraitRow){ portraitRow.hidden = false; portraitRow.style.display = ""; }
-
     // Auto-fill fields ONLY for items the student already asked (green tickmarks).
     // Missing items remain empty so the student still notices what's incomplete.
     const fl = state.flags || {};
@@ -595,7 +610,8 @@
     if (sv_wanneer) sv_wanneer.value = fl.timeAsked ? (state.facts?.meetingTime || getMeetingTime(state)) : "";
     if (sv_waarom) sv_waarom.value = fl.aboutAsked ? (state.facts?.aboutText || "") : "";
     if (sv_note) sv_note.textContent = "";
-    supervisorPanel.hidden=false;
+    supervisorPanel.hidden=false; supervisorPanel.style.display="";
+    syncPortraitVisibility();
     if (supervisorPhoto) supervisorPhoto.src = supervisorAvatar.src || soldierAvatar.src;
     state.ui.supervisorVisible=true;
     if (panelTitle) panelTitle.textContent="Supervisor";
@@ -604,7 +620,8 @@
   }
   function backToVisitor(){
     state.ui.supervisorVisible=false;
-    supervisorPanel.hidden=true;
+    supervisorPanel.hidden=true; supervisorPanel.style.display="none";
+    syncPortraitVisibility();
     if (panelTitle) panelTitle.textContent="Visitor";
     if (panelSub) panelSub.textContent=state.flowName||"—";
     if (state.stage.startsWith("ps_")){
@@ -627,7 +644,8 @@ if (state.stage.startsWith("si_")) showSignIn();
   function showPersonSearch(){
     hideAllPanels();
     // Keep portrait row visible during Person Search
-personSearchPanel.hidden=false;
+personSearchPanel.hidden=false; personSearchPanel.style.display="";
+    syncPortraitVisibility();
     if (panelTitle) panelTitle.textContent="Person Search";
     if (panelSub) panelSub.textContent="Search procedure";
     renderPS();
@@ -662,13 +680,10 @@ personSearchPanel.hidden=false;
 
 function showSignIn(){
     hideAllPanels();
-    signInPanel.hidden=false;
+    signInPanel.hidden=false; signInPanel.style.display="";
+    syncPortraitVisibility();
     if (panelTitle) panelTitle.textContent="Sign-in";
     if (panelSub) panelSub.textContent="Register + pass";
-
-    // In sign-in office, hide the portrait guidance block to give the form full space
-    const portraitRow = $("#portraitRow");
-    if (portraitRow){ portraitRow.hidden = true; portraitRow.style.display = "none"; }
 
     // At arrival, the register starts blank. Fields are filled only when the student asks the questions here.
     state.flags = state.flags || {};
@@ -700,9 +715,8 @@ function showSignIn(){
   }
   function showPass(){
     hideAllPanels();
-    const portraitRow = $("#portraitRow");
-    if (portraitRow){ portraitRow.hidden = true; portraitRow.style.display = "none"; }
-    passPanel.hidden=false;
+    passPanel.hidden=false; passPanel.style.display="";
+    syncPortraitVisibility();
     if (panelTitle) panelTitle.textContent="Sign-in";
     if (panelSub) panelSub.textContent="Visitor pass issued";
     state.pass = state.pass || {};
