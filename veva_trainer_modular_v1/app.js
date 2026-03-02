@@ -89,7 +89,8 @@
   const si_name = $("#si_name");
   const si_company = $("#si_company");
   const sigBox = $("#sigBox");
-  const si_rulesBox = $("#si_rulesBox");
+  const si_rulesForm = $("#si_rulesForm");
+  const si_form = $("#si_form");
   const si_passPreview = $("#si_passPreview");
   const si_poc = $("#si_poc");
   const si_time = $("#si_time");
@@ -606,16 +607,40 @@ if (state.stage.startsWith("si_")) showSignIn();
     signInPanel.hidden=false;
     if (panelTitle) panelTitle.textContent="Sign-in";
     if (panelSub) panelSub.textContent="Register + pass";
-    // Only pre-fill fields that have been asked & answered.
-    // If a checklist item is missed (red), the field should remain empty.
-    const f = state.flags||{};
-    if (si_name) si_name.value = f.nameAsked ? state.visitor.name : "";
-    if (si_poc) si_poc.value = f.whoAsked ? (state.visitor.contact?.full||"") : "";
-    if (si_time) si_time.value = f.timeAsked ? (state.facts.meetingTime||"") : "";
-    if (si_loc){
-      const loc = state.facts.destination || (state.facts.locationCode ? `Building ${state.facts.locationCode}` : "");
-      si_loc.value = f.whereAsked ? loc : "";
+
+    // At arrival, the register starts blank. Fields are filled only when the student asks the questions here.
+    state.flags = state.flags || {};
+    if (!state.flags.siFormInitialized){
+      if (si_name) si_name.value = "";
+      if (si_poc) si_poc.value = "";
+      if (si_time) si_time.value = "";
+      if (si_loc) si_loc.value = "";
+      if (si_company) si_company.value = "";
+      state.flags.siFormInitialized = true;
     }
+
+    // Missing company should stand out in the form during sign-in.
+    if (si_company){
+      const missing = !si_company.value;
+      si_company.classList.toggle("missing", missing);
+    }
+
+    // Prepare pass number preview (student must state it later)
+    state.pass = state.pass || {};
+    state.pass.id = state.pass.id || ("VP-"+randInt(1000,9999));
+    if (si_passPreview) si_passPreview.textContent = state.pass.id;
+
+    // Signature / rules step:
+    const signed = !!state.flags.siSigned;
+    if (si_form) si_form.hidden = signed;           // hide register form after signature
+    if (sigBox) sigBox.parentElement && (sigBox.parentElement.hidden = signed); // signature label hidden after signature
+    if (si_rulesForm) si_rulesForm.hidden = !signed;
+
+    // Issue button becomes available only after the student has said the briefing lines (pass + rules).
+    if (btnSignInIssue) btnSignInIssue.disabled = !(state.flags.siIssued && state.flags.siPassNoStated);
+
+    updateHint();
+  }
     if (si_company) si_company.value = f.companyAsked ? (state.facts.company||"") : "";
 
     // Missing company should stand out in the form during sign-in.
@@ -631,7 +656,7 @@ if (state.stage.startsWith("si_")) showSignIn();
 
     // Signature box is always visible; rules appear only after the student asks to sign.
     if (sigBox){ sigBox.classList.remove("sigRun"); }
-    if (si_rulesBox) si_rulesBox.hidden = !state.flags.siSigned;
+    if (si_rulesForm) si_rulesForm.hidden = !state.flags.siSigned;
     if (btnSignInIssue) btnSignInIssue.disabled = !state.flags.siSigned;
     updateHint();
   }
@@ -1307,6 +1332,14 @@ function updateChecklist(){
     showSignIn();
     const n = String(raw||"");
 
+    if (intent==="ask_name" || intent==="ask_surname"){
+      state.flags.nameAsked = true;
+      if (si_name) si_name.value = state.visitor?.name || "";
+      enqueueVisitor(`My name is ${state.visitor?.name || "—"}.`);
+      updateHint();
+      return;
+    }
+
     // Allow asking remaining 5W/H details at the sign-in office (if not already asked at the gate)
     if (intent==="ask_company"){
       state.flags.companyAsked = true;
@@ -1369,7 +1402,7 @@ function updateChecklist(){
       // store a simple marker so older code paths don't treat it as "empty"
       if (si_sig) si_sig.value = "signed";
       // Reveal rules + enable pass issuance
-      if (si_rulesBox) si_rulesBox.hidden = false;
+      if (si_rulesForm) si_rulesForm.hidden = false;
       if (btnSignInIssue) btnSignInIssue.disabled = false;
       updateChecklist();
       enqueueVisitor("Okay.");
@@ -1378,8 +1411,8 @@ function updateChecklist(){
     }
     if (intent==="si_issue_pass"){
       state.flags.siIssued = true;
-      // Ensure a concrete pass number exists and is visible to the student
-      showPass();
+      // Keep the rules form visible; issuing is confirmed by the student's statement.
+      showSignIn();
 
       // Student must *state* which pass is being issued (e.g., "I am issuing pass VP-1234")
       const pid = state?.pass?.id || "";
@@ -1588,27 +1621,29 @@ btnSend?.addEventListener("click", ()=>{
     updateChecklist();
     backToVisitor();
     enqueueVisitor("Understood. Thank you.");
-    updateHint();
-  });
-
-  btnSignInIssue?.addEventListener("click", ()=>{
+    updateHintbtnSignInIssue?.addEventListener("click", ()=>{
     const entry={
-      name:(si_name?.value||state.visitor.name).trim(),
+      name:(si_name?.value||"").trim(),
       company:(si_company?.value||"").trim(),
-      poc:(si_poc?.value||state.visitor.contact.full).trim(),
-      time:(si_time?.value||state.facts.meetingTime||"").trim(),
-      location:(si_loc?.value||state.facts.location||"").trim(),
+      poc:(si_poc?.value||"").trim(),
+      time:(si_time?.value||"").trim(),
+      location:(si_loc?.value||"").trim(),
       signature:(si_sig?.value||"").trim(),
     };
     if(!state.flags.siSigned){ miss("Ask the visitor to sign the register before issuing the pass."); return; }
-    state.flags.siIssued=true;
-      // Try to enter fullscreen after sign-in (user gesture)
-      try{ if(!document.fullscreenElement){ document.documentElement.requestFullscreen?.(); } }catch(e){}
+
+    const rulesOk = !!(state.flags.siRuleVisible && state.flags.siRuleShowOnRequest && state.flags.siRuleReturnOnExit && state.flags.siRuleAlarmAssembly && state.flags.siRuleBaseCloses);
+    if(!state.flags.siIssued){ miss("Say: 'Here is your visitor pass.'"); return; }
+    if(!state.flags.siPassNoStated){ miss("State the pass number out loud (e.g., 'I am issuing pass VP-1234')."); return; }
+    if(!rulesOk){ miss("Brief the visitor on all base rules before issuing the pass."); return; }
+
+    // Log + show pass
     window.VEVA_LOG?.({type:"sign_in", action:"issue_pass", entry, visitor:state.visitor, student:session});
     showPass();
-    // The student must say the briefing lines (rules + pass number). Visitor only acknowledges.
     enqueueVisitor("Thank you.");
     updateHint();
+  });
+int();
   });
 
   // Live highlight: company is the common remaining field at sign-in
