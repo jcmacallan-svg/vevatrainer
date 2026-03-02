@@ -767,7 +767,42 @@ if (state.stage.startsWith("si_")) showSignIn();
   }
 
 
-  function buildScenarioSummary(){
+  
+  // Example sentences for feedback
+  function exampleFor(key){
+    const ex = {
+      gate_name: 'Example: "What is your name?"',
+      gate_purpose: 'Example: "What is the purpose of your visit?"',
+      gate_appt: 'Example: "Do you have an appointment?"',
+      gate_who: 'Example: "Who are you meeting with?"',
+      gate_time: 'Example: "What time is your appointment?"',
+      gate_about: 'Example: "What is the meeting about?"',
+      gate_where: 'Example: "Where is the meeting / location?"',
+      gate_id: 'Example: "May I see your ID, please?"',
+      gate_supervisor: 'Example: "I will contact my supervisor and report this."',
+      gate_rules: 'Example: "Do you have any illegal items—weapons, drugs, or alcohol?"',
+      gate_send_ps: 'Example: "Please follow me to the person search area."',
+      ps_pockets: 'Example: "Please empty your pockets on the table."',
+      ps_position: 'Example: "Stand still, hands on the wall, feet apart."',
+      ps_remove: 'Example: "Please remove your jacket and headgear."',
+      ps_armpits: 'Example: "I am going to search under your armpits."',
+      ps_waist: 'Example: "I am going to search around your waist / belt area."',
+      ps_leg: 'Example: "Please put your leg on my knee."',
+      ps_items_ok: 'Example: "I have checked your items and they are okay."',
+      ps_cleared: 'Example: "You are clear to proceed to the sign-in office."',
+      si_register: 'Example: "Please sign in here."',
+      si_pass_no: 'Example: "I am issuing visitor pass VP-1234."',
+      si_pass_hand: 'Example: "Here is your visitor pass."',
+      si_rule_visible: 'Example: "Keep the pass visible at all times."',
+      si_rule_show: 'Example: "Show it on request."',
+      si_rule_return: 'Example: "Return it when you leave."',
+      si_rule_alarm: 'Example: "In an alarm, go to the assembly point."',
+      si_rule_closes: 'Example: "The base closes at 1700."',
+    };
+    return ex[key] || "";
+  }
+
+function buildScenarioSummary(){
     try{
       updateChecklist();
 
@@ -837,29 +872,6 @@ if (state.stage.startsWith("si_")) showSignIn();
       // improvements: prioritize missed first, then todo (applicable only)
       const misses = applicable.filter(r=>r.status==="miss");
       const todos = applicable.filter(r=>r.status==="todo");
-
-      // Map from key to example sentence
-      const exampleFor = (key)=>{
-        const ex = {
-          gate_name: 'Example: "What is your name?"',
-          gate_purpose: 'Example: "What is the purpose of your visit?"',
-          gate_appt: 'Example: "Do you have an appointment?"',
-          gate_who: 'Example: "Who are you meeting with?"',
-          gate_time: 'Example: "What time is your appointment?"',
-          gate_about: 'Example: "What is the meeting about?"',
-          gate_where: 'Example: "Where is the meeting / location?"',
-          gate_id: 'Example: "May I see your ID, please?"',
-          gate_supervisor: 'Example: "I will contact my supervisor and report this."',
-          gate_rules: 'Example: "Do you have any illegal items—weapons, drugs, or alcohol?"',
-          gate_send_ps: 'Example: "Please follow me to the person search area."',
-          ps_pockets: 'Example: "Please empty your pockets on the table."',
-          ps_position: 'Example: "Stand still, hands on the wall, feet apart."',
-          ps_resolved: 'Example: "Thank you. You can proceed."',
-          si_start: 'Example: "Please sign in here."',
-          si_badge: 'Example: "Here is your visitor badge—wear it visibly."',
-        };
-        return ex[key] || "";
-      };
 
       const topFixes = [...misses, ...todos].slice(0,3).map(r=>({label:r.label, hint: exampleFor(r.key)}));
 
