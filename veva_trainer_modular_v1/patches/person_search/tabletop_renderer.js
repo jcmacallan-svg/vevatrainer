@@ -98,7 +98,7 @@
       if (wrap.querySelector(".psEnlargeHint")) return;
       var hint = document.createElement("div");
       hint.className = "psEnlargeHint";
-      hint.textContent = "Click to enlarge";
+      hint.innerHTML = '<span class="psEnlargeIcon" aria-hidden="true">🔍</span><span class="psEnlargePlus" aria-hidden="true">+</span><span class="psEnlargeText">Enlarge</span>';
       wrap.appendChild(hint);
     }catch(e){}
   }
@@ -203,6 +203,7 @@
     var modal = document.createElement("div");
     modal.id = "psTableModal";
     modal.className = "psTableModal hidden";
+    modal.setAttribute("hidden","");
     modal.innerHTML =
       '<div class="psTableModalBackdrop"></div>' +
       '<div class="psTableModalDialog" role="dialog" aria-modal="true">' +
@@ -212,7 +213,7 @@
 
     document.body.appendChild(modal);
 
-    function close() { modal.classList.add("hidden"); }
+    function close() { modal.classList.add("hidden"); modal.setAttribute("hidden",""); }
 
     modal.querySelector(".psTableModalBackdrop").addEventListener("click", close);
     modal.querySelector(".psTableModalClose").addEventListener("click", close);
@@ -225,6 +226,7 @@
     ensureModal();
     var modal = document.getElementById("psTableModal");
     modal.classList.remove("hidden");
+    modal.removeAttribute("hidden");
 
     await render({
       canvasId: "psTableCanvasModal",
