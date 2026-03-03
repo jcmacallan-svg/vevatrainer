@@ -1,243 +1,228 @@
-\
-/* patches/person_search/tabletop_renderer.js */
-(function(){
+// patches/person_search/tabletop_renderer.js
+(function () {
   "use strict";
 
   var imgCache = {};
-  function loadImage(src){
-    return new Promise(function(resolve, reject){
-      if(!src) return reject(new Error("No src"));
-      if(imgCache[src]) return resolve(imgCache[src]);
+
+  function loadImage(src) {
+    return new Promise(function (resolve, reject) {
+      if (!src) return reject(new Error("No src"));
+      if (imgCache[src]) return resolve(imgCache[src]);
       var img = new Image();
-      img.onload = function(){ imgCache[src]=img; resolve(img); };
-      img.onerror = function(){ reject(new Error("Failed to load: "+src)); };
+      img.onload = function () { imgCache[src] = img; resolve(img); };
+      img.onerror = function () { reject(new Error("Failed to load: " + src)); };
       img.src = src;
     });
   }
 
-  function fitCanvasToCssSize(canvas, ctx){
+  function fitCanvasToCssSize(canvas, ctx) {
     var dpr = window.devicePixelRatio || 1;
     var rect = canvas.getBoundingClientRect();
     var cssW = Math.max(1, Math.round(rect.width));
     var cssH = Math.max(1, Math.round(rect.height));
-    var need = canvas.width !== Math.round(cssW*dpr) || canvas.height !== Math.round(cssH*dpr);
-    if(need){
-      canvas.width = Math.round(cssW*dpr);
-      canvas.height = Math.round(cssH*dpr);
+    var w = Math.round(cssW * dpr);
+    var h = Math.round(cssH * dpr);
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
     }
-    ctx.setTransform(dpr,0,0,dpr,0,0);
-    return {W: cssW, H: cssH};
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { W: cssW, H: cssH };
   }
 
-  function drawContain(ctx, img, W, H, pad){
-    pad = pad || 14;
+  // Draw table as CONTAIN so the full table stays visible. Returns the table rect.
+  function drawContain(ctx, img, W, H, pad) {
+    pad = (pad == null) ? 12 : pad;
     var iw = img.naturalWidth || img.width;
     var ih = img.naturalHeight || img.height;
-    var availW = Math.max(1, W - pad*2);
-    var availH = Math.max(1, H - pad*2);
-
-    var s = Math.min(availW/iw, availH/ih);
-    var dw = iw*s, dh = ih*s;
-    var dx = (W - dw)/2;
-    var dy = (H - dh)/2;
+    var availW = Math.max(1, W - pad * 2);
+    var availH = Math.max(1, H - pad * 2);
+    var s = Math.min(availW / iw, availH / ih);
+    var dw = iw * s;
+    var dh = ih * s;
+    var dx = (W - dw) / 2;
+    var dy = (H - dh) / 2;
 
     ctx.drawImage(img, dx, dy, dw, dh);
 
+    // subtle vignette to give depth
     ctx.save();
-    var g = ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.25,W/2,H/2,Math.max(W,H)*0.65);
-    g.addColorStop(0,"rgba(0,0,0,0)");
-    g.addColorStop(1,"rgba(0,0,0,0.22)");
+    var g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.25, W / 2, H / 2, Math.max(W, H) * 0.62);
+    g.addColorStop(0, "rgba(0,0,0,0)");
+    g.addColorStop(1, "rgba(0,0,0,0.22)");
     ctx.fillStyle = g;
-    ctx.fillRect(0,0,W,H);
+    ctx.fillRect(0, 0, W, H);
     ctx.restore();
 
-    return {x: dx, y: dy, w: dw, h: dh};
+    return { x: dx, y: dy, w: dw, h: dh };
   }
 
-  function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
-  function randBetween(a,b){ return a + Math.random()*(b-a); }
+  function randBetween(min, max) {
+    return min + Math.random() * (max - min);
+  }
+
+  function normalizeName(s) {
+    return String(s || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  }
 
   var DEFAULT_TABLE = "assets/table/tafelachtergrond.png";
 
+  // Map logical names -> your PNG filenames
   var ITEM_SPRITES = {
-    "cigarette": "assets/items/cigarette.png",
-    "comb": "assets/items/comb.png",
-    "glasses": "assets/items/glasses.png",
-    "gun": "assets/items/gun.png",
-    "headphones": "assets/items/headphones.png",
-    "id": "assets/items/ID.png",
-    "joint": "assets/items/joint.png",
-    "keys": "assets/items/keys.png",
-    "knife": "assets/items/knife.png",
-    "labello": "assets/items/labello.png",
+    "wallet": "assets/items/wallet.png",
     "notebook": "assets/items/notebook.png",
     "phone": "assets/items/phone.png",
+    "keys": "assets/items/keys.png",
+    "id": "assets/items/ID.png",
     "usb": "assets/items/USB.png",
-    "wallet": "assets/items/wallet.png",
+    "glasses": "assets/items/glasses.png",
+    "comb": "assets/items/comb.png",
+    "headphones": "assets/items/headphones.png",
+    "cigarette": "assets/items/cigarette.png",
+    "labello": "assets/items/labello.png",
     "whiskey": "assets/items/whiskey.png",
-
-    "Phone": "assets/items/phone.png",
-    "Wallet": "assets/items/wallet.png",
-    "Keys": "assets/items/keys.png",
-    "Notebook": "assets/items/notebook.png",
-    "ID": "assets/items/ID.png",
-    "Cigarette": "assets/items/cigarette.png",
-    "Glasses": "assets/items/glasses.png",
-    "Knife": "assets/items/knife.png",
-    "Gun": "assets/items/gun.png",
-    "Whiskey": "assets/items/whiskey.png",
-    "USB": "assets/items/USB.png",
-    "Labello": "assets/items/labello.png",
-    "Comb": "assets/items/comb.png",
-    "Headphones": "assets/items/headphones.png",
-    "Joint": "assets/items/joint.png"
+    "knife": "assets/items/knife.png",
+    "gun": "assets/items/gun.png",
+    "pistol": "assets/items/gun.png",
+    "joint": "assets/items/joint.png"
   };
 
-  function makeSlots(rect){
-    var padX = rect.w * 0.10;
-    var padY = rect.h * 0.12;
-    var x0 = rect.x + padX;
-    var y0 = rect.y + padY;
-    var w = rect.w - padX*2;
-    var h = rect.h - padY*2;
+  function resolveSprite(item) {
+    if (!item) return "";
+    if (item.src) return item.src;
+    if (item.sprite) return item.sprite;
 
-    var cols = 3, rows = 2;
-    var slots = [];
-    for(var r=0;r<rows;r++){
-      for(var c=0;c<cols;c++){
-        slots.push({
-          x: x0 + (c+0.5)*(w/cols),
-          y: y0 + (r+0.5)*(h/rows),
-          cellW: w/cols,
-          cellH: h/rows
-        });
-      }
-    }
-    return slots;
+    var n = normalizeName(item.name);
+    // common aliases
+    if (n.indexOf("pocket") >= 0 && n.indexOf("knife") >= 0) n = "knife";
+    if (n.indexOf("pistol") >= 0) n = "pistol";
+    if (n.indexOf("gun") >= 0) n = "gun";
+    if (n.indexOf("usb") >= 0) n = "usb";
+
+    // exact lookup
+    if (ITEM_SPRITES[n]) return ITEM_SPRITES[n];
+
+    // try by first token
+    var t = n.split(" ")[0];
+    return ITEM_SPRITES[t] || "";
   }
 
-  async function renderToCanvas(canvasId, tableSrc, items){
-    var canvas = document.getElementById(canvasId);
-    if(!canvas) return;
+  // Compute a 3x2 layout inside the table rectangle
+  function makeSlots(rect) {
+    var innerPad = Math.max(10, Math.round(Math.min(rect.w, rect.h) * 0.06));
+    var x0 = rect.x + innerPad;
+    var y0 = rect.y + innerPad;
+    var w = rect.w - innerPad * 2;
+    var h = rect.h - innerPad * 2;
+
+    var cols = 3;
+    var rows = 2;
+    var slots = [];
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < cols; c++) {
+        var cx = x0 + (c + 0.5) * (w / cols);
+        var cy = y0 + (r + 0.5) * (h / rows);
+        slots.push({ cx: cx, cy: cy });
+      }
+    }
+    return { slots: slots, innerPad: innerPad, innerW: w, innerH: h };
+  }
+
+  async function render(opts) {
+    opts = opts || {};
+    var canvas = document.getElementById(opts.canvasId || "psTableThumb");
+    if (!canvas) return;
 
     var ctx = canvas.getContext("2d");
-    if(!ctx) return;
+    if (!ctx) return;
 
     var size = fitCanvasToCssSize(canvas, ctx);
     var W = size.W, H = size.H;
 
-    ctx.clearRect(0,0,W,H);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
 
-    var rect = null;
-    try{
-      var bg = await loadImage(tableSrc || DEFAULT_TABLE);
-      rect = drawContain(ctx, bg, W, H, 14);
-    }catch(e){
-      ctx.fillStyle = "#0b1220";
-      ctx.fillRect(0,0,W,H);
-      rect = {x: 0, y: 0, w: W, h: H};
+    ctx.clearRect(0, 0, W, H);
+
+    // background fill
+    ctx.fillStyle = "rgba(0,0,0,0.18)";
+    ctx.fillRect(0, 0, W, H);
+
+    var tableRect = null;
+    try {
+      var bg = await loadImage(opts.tableSrc || DEFAULT_TABLE);
+      tableRect = drawContain(ctx, bg, W, H, 10);
+    } catch (e) {
+      // fallback rect (almost full)
+      tableRect = { x: 10, y: 10, w: W - 20, h: H - 20 };
     }
 
-    var list = Array.isArray(items) ? items.slice(0,6) : [];
-    var slots = makeSlots(rect);
+    // items
+    var list = (opts.items || []).slice(0, 6);
+    var layout = makeSlots(tableRect);
+    var slots = layout.slots;
 
-    for(var i=0;i<list.length;i++){
-      var it = list[i] || {};
-      var name = it.name || it.key || it.id || "";
-      var lower = String(name).toLowerCase();
-      var src = it.src || it.sprite || ITEM_SPRITES[name] || ITEM_SPRITES[lower];
-      if(!src) continue;
+    // Scale rule: based on table inner width, keep items clearly visible
+    var baseTargetW = Math.max(56, layout.innerW / 5.2); // bigger than before
 
-      var slot = slots[i] || slots[slots.length-1];
+    for (var i = 0; i < list.length; i++) {
+      var it = list[i];
+      var src = resolveSprite(it);
+      if (!src) continue;
 
-      var targetW = slot.cellW * 0.55;
-      var targetH = slot.cellH * 0.55;
-
-      var cx = slot.x + randBetween(-slot.cellW*0.08, slot.cellW*0.08);
-      var cy = slot.y + randBetween(-slot.cellH*0.08, slot.cellH*0.08);
+      var s = slots[i] || slots[slots.length - 1];
+      var cx = s.cx + randBetween(-layout.innerW * 0.06, layout.innerW * 0.06);
+      var cy = s.cy + randBetween(-layout.innerH * 0.06, layout.innerH * 0.06);
       var rot = randBetween(-0.18, 0.18);
 
-      cx = clamp(cx, rect.x + rect.w*0.12, rect.x + rect.w*0.88);
-      cy = clamp(cy, rect.y + rect.h*0.16, rect.y + rect.h*0.86);
-
-      try{
+      try {
         var img = await loadImage(src);
         var iw = img.naturalWidth || img.width;
         var ih = img.naturalHeight || img.height;
 
-        var s = Math.min(targetW/iw, targetH/ih);
-        var dw = iw*s, dh = ih*s;
+        // Per item slight variance
+        var targetW = baseTargetW * randBetween(0.92, 1.10);
+        // prevent huge objects
+        targetW = Math.min(targetW, layout.innerW / 2.4);
+
+        var sc = targetW / iw;
+        var dw = iw * sc;
+        var dh = ih * sc;
+
+        // Clamp center inside table inner rect
+        var minX = tableRect.x + layout.innerPad + dw / 2;
+        var maxX = tableRect.x + tableRect.w - layout.innerPad - dw / 2;
+        var minY = tableRect.y + layout.innerPad + dh / 2;
+        var maxY = tableRect.y + tableRect.h - layout.innerPad - dh / 2;
+        if (cx < minX) cx = minX;
+        if (cx > maxX) cx = maxX;
+        if (cy < minY) cy = minY;
+        if (cy > maxY) cy = maxY;
 
         ctx.save();
-        ctx.translate(cx,cy);
+        ctx.translate(cx, cy);
         ctx.rotate(rot);
 
+        // shadow on table
         ctx.shadowColor = "rgba(0,0,0,0.33)";
         ctx.shadowBlur = 22;
-        ctx.shadowOffsetX = 10;
-        ctx.shadowOffsetY = 14;
+        ctx.shadowOffsetX = 8;
+        ctx.shadowOffsetY = 12;
 
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = "high";
-        ctx.drawImage(img, -dw/2, -dh/2, dw, dh);
+
+        ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
         ctx.restore();
-      }catch(e2){}
-    }
-  }
-
-  function openModal(){
-    var m = document.getElementById("psTableModal");
-    if(!m) return;
-    m.hidden = false;
-  }
-  function closeModal(){
-    var m = document.getElementById("psTableModal");
-    if(!m) return;
-    m.hidden = true;
-  }
-  function bindUIOnce(){
-    if(bindUIOnce._did) return;
-    bindUIOnce._did = true;
-
-    var thumb = document.getElementById("psTableThumb");
-    if(thumb){
-      thumb.addEventListener("click", function(){ openModal(); });
-      thumb.addEventListener("keydown", function(e){
-        if(e.key === "Enter" || e.key === " "){ e.preventDefault(); openModal(); }
-      });
-    }
-
-    var modal = document.getElementById("psTableModal");
-    if(modal){
-      modal.addEventListener("click", function(e){
-        var t = e.target;
-        if(t && t.getAttribute && t.getAttribute("data-close")==="1") closeModal();
-      });
-    }
-
-    document.addEventListener("keydown", function(e){
-      if(e.key === "Escape") closeModal();
-    });
-  }
-
-  window.VEVA_TABLETOP = {
-    render: async function(opts){
-      opts = opts || {};
-      bindUIOnce();
-
-      var tableSrc = opts.tableSrc || DEFAULT_TABLE;
-      var items = opts.items || [];
-
-      await renderToCanvas(opts.canvasId || "psTableCanvas", tableSrc, items);
-
-      var modal = document.getElementById("psTableModal");
-      if(modal && modal.hidden === false){
-        await renderToCanvas("psTableCanvasModal", tableSrc, items);
+      } catch (e2) {
+        // skip
       }
-    },
-    openModal: openModal,
-    closeModal: closeModal
-  };
+    }
+  }
+
+  window.VEVA_TABLETOP = window.VEVA_TABLETOP || {};
+  window.VEVA_TABLETOP.render = render;
 })();
