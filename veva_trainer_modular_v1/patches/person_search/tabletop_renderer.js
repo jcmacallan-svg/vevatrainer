@@ -1,278 +1,243 @@
-// patches/person_search/tabletop_renderer.js
-(function () {
+\
+/* patches/person_search/tabletop_renderer.js */
+(function(){
   "use strict";
 
-  function ensureStyles(){
-    try{
-      if (document.getElementById("veva-tabletop-css")) return;
-      var link = document.createElement("link");
-      link.id = "veva-tabletop-css";
-      link.rel = "stylesheet";
-      link.href = "patches/person_search/tabletop_renderer.css";
-      document.head.appendChild(link);
-    }catch(e){}
-  }
-
   var imgCache = {};
-
-  function loadImage(src) {
-    return new Promise(function (resolve, reject) {
-      if (!src) return reject(new Error("No src"));
-      if (imgCache[src]) return resolve(imgCache[src]);
+  function loadImage(src){
+    return new Promise(function(resolve, reject){
+      if(!src) return reject(new Error("No src"));
+      if(imgCache[src]) return resolve(imgCache[src]);
       var img = new Image();
-      img.onload = function () { imgCache[src] = img; resolve(img); };
-      img.onerror = function () { reject(new Error("Failed to load: " + src)); };
+      img.onload = function(){ imgCache[src]=img; resolve(img); };
+      img.onerror = function(){ reject(new Error("Failed to load: "+src)); };
       img.src = src;
     });
   }
 
-  function fitCanvasToCssSize(canvas, ctx) {
+  function fitCanvasToCssSize(canvas, ctx){
     var dpr = window.devicePixelRatio || 1;
     var rect = canvas.getBoundingClientRect();
     var cssW = Math.max(1, Math.round(rect.width));
     var cssH = Math.max(1, Math.round(rect.height));
-
-    var pw = Math.round(cssW * dpr);
-    var ph = Math.round(cssH * dpr);
-    if (canvas.width !== pw || canvas.height !== ph) {
-      canvas.width = pw;
-      canvas.height = ph;
+    var need = canvas.width !== Math.round(cssW*dpr) || canvas.height !== Math.round(cssH*dpr);
+    if(need){
+      canvas.width = Math.round(cssW*dpr);
+      canvas.height = Math.round(cssH*dpr);
     }
-    // draw in CSS pixels
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    return { W: cssW, H: cssH, dpr: dpr };
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    return {W: cssW, H: cssH};
   }
 
-  // Draw table as CONTAIN so full table stays visible.
-  // Returns the drawn rect (dx,dy,dw,dh) in CSS pixels.
-  function drawContain(ctx, img, w, h, pad) {
-  pad = pad || 16;
-  var iw = img.naturalWidth || img.width;
-  var ih = img.naturalHeight || img.height;
+  function drawContain(ctx, img, W, H, pad){
+    pad = pad || 14;
+    var iw = img.naturalWidth || img.width;
+    var ih = img.naturalHeight || img.height;
+    var availW = Math.max(1, W - pad*2);
+    var availH = Math.max(1, H - pad*2);
 
-  var availW = Math.max(1, w - pad * 2);
-  var availH = Math.max(1, h - pad * 2);
+    var s = Math.min(availW/iw, availH/ih);
+    var dw = iw*s, dh = ih*s;
+    var dx = (W - dw)/2;
+    var dy = (H - dh)/2;
 
-  var s = Math.min(availW / iw, availH / ih); // CONTAIN
-  var dw = iw * s, dh = ih * s;
+    ctx.drawImage(img, dx, dy, dw, dh);
 
-  var dx = (w - dw) / 2;
-  var dy = (h - dh) / 2;
+    ctx.save();
+    var g = ctx.createRadialGradient(W/2,H/2,Math.min(W,H)*0.25,W/2,H/2,Math.max(W,H)*0.65);
+    g.addColorStop(0,"rgba(0,0,0,0)");
+    g.addColorStop(1,"rgba(0,0,0,0.22)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0,0,W,H);
+    ctx.restore();
 
-  ctx.drawImage(img, dx, dy, dw, dh);
+    return {x: dx, y: dy, w: dw, h: dh};
+  }
 
-  // subtle vignette so the "mat" looks nice
-  ctx.save();
-  var g = ctx.createRadialGradient(w/2, h/2, Math.min(w,h)*0.25, w/2, h/2, Math.max(w,h)*0.6);
-  g.addColorStop(0, "rgba(0,0,0,0)");
-  g.addColorStop(1, "rgba(0,0,0,0.22)");
-  ctx.fillStyle = g;
-  ctx.fillRect(0,0,w,h);
-  ctx.restore();
-
-  return { x: dx, y: dy, w: dw, h: dh };
-}
-
-
-  function randBetween(min, max) { return min + Math.random() * (max - min); }
+  function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+  function randBetween(a,b){ return a + Math.random()*(b-a); }
 
   var DEFAULT_TABLE = "assets/table/tafelachtergrond.png";
 
-  // Mapping to your current filenames (assets/items/*.png)
   var ITEM_SPRITES = {
-    "Comb": "assets/items/comb.png",
+    "cigarette": "assets/items/cigarette.png",
+    "comb": "assets/items/comb.png",
+    "glasses": "assets/items/glasses.png",
+    "gun": "assets/items/gun.png",
+    "headphones": "assets/items/headphones.png",
+    "id": "assets/items/ID.png",
+    "joint": "assets/items/joint.png",
+    "keys": "assets/items/keys.png",
+    "knife": "assets/items/knife.png",
+    "labello": "assets/items/labello.png",
+    "notebook": "assets/items/notebook.png",
+    "phone": "assets/items/phone.png",
+    "usb": "assets/items/USB.png",
+    "wallet": "assets/items/wallet.png",
+    "whiskey": "assets/items/whiskey.png",
+
+    "Phone": "assets/items/phone.png",
+    "Wallet": "assets/items/wallet.png",
+    "Keys": "assets/items/keys.png",
+    "Notebook": "assets/items/notebook.png",
+    "ID": "assets/items/ID.png",
     "Cigarette": "assets/items/cigarette.png",
     "Glasses": "assets/items/glasses.png",
-    "Gun": "assets/items/gun.png",
-    "Pistol": "assets/items/gun.png",
-    "Handgun": "assets/items/gun.png",
-    "Headphones": "assets/items/headphones.png",
-    "ID": "assets/items/ID.png",
-    "Joint": "assets/items/joint.png",
-    "Keys": "assets/items/keys.png",
     "Knife": "assets/items/knife.png",
-    "Small pocket knife": "assets/items/knife.png",
-    "Labello": "assets/items/labello.png",
-    "Notebook": "assets/items/notebook.png",
-    "Phone": "assets/items/phone.png",
+    "Gun": "assets/items/gun.png",
+    "Whiskey": "assets/items/whiskey.png",
     "USB": "assets/items/USB.png",
-    "Wallet": "assets/items/wallet.png",
-    "Whiskey": "assets/items/whiskey.png"
+    "Labello": "assets/items/labello.png",
+    "Comb": "assets/items/comb.png",
+    "Headphones": "assets/items/headphones.png",
+    "Joint": "assets/items/joint.png"
   };
 
-  function ensureHintOverlay(canvas) {
-    try{
-      var wrap = canvas.parentElement;
-      if (!wrap) return;
-      wrap.classList.add("psTableThumbWrap");
-      if (wrap.querySelector(".psEnlargeHint")) return;
-      var hint = document.createElement("div");
-      hint.className = "psEnlargeHint";
-      hint.innerHTML = '<span class="psEnlargeIcon" aria-hidden="true">🔍</span><span class="psEnlargePlus" aria-hidden="true">+</span><span class="psEnlargeText">Click to enlarge</span>';
-      wrap.appendChild(hint);
-    }catch(e){}
+  function makeSlots(rect){
+    var padX = rect.w * 0.10;
+    var padY = rect.h * 0.12;
+    var x0 = rect.x + padX;
+    var y0 = rect.y + padY;
+    var w = rect.w - padX*2;
+    var h = rect.h - padY*2;
+
+    var cols = 3, rows = 2;
+    var slots = [];
+    for(var r=0;r<rows;r++){
+      for(var c=0;c<cols;c++){
+        slots.push({
+          x: x0 + (c+0.5)*(w/cols),
+          y: y0 + (r+0.5)*(h/rows),
+          cellW: w/cols,
+          cellH: h/rows
+        });
+      }
+    }
+    return slots;
   }
 
-  async function render(opts) {
-    ensureStyles();
-    opts = opts || {};
-    var canvasId = opts.canvasId || "psTableCanvas";
-    var tableSrc = opts.tableSrc || DEFAULT_TABLE;
-    var items = (opts.items || []).slice(0, 6);
-
+  async function renderToCanvas(canvasId, tableSrc, items){
     var canvas = document.getElementById(canvasId);
-    if (!canvas) return;
-    var ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if(!canvas) return;
 
-    if (!opts.noHint) ensureHintOverlay(canvas);
+    var ctx = canvas.getContext("2d");
+    if(!ctx) return;
 
     var size = fitCanvasToCssSize(canvas, ctx);
     var W = size.W, H = size.H;
-    ctx.clearRect(0, 0, W, H);
 
-    // Background for margins
-    ctx.fillStyle = "#0b1220";
-    ctx.fillRect(0, 0, W, H);
+    ctx.clearRect(0,0,W,H);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
 
-    // Draw table and get its exact rect
-    var rect = { x: 0, y: 0, w: W, h: H };
+    var rect = null;
     try{
-      var bg = await loadImage(tableSrc);
-      rect = drawContain(ctx, bg, W, H, (opts.pad == null ? 12 : opts.pad));
-    }catch(e){}
+      var bg = await loadImage(tableSrc || DEFAULT_TABLE);
+      rect = drawContain(ctx, bg, W, H, 14);
+    }catch(e){
+      ctx.fillStyle = "#0b1220";
+      ctx.fillRect(0,0,W,H);
+      rect = {x: 0, y: 0, w: W, h: H};
+    }
 
-    // Constrain item placement inside the table rect (important!)
-    var inset = (opts.inset == null ? 22 : opts.inset);
-    var tx = rect.x + inset;
-    var ty = rect.y + inset;
-    var tw = Math.max(1, rect.w - inset*2);
-    var th = Math.max(1, rect.h - inset*2);
+    var list = Array.isArray(items) ? items.slice(0,6) : [];
+    var slots = makeSlots(rect);
 
-    // 3x2 slots inside table rect
-    var slots = [
-      { x: 0.20, y: 0.30 }, { x: 0.50, y: 0.30 }, { x: 0.80, y: 0.30 },
-      { x: 0.20, y: 0.70 }, { x: 0.50, y: 0.70 }, { x: 0.80, y: 0.70 }
-    ];
+    for(var i=0;i<list.length;i++){
+      var it = list[i] || {};
+      var name = it.name || it.key || it.id || "";
+      var lower = String(name).toLowerCase();
+      var src = it.src || it.sprite || ITEM_SPRITES[name] || ITEM_SPRITES[lower];
+      if(!src) continue;
 
-    // Scale so 6 items fit nicely
-    var baseScale = (opts.baseScale == null ? 0.26 : opts.baseScale); // relative to table rect width
-    var scaleJitter = (opts.scaleJitter == null ? 0.05 : opts.scaleJitter);
+      var slot = slots[i] || slots[slots.length-1];
 
-    for (var i = 0; i < items.length; i++) {
-      var it = items[i] || {};
-      var slot = slots[i] || slots[slots.length - 1];
+      var targetW = slot.cellW * 0.55;
+      var targetH = slot.cellH * 0.55;
 
-      var src = it.src || it.sprite || ITEM_SPRITES[it.name];
-      if (!src) continue;
-
-      var cx = tx + slot.x * tw + randBetween(-tw*0.02, tw*0.02);
-      var cy = ty + slot.y * th + randBetween(-th*0.02, th*0.02);
+      var cx = slot.x + randBetween(-slot.cellW*0.08, slot.cellW*0.08);
+      var cy = slot.y + randBetween(-slot.cellH*0.08, slot.cellH*0.08);
       var rot = randBetween(-0.18, 0.18);
-      var scale = baseScale + randBetween(-scaleJitter, scaleJitter);
+
+      cx = clamp(cx, rect.x + rect.w*0.12, rect.x + rect.w*0.88);
+      cy = clamp(cy, rect.y + rect.h*0.16, rect.y + rect.h*0.86);
 
       try{
         var img = await loadImage(src);
         var iw = img.naturalWidth || img.width;
         var ih = img.naturalHeight || img.height;
 
-        var targetW = tw * scale;
-        var s = targetW / iw;
-        var dw = iw * s;
-        var dh = ih * s;
-
-        // Clamp per-slot max so it never spills off-table
-        var maxW = tw * 0.36;
-        if (dw > maxW) {
-          s = maxW / iw;
-          dw = iw * s;
-          dh = ih * s;
-        }
+        var s = Math.min(targetW/iw, targetH/ih);
+        var dw = iw*s, dh = ih*s;
 
         ctx.save();
-        ctx.translate(cx, cy);
+        ctx.translate(cx,cy);
         ctx.rotate(rot);
 
-        // Shadow (on table)
         ctx.shadowColor = "rgba(0,0,0,0.33)";
-        ctx.shadowBlur = 26;
+        ctx.shadowBlur = 22;
         ctx.shadowOffsetX = 10;
-        ctx.shadowOffsetY = 16;
+        ctx.shadowOffsetY = 14;
 
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = "high";
-
         ctx.drawImage(img, -dw/2, -dh/2, dw, dh);
         ctx.restore();
       }catch(e2){}
     }
   }
 
-  function ensureModal() {
-    if (document.getElementById("psTableModal")) return;
-
-    var modal = document.createElement("div");
-    modal.id = "psTableModal";
-    modal.className = "psTableModal hidden";
-    modal.setAttribute("hidden","");
-    modal.innerHTML =
-      '<div class="psTableModalBackdrop"></div>' +
-      '<div class="psTableModalDialog" role="dialog" aria-modal="true">' +
-        '<button class="psTableModalClose" aria-label="Close">×</button>' +
-        '<canvas id="psTableCanvasModal" class="psTableCanvasModal"></canvas>' +
-      '</div>';
-
-    document.body.appendChild(modal);
-
-    function close() { modal.classList.add("hidden"); modal.setAttribute("hidden",""); }
-
-    modal.querySelector(".psTableModalBackdrop").addEventListener("click", close);
-    modal.querySelector(".psTableModalClose").addEventListener("click", close);
-    window.addEventListener("keydown", function (e) {
-      if (e.key === "Escape") close();
-    });
+  function openModal(){
+    var m = document.getElementById("psTableModal");
+    if(!m) return;
+    m.hidden = false;
   }
-
-  async function openModal(opts) {
-    ensureModal();
-    var modal = document.getElementById("psTableModal");
-    modal.classList.remove("hidden");
-    modal.removeAttribute("hidden");
-
-    await render({
-      canvasId: "psTableCanvasModal",
-      tableSrc: (opts && opts.tableSrc) || DEFAULT_TABLE,
-      items: (opts && opts.items) || [],
-      pad: 20,
-      inset: 34,
-      baseScale: 0.22,
-      scaleJitter: 0.04,
-      noHint: true
-    });
+  function closeModal(){
+    var m = document.getElementById("psTableModal");
+    if(!m) return;
+    m.hidden = true;
   }
+  function bindUIOnce(){
+    if(bindUIOnce._did) return;
+    bindUIOnce._did = true;
 
-  function bindThumbnailClick(getStateFn) {
-    try{
-      var canvas = document.getElementById("psTableCanvas");
-      if (!canvas) return;
-      if (canvas.__psBound) return;
-      canvas.__psBound = true;
-
-      canvas.style.cursor = "pointer";
-      canvas.addEventListener("click", function(){
-        var st = (typeof getStateFn === "function") ? getStateFn() : null;
-        var items = (st && st.items) ? st.items : [];
-        var tableSrc = (st && st.tableSrc) ? st.tableSrc : DEFAULT_TABLE;
-        openModal({ items: items, tableSrc: tableSrc });
+    var thumb = document.getElementById("psTableThumb");
+    if(thumb){
+      thumb.addEventListener("click", function(){ openModal(); });
+      thumb.addEventListener("keydown", function(e){
+        if(e.key === "Enter" || e.key === " "){ e.preventDefault(); openModal(); }
       });
-    }catch(e){}
+    }
+
+    var modal = document.getElementById("psTableModal");
+    if(modal){
+      modal.addEventListener("click", function(e){
+        var t = e.target;
+        if(t && t.getAttribute && t.getAttribute("data-close")==="1") closeModal();
+      });
+    }
+
+    document.addEventListener("keydown", function(e){
+      if(e.key === "Escape") closeModal();
+    });
   }
 
   window.VEVA_TABLETOP = {
-    render: render,
+    render: async function(opts){
+      opts = opts || {};
+      bindUIOnce();
+
+      var tableSrc = opts.tableSrc || DEFAULT_TABLE;
+      var items = opts.items || [];
+
+      await renderToCanvas(opts.canvasId || "psTableCanvas", tableSrc, items);
+
+      var modal = document.getElementById("psTableModal");
+      if(modal && modal.hidden === false){
+        await renderToCanvas("psTableCanvasModal", tableSrc, items);
+      }
+    },
     openModal: openModal,
-    bindThumbnailClick: bindThumbnailClick
+    closeModal: closeModal
   };
 })();
