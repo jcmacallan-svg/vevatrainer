@@ -2,6 +2,17 @@
 (function () {
   "use strict";
 
+  function ensureStyles(){
+    try{
+      if (document.getElementById("veva-tabletop-css")) return;
+      var link = document.createElement("link");
+      link.id = "veva-tabletop-css";
+      link.rel = "stylesheet";
+      link.href = "patches/person_search/tabletop_renderer.css";
+      document.head.appendChild(link);
+    }catch(e){}
+  }
+
   var imgCache = {};
 
   function loadImage(src) {
@@ -37,32 +48,33 @@
   // Draw table as CONTAIN so full table stays visible.
   // Returns the drawn rect (dx,dy,dw,dh) in CSS pixels.
   function drawContain(ctx, img, w, h, pad) {
-    pad = pad || 16;
-    var iw = img.naturalWidth || img.width;
-    var ih = img.naturalHeight || img.height;
+  pad = pad || 16;
+  var iw = img.naturalWidth || img.width;
+  var ih = img.naturalHeight || img.height;
 
-    var availW = Math.max(1, w - pad * 2);
-    var availH = Math.max(1, h - pad * 2);
+  var availW = Math.max(1, w - pad * 2);
+  var availH = Math.max(1, h - pad * 2);
 
-    var s = Math.min(availW / iw, availH / ih); // CONTAIN
-    var dw = iw * s, dh = ih * s;
+  var s = Math.min(availW / iw, availH / ih); // CONTAIN
+  var dw = iw * s, dh = ih * s;
 
-    var dx = (w - dw) / 2;
-    var dy = (h - dh) / 2;
+  var dx = (w - dw) / 2;
+  var dy = (h - dh) / 2;
 
-    ctx.drawImage(img, dx, dy, dw, dh);
+  ctx.drawImage(img, dx, dy, dw, dh);
 
-    // subtle vignette so margins feel intentional
-    ctx.save();
-    var g = ctx.createRadialGradient(w/2, h/2, Math.min(w,h)*0.25, w/2, h/2, Math.max(w,h)*0.62);
-    g.addColorStop(0, "rgba(0,0,0,0)");
-    g.addColorStop(1, "rgba(0,0,0,0.22)");
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, w, h);
-    ctx.restore();
+  // subtle vignette so the "mat" looks nice
+  ctx.save();
+  var g = ctx.createRadialGradient(w/2, h/2, Math.min(w,h)*0.25, w/2, h/2, Math.max(w,h)*0.6);
+  g.addColorStop(0, "rgba(0,0,0,0)");
+  g.addColorStop(1, "rgba(0,0,0,0.22)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0,0,w,h);
+  ctx.restore();
 
-    return { x: dx, y: dy, w: dw, h: dh };
-  }
+  return { x: dx, y: dy, w: dw, h: dh };
+}
+
 
   function randBetween(min, max) { return min + Math.random() * (max - min); }
 
@@ -98,12 +110,13 @@
       if (wrap.querySelector(".psEnlargeHint")) return;
       var hint = document.createElement("div");
       hint.className = "psEnlargeHint";
-      hint.innerHTML = '<span class="psEnlargeIcon" aria-hidden="true">🔍</span><span class="psEnlargePlus" aria-hidden="true">+</span><span class="psEnlargeText">Enlarge</span>';
+      hint.innerHTML = '<span class="psEnlargeIcon" aria-hidden="true">🔍</span><span class="psEnlargePlus" aria-hidden="true">+</span><span class="psEnlargeText">Click to enlarge</span>';
       wrap.appendChild(hint);
     }catch(e){}
   }
 
   async function render(opts) {
+    ensureStyles();
     opts = opts || {};
     var canvasId = opts.canvasId || "psTableCanvas";
     var tableSrc = opts.tableSrc || DEFAULT_TABLE;

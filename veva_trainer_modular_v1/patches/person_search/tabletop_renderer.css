@@ -2,8 +2,8 @@
 .psTableThumbWrap{ position: relative; }
 .psEnlargeHint{
   position: absolute;
-  left: 10px;
-  bottom: 10px;
+  right: 10px;
+  top: 10px;
   padding: 6px 10px;
   border-radius: 999px;
   font-size: 12px;
