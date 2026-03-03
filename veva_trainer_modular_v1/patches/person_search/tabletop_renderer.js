@@ -53,6 +53,11 @@
 
   function randBetween(min, max) { return min + Math.random() * (max - min); }
 
+
+  function isBannedItemName(name){
+    if (!name) return false;
+    return (/twelve\s*gun/i).test(String(name));
+  }
   var DEFAULT_TABLE = "assets/table/tafelachtergrond.png";
   var ITEM_SPRITES = {
     "Wallet": "assets/items/wallet.png",
