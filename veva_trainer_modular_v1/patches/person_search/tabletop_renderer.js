@@ -22,21 +22,22 @@
     var cssW = Math.max(1, Math.round(rect.width));
     var cssH = Math.max(1, Math.round(rect.height));
 
-    var wantW = Math.round(cssW * dpr);
-    var wantH = Math.round(cssH * dpr);
-
-    if (canvas.width !== wantW || canvas.height !== wantH) {
-      canvas.width = wantW;
-      canvas.height = wantH;
+    var needResize = canvas.width !== Math.round(cssW * dpr) || canvas.height !== Math.round(cssH * dpr);
+    if (needResize) {
+      canvas.width = Math.round(cssW * dpr);
+      canvas.height = Math.round(cssH * dpr);
     }
-
-    // Draw in CSS pixels
+    // draw in CSS pixels
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    return { W: cssW, H: cssH };
+    return { W: cssW, H: cssH, dpr: dpr };
+  }
+
+  function randBetween(min, max) {
+    return min + Math.random() * (max - min);
   }
 
   function drawContain(ctx, img, w, h, pad) {
-    pad = (pad == null) ? 16 : pad;
+    pad = (pad == null ? 18 : pad);
     var iw = img.naturalWidth || img.width;
     var ih = img.naturalHeight || img.height;
 
@@ -51,38 +52,105 @@
 
     ctx.drawImage(img, dx, dy, dw, dh);
 
-    // Soft vignette to feel like a table in a scene (not required, but subtle)
+    // subtle vignette so the "mat" looks intentional
     ctx.save();
-    var g = ctx.createRadialGradient(w/2, h/2, Math.min(w,h)*0.25, w/2, h/2, Math.max(w,h)*0.6);
+    var g = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.25, w / 2, h / 2, Math.max(w, h) * 0.70);
     g.addColorStop(0, "rgba(0,0,0,0)");
     g.addColorStop(1, "rgba(0,0,0,0.22)");
     ctx.fillStyle = g;
-    ctx.fillRect(0,0,w,h);
+    ctx.fillRect(0, 0, w, h);
     ctx.restore();
   }
 
-  function randBetween(min, max) {
-    return min + Math.random() * (max - min);
-  }
-
-  // Assets
+  // ---- Assets ----
+  // Background table image (you already have this)
   var DEFAULT_TABLE = "assets/table/tafelachtergrond.png";
 
-  // Name -> sprite mapping (adjust to your filenames)
+  // Your current item PNGs
+  // Put these files in: assets/items/
+  // Keys here are normalized (lowercase + alphanumerics only)
   var ITEM_SPRITES = {
-    "Gun": "assets/items/gun.png",
-    "Small pocket knife": "assets/items/knife.png",
-    "Knife": "assets/items/knife.png",
-    "Wallet": "assets/items/wallet.png",
-    "Keys": "assets/items/keys.png",
-    "Notebook": "assets/items/notebook.png",
-    "Phone": "assets/items/phone.png",
-    "Joint": "assets/items/joint.png",
-    "Jacket": "assets/items/jacket.png",
-    "Cap": "assets/items/cap.png",
-    "Headgear": "assets/items/cap.png",
-    "Helmet": "assets/items/helmet.png"
+    // everyday
+    "wallet": "assets/items/wallet.png",
+    "phone": "assets/items/phone.png",
+    "keys": "assets/items/keys.png",
+    "notebook": "assets/items/notebook.png",
+    "glasses": "assets/items/glasses.png",
+    "headphones": "assets/items/headphones.png",
+    "comb": "assets/items/comb.png",
+    "id": "assets/items/ID.png",
+    "usb": "assets/items/USB.png",
+    "labello": "assets/items/labello.png",
+    "lipbalm": "assets/items/labello.png",
+    "cigarette": "assets/items/cigarette.png",
+    "cigarettes": "assets/items/cigarette.png",
+
+    // risky / contraband
+    "joint": "assets/items/joint.png",
+    "knife": "assets/items/knife.png",
+    "smallpocketknife": "assets/items/knife.png",
+    "gun": "assets/items/gun.png",
+    "whiskey": "assets/items/whiskey.png"
   };
+
+  // Per-item scale tuning (fraction of canvas width).
+  // Bigger by default (user feedback: items were too small).
+  var ITEM_SCALE = {
+    "phone": 0.22,
+    "wallet": 0.21,
+    "keys": 0.18,
+    "notebook": 0.24,
+    "glasses": 0.24,
+    "headphones": 0.28,
+    "comb": 0.25,
+    "id": 0.20,
+    "usb": 0.18,
+    "labello": 0.16,
+    "lipbalm": 0.16,
+    "cigarette": 0.24,
+    "cigarettes": 0.24,
+    "joint": 0.22,
+    "knife": 0.27,
+    "smallpocketknife": 0.27,
+    "gun": 0.32,
+    "whiskey": 0.24
+  };
+
+  function normalizeName(n) {
+    return String(n || "").trim();
+  }
+
+  function normalizeKey(n) {
+    // "Small pocket knife" -> "smallpocketknife"
+    return String(n || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "")
+      .trim();
+  }
+
+  function spriteForItem(it) {
+    if (!it) return "";
+    if (it.src) return it.src;
+    if (it.sprite) return it.sprite;
+    var name = normalizeName(it.name);
+    var key = normalizeKey(name);
+    return ITEM_SPRITES[key] || "";
+  }
+
+  function scaleForItem(it, W) {
+    var name = normalizeName(it && it.name);
+    var key = normalizeKey(name);
+    var s = ITEM_SCALE[key];
+    if (s == null) s = 0.22;
+
+    // allow overriding per item
+    if (it && typeof it.scale === "number") s = it.scale;
+
+    // safety caps
+    if (s > 0.34) s = 0.34;
+    if (s < 0.14) s = 0.14;
+    return s;
+  }
 
   async function render(opts) {
     opts = opts || {};
@@ -99,12 +167,11 @@
     var size = fitCanvasToCssSize(canvas, ctx);
     var W = size.W, H = size.H;
 
+    ctx.clearRect(0, 0, W, H);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
 
-    ctx.clearRect(0, 0, W, H);
-
-    // Background
+    // Background table (contain so edges stay visible)
     try {
       var bg = await loadImage(tableSrc);
       drawContain(ctx, bg, W, H, 18);
@@ -113,29 +180,26 @@
       ctx.fillRect(0, 0, W, H);
     }
 
-    // Up to 6 items, laid out in 3x2 slots with jitter/rotation
     var list = items.slice(0, 6);
 
+    // 3x2 slots, with slight jitter for realism
     var slots = [
-      { x: 0.22, y: 0.34 }, { x: 0.50, y: 0.34 }, { x: 0.78, y: 0.34 },
-      { x: 0.22, y: 0.70 }, { x: 0.50, y: 0.70 }, { x: 0.78, y: 0.70 }
+      { x: 0.22, y: 0.32 }, { x: 0.50, y: 0.32 }, { x: 0.78, y: 0.32 },
+      { x: 0.22, y: 0.72 }, { x: 0.50, y: 0.72 }, { x: 0.78, y: 0.72 }
     ];
-
-    // Scale to fit regardless of panel size:
-    // aim for ~1/4 of canvas width per item, but clamp so it stays reasonable.
-    var targetW = Math.max(140, Math.min(260, Math.round(W * 0.22)));
 
     for (var i = 0; i < list.length; i++) {
       var it = list[i] || {};
       var slot = slots[i] || slots[slots.length - 1];
 
-      var src = it.src || it.sprite || (it.name ? ITEM_SPRITES[it.name] : "");
-
+      var src = spriteForItem(it);
       if (!src) continue;
 
-      var cx = slot.x * W + randBetween(-18, 18);
-      var cy = slot.y * H + randBetween(-12, 12);
+      var cx = slot.x * W + randBetween(-16, 16);
+      var cy = slot.y * H + randBetween(-10, 10);
       var rot = randBetween(-0.18, 0.18);
+
+      var baseScale = scaleForItem(it, W);
 
       try {
         var img = await loadImage(src);
@@ -143,7 +207,13 @@
         var iw = img.naturalWidth || img.width;
         var ih = img.naturalHeight || img.height;
 
-        // Fit width to targetW (keeps items consistent)
+        // size relative to canvas width
+        var targetW = W * baseScale;
+
+        // for very wide items (comb, cigarettes), keep them from dominating
+        var aspect = iw / Math.max(1, ih);
+        if (aspect > 2.4) targetW *= 0.85;
+
         var s = targetW / iw;
         var dw = iw * s;
         var dh = ih * s;
@@ -155,7 +225,7 @@
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = "high";
 
-        // Shadow "on the table"
+        // shadow "on table"
         ctx.shadowColor = "rgba(0,0,0,0.33)";
         ctx.shadowBlur = 26;
         ctx.shadowOffsetX = 10;
@@ -164,7 +234,7 @@
         ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
         ctx.restore();
       } catch (e2) {
-        // ignore load errors
+        // skip
       }
     }
   }
