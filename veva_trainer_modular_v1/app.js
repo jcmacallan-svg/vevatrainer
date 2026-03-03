@@ -84,11 +84,7 @@
   const transitionText = $("#transitionText");
   const transitionBanner = $("#transitionBanner");
   const psOutfit = $("#psOutfit");
-  const psItemsText = $("#psItemsText");
   const psCards = $("#psCards");
-  const psTableThumbWrap = $("#psTableThumbWrap");
-  const psTableModal = $("#psTableModal");
-  const psModalClose = $("#psModalClose");
   const psRiskChip = $("#psRiskChip");
 
   const signInPanel = $("#signInPanel");
@@ -764,90 +760,39 @@ function showSignIn(){
 
   }
 
-
-  function initPSTableModal(){
-    if (!psTableThumbWrap || !psTableModal) return;
-    if (psTableThumbWrap.__vevaBound) return;
-    psTableThumbWrap.__vevaBound = true;
-
-    function open(){
-      psTableModal.hidden = false;
-      psTableModal.style.display = "";
-      // render large canvas
-      try{
-        const ps = state.ps || {};
-        if (window.VEVA_TABLETOP && window.VEVA_TABLETOP.render){
-          window.VEVA_TABLETOP.render({
-            canvasId: "psTableCanvasModal",
-            tableSrc: "assets/table/tafelachtergrond.png",
-            items: buildTableItems(ps).slice(0,6),
-            pad: 18
-          });
-        }
-      }catch(e){}
-    }
-    function close(){
-      psTableModal.hidden = true;
-      psTableModal.style.display = "none";
-    }
-
-    psTableThumbWrap.addEventListener("click", open);
-    if (psModalClose) psModalClose.addEventListener("click", close);
-    psTableModal.addEventListener("click", function(ev){
-      if (ev.target === psTableModal) close();
-    });
-    window.addEventListener("keydown", function(ev){
-      if (ev.key === "Escape" && !psTableModal.hidden) close();
-    });
-  }
-
-  function buildTableItems(ps){
-    const items = (ps && ps.items) ? ps.items.slice() : [];
-    // Add apparel to table if present (optional assets)
-    if (ps && ps.outfit){
-      if (ps.outfit.jacket) items.push({ name: "Jacket", key:"jacket", where:"on table", kind:"legal" });
-      if (ps.outfit.cap) items.push({ name: "Cap", key:"cap", where:"on table", kind:"legal" });
-    }
-    // Ensure max 6 visually
-    return items;
-  }
-
   function renderPS(){
     const ps = state.ps; if (!ps) return;
-    if (psRiskChip) psRiskChip.textContent="RISK: "+(ps.hasIllegal ? "POSSIBLE CONTRABAND" : "LOW");
+
+    // Risk chip
+    if (psRiskChip) psRiskChip.textContent = "RISK: " + (ps.hasIllegal ? "POSSIBLE CONTRABAND" : "LOW");
+
+    // Build readable outfit + item summary (no extra cards below)
+    const o = ps.outfit || {};
+    const style = (o.style === "workwear") ? "workwear" : "casual";
+    const capTxt = o.cap ? "a cap" : "no cap";
+    const jacketTxt = o.jacket ? "a jacket" : "no jacket";
+    const bagTxt = o.bag ? "a bag" : "no bag";
+
+    // Items list (max 6) and filter out any stray invalid names
+    const rawItems = Array.isArray(ps.items) ? ps.items.slice(0, 6) : [];
+    const items = rawItems
+      .filter(it => it && it.name && !(/twelve\s*gun/i).test(String(it.name)))
+      .map(it => String(it.name));
+
+    const itemsText = items.length ? items.join(", ") : "none";
+
     if (psOutfit){
-      const o=ps.outfit;
-      const parts=[o.style==="workwear"?"Workwear":"Casual", o.cap?"cap":"no cap", o.jacket?"jacket":"no jacket", o.bag?"bag":"no bag"];
-      psOutfit.textContent="Outfit: "+parts.join(" · ");
+      psOutfit.innerHTML =
+        `<div class="psLine">The visitor is wearing a <b>${style}</b> outfit with <b>${capTxt}</b>, <b>${jacketTxt}</b>, <b>${bagTxt}</b>.</div>` +
+        `<div class="psLine">You see the following items on the table: <b>${itemsText}</b>.</div>`;
     }
+
+    // Hide/remove legacy item cards under the tabletop
     if (psCards){
-      psCards.innerHTML="";
-      for (const it of ps.items){
-        const c=document.createElement("div");
-        c.className="itemCard";
-        c.innerHTML=`<div class="t">${it.name}</div><div class="s">${it.where}${it.kind==="illegal" ? " · ⚠︎" : ""}</div>`;
-        psCards.appendChild(c);
-      }
+      psCards.innerHTML = "";
+      psCards.style.display = "none";
+      psCards.hidden = true;
     }
-
-    if (psItemsText){
-      const list = buildTableItems(ps).slice(0,6).map(function(it){ return it.name; });
-      psItemsText.textContent = list.length ? ("You see the following items on the table: " + list.join(", ") + ".") : "You see no items on the table.";
-    }
-
-    // Tabletop thumbnail render
-    try{
-      if (window.VEVA_TABLETOP && window.VEVA_TABLETOP.render){
-        window.VEVA_TABLETOP.render({
-          canvasId: "psTableCanvasThumb",
-          tableSrc: "assets/table/tafelachtergrond.png",
-          items: buildTableItems(ps).slice(0,6),
-          pad: 18
-        });
-      }
-    }catch(e){}
-    initPSTableModal();
-
   }
 
   // Hints

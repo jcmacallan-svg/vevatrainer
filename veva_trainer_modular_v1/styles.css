@@ -729,77 +729,13 @@ body.hasPopup #portraitRow{display:none !important;}
 .sideHelpBody{font-size:12px; line-height:1.35; opacity:.85;}
 
 
-/* Person Search tabletop thumbnail + modal */
-.psItemsText{
-  margin: 6px 0 10px;
-  color: rgba(255,255,255,0.82);
-  font-size: 13px;
-  line-height: 1.35;
-}
+/* Person Search summary lines */
+.psOutfit .psLine{ margin: 4px 0; }
+/* Hide legacy item cards (renderer uses tabletop) */
+#psCards{ display:none !important; }
 
-.psTableThumbWrap{
-  width: 100%;
-  height: clamp(160px, 22vh, 240px);
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  overflow: hidden;
-  background: rgba(255,255,255,0.03);
-  margin: 10px 0 12px;
-  cursor: pointer;
-}
 
-.psTableModalWrap{
-  width: min(980px, 92vw);
-  height: min(540px, 70vh);
-  border-radius: 16px;
-  border: 1px solid rgba(255,255,255,0.16);
-  overflow: hidden;
-  background: rgba(255,255,255,0.03);
-}
-
-.psTableCanvas{
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-.psModal{
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.55);
-  backdrop-filter: blur(3px);
-  display: grid;
-  place-items: center;
-  z-index: 9999;
-}
-
-.psModalInner{
-  position: relative;
-  padding: 14px 14px 16px;
-  border-radius: 18px;
-  background: rgba(18,22,32,0.94);
-  border: 1px solid rgba(255,255,255,0.14);
-  box-shadow: 0 18px 60px rgba(0,0,0,0.55);
-}
-
-.psModalTitle{
-  color: rgba(255,255,255,0.92);
-  font-weight: 700;
-  margin: 2px 0 10px;
-}
-
-.psModalClose{
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 34px;
-  height: 34px;
-  border-radius: 10px;
-  border: 1px solid rgba(255,255,255,0.18);
-  background: rgba(255,255,255,0.06);
-  color: rgba(255,255,255,0.92);
-  font-size: 20px;
-  line-height: 32px;
-  cursor: pointer;
-}
-.psModalClose:hover{ background: rgba(255,255,255,0.10); }
+/* Tabletop modal visibility */
+.psTableModal{ display:none; }
+.psTableModal.open{ display:flex; }
+.psTableModal[hidden]{ display:none !important; }
