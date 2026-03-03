@@ -2,6 +2,7 @@
 (function(){
   "use strict";
 
+  // -------------------- Image loading/cache --------------------
   var IMG_CACHE = Object.create(null);
 
   function loadImage(src){
@@ -9,12 +10,13 @@
       if(!src) return reject(new Error("no src"));
       if(IMG_CACHE[src]) return resolve(IMG_CACHE[src]);
       var img = new Image();
-      img.onload = function(){ IMG_CACHE[src]=img; resolve(img); };
+      img.onload = function(){ IMG_CACHE[src] = img; resolve(img); };
       img.onerror = function(){ reject(new Error("failed to load " + src)); };
       img.src = src;
     });
   }
 
+  // Fit canvas backing store to CSS size (DPR aware), return CSS W/H.
   function fitCanvasToCss(canvas, ctx){
     var dpr = window.devicePixelRatio || 1;
     var r = canvas.getBoundingClientRect();
@@ -22,16 +24,18 @@
     var cssH = Math.max(1, Math.round(r.height));
     var pxW = Math.round(cssW * dpr);
     var pxH = Math.round(cssH * dpr);
+
     if(canvas.width !== pxW) canvas.width = pxW;
     if(canvas.height !== pxH) canvas.height = pxH;
-    // Draw in CSS pixels
+
+    // Draw using CSS pixels.
     ctx.setTransform(dpr,0,0,dpr,0,0);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
     return {W: cssW, H: cssH};
   }
 
-  // Draw image like CSS background-size: contain, return drawn rect.
+  // CSS background-size: contain equivalent; returns drawn rect.
   function drawContain(ctx, img, W, H, pad){
     pad = (pad==null)? 18 : pad;
     var iw = img.naturalWidth || img.width;
@@ -42,11 +46,15 @@
     var dw = iw*s, dh = ih*s;
     var dx = (W - dw)/2;
     var dy = (H - dh)/2;
+
     ctx.drawImage(img, dx, dy, dw, dh);
 
     // subtle vignette to frame the table
     ctx.save();
-    var g = ctx.createRadialGradient(W/2, H/2, Math.min(W,H)*0.25, W/2, H/2, Math.max(W,H)*0.65);
+    var g = ctx.createRadialGradient(
+      W/2, H/2, Math.min(W,H)*0.25,
+      W/2, H/2, Math.max(W,H)*0.65
+    );
     g.addColorStop(0, "rgba(0,0,0,0)");
     g.addColorStop(1, "rgba(0,0,0,0.22)");
     ctx.fillStyle = g;
@@ -59,9 +67,9 @@
   function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
   function rand(min,max){ return min + Math.random()*(max-min); }
 
+  // -------------------- Assets --------------------
   var TABLE_SRC = "assets/table/tafelachtergrond.png";
 
-  // Map display names -> sprite files
   var SPRITES = {
     "Wallet":"assets/items/wallet.png",
     "Phone":"assets/items/phone.png",
@@ -78,17 +86,14 @@
     "Knife":"assets/items/knife.png",
     "Gun":"assets/items/gun.png",
     "Whiskey":"assets/items/whiskey.png",
-    // aliases / common variants
+    // aliases / variants
     "Small pocket knife":"assets/items/knife.png",
     "Pistol":"assets/items/gun.png"
   };
 
-  // Decide which sprite to use for an item object or name.
   function spriteFor(item){
     if(!item) return "";
-    if(typeof item === "string"){
-      return SPRITES[item] || "";
-    }
+    if(typeof item === "string") return SPRITES[item] || "";
     if(item.src) return item.src;
     if(item.sprite) return item.sprite;
     if(item.name && SPRITES[item.name]) return SPRITES[item.name];
@@ -99,14 +104,25 @@
     return String(s||"").trim();
   }
 
+  // Parse items from the text line: "You see the following items on the table: X, Y, Z."
   function parseItemsFromText(){
-    // We parse from the "You see the following items on the table: X, Y, Z." line
-    var el = document.querySelector("#personSearchPanel .psOutfit");
+    // Prefer the panel scope; fall back to document.
+    var panel = document.getElementById("personSearchPanel");
+    var root = panel || document;
+
+    // You used ".psOutfit" previously; keep it, but be flexible.
+    var el =
+      root.querySelector(".psOutfit") ||
+      root.querySelector("[data-ps-outfit]") ||
+      root.querySelector("#psOutfit") ||
+      null;
+
     if(!el) return [];
+
     var txt = (el.textContent || "").replace(/\s+/g," ").trim();
     var m = txt.match(/You see the following items on the table:\s*([^\.]+)\.?/i);
     if(!m) return [];
-    var raw = m[1].split(",").map(function(x){return x.trim();}).filter(Boolean);
+    var raw = m[1].split(",").map(function(x){ return x.trim(); }).filter(Boolean);
     return raw.map(normalizeName);
   }
 
@@ -127,12 +143,21 @@
     ];
   }
 
+  // -------------------- Renderer --------------------
   async function render(opts){
     opts = opts || {};
-    var canvas = typeof opts.canvas === "string" ? document.getElementById(opts.canvas) : opts.canvas;
+    var canvas = (typeof opts.canvas === "string") ? document.getElementById(opts.canvas) : opts.canvas;
     if(!canvas) return;
+
     var ctx = canvas.getContext("2d");
     if(!ctx) return;
+
+    // If canvas has 0 size, delay once; common on first mount.
+    var rect = canvas.getBoundingClientRect();
+    if(rect.width < 2 || rect.height < 2){
+      requestAnimationFrame(function(){ render(opts); });
+      return;
+    }
 
     var size = fitCanvasToCss(canvas, ctx);
     var W = size.W, H = size.H;
@@ -147,9 +172,13 @@
       var bg = await loadImage(tableSrc);
       tableRect = drawContain(ctx, bg, W, H, 18);
     }catch(e){
+      // safe fallback background
       ctx.fillStyle = "#151b2a";
       ctx.fillRect(0,0,W,H);
     }
+
+    // Always show table background, even with 0 items.
+    if(!items.length) return;
 
     var slots = computeSlots(tableRect);
 
@@ -169,12 +198,9 @@
         var iw = img.naturalWidth || img.width;
         var ih = img.naturalHeight || img.height;
 
-        // size item relative to table rect (so it scales with resolution)
         var base = Math.min(tableRect.w, tableRect.h);
-        var targetW = base * 0.18; // tuned for 6 items
-        // Long items (knife/joint) a bit smaller to fit
         var lower = /knife|joint|cigarette/i.test(String(name)) ? 0.15 : 0.18;
-        targetW = base * lower;
+        var targetW = base * lower;
 
         var s = targetW / iw;
         var dw = iw*s;
@@ -203,15 +229,16 @@
     }
   }
 
-  // ---------- UI (thumbnail + modal) ----------
+  // -------------------- UI (thumbnail + modal) --------------------
   function ensureStyles(){
     if(document.getElementById("vevaTabletopStyles")) return;
+
     var css = ""
       + ".psTableThumbWrap{position:relative;width:100%;height:170px;border-radius:12px;border:1px solid var(--border);overflow:hidden;background:rgba(255,255,255,0.03);cursor:pointer;}"
       + ".psTableThumbCanvas{width:100%;height:100%;display:block;}"
       + ".psEnlargeHint{position:absolute;top:10px;right:10px;display:flex;align-items:center;gap:6px;"
       + "padding:6px 10px;border-radius:999px;background:rgba(0,0,0,0.45);border:1px solid rgba(255,255,255,0.14);"
-      + "color:#fff;font-size:12px;line-height:1;user-select:none;}"
+      + "color:#fff;font-size:12px;line-height:1;user-select:none;pointer-events:none;}"
       + ".psEnlargeHint .icon{font-size:13px;opacity:.95}"
       + ".vevaModalBackdrop{position:fixed;inset:0;background:rgba(0,0,0,0.55);display:none;align-items:center;justify-content:center;z-index:9999;}"
       + ".vevaModalBackdrop[aria-hidden='false']{display:flex;}"
@@ -221,67 +248,96 @@
       + ".vevaModalClose{width:34px;height:34px;border-radius:10px;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.06);color:#fff;cursor:pointer;}"
       + ".vevaModalBody{height:calc(100% - 57px);padding:14px;}"
       + ".vevaModalCanvas{width:100%;height:100%;display:block;border-radius:12px;border:1px solid rgba(255,255,255,0.10);background:rgba(255,255,255,0.03);}";
+
     var st = document.createElement("style");
     st.id = "vevaTabletopStyles";
     st.textContent = css;
     document.head.appendChild(st);
   }
 
-  function ensureUI(){
-    ensureStyles();
+  // Return container where we should inject thumbnail.
+  function resolvePanelBody(panel){
+    if(!panel) return null;
 
-    var panel = document.getElementById("personSearchPanel");
-    if(!panel) return;
-
-    // Find the "Person Search — Items" card body area
-    var body = panel.querySelector(".cardBody");
-    if(!body) return;
-
-    // Insert thumbnail wrap just before #psCards if exists, else at end
-    var existingWrap = body.querySelector(".psTableThumbWrap");
-    if(!existingWrap){
-      var wrap = document.createElement("div");
-      wrap.className = "psTableThumbWrap";
-      wrap.innerHTML = '<canvas class="psTableThumbCanvas" id="psTableThumbCanvas"></canvas>'
-        + '<div class="psEnlargeHint" aria-label="Click to enlarge"><span class="icon">🔍➕</span><span>Click to enlarge</span></div>';
-      var psCards = body.querySelector("#psCards");
-      if(psCards) body.insertBefore(wrap, psCards);
-      else body.appendChild(wrap);
-
-      wrap.addEventListener("click", function(){
-        openModal();
-      });
-    }
-
-    // Modal
-    if(!document.getElementById("vevaTabletopBackdrop")){
-      var bd = document.createElement("div");
-      bd.id = "vevaTabletopBackdrop";
-      bd.className = "vevaModalBackdrop";
-      bd.setAttribute("aria-hidden","true");
-      bd.innerHTML = ''
-        + '<div class="vevaModal" role="dialog" aria-modal="true">'
-        +   '<div class="vevaModalHeader"><div class="title">Tabletop view</div>'
-        +     '<button class="vevaModalClose" type="button" aria-label="Close">×</button>'
-        +   '</div>'
-        +   '<div class="vevaModalBody"><canvas class="vevaModalCanvas" id="psTableModalCanvas"></canvas></div>'
-        + '</div>';
-      document.body.appendChild(bd);
-
-      // Close handlers
-      var closeBtn = bd.querySelector(".vevaModalClose");
-      closeBtn.addEventListener("click", function(ev){ ev.preventDefault(); ev.stopPropagation(); closeModal(); });
-
-      bd.addEventListener("click", function(ev){
-        if(ev.target === bd) closeModal();
-      });
-
-      window.addEventListener("keydown", function(ev){
-        if(ev.key === "Escape") closeModal();
-      });
-    }
+    // Most specific first; then fall back progressively.
+    return (
+      panel.querySelector(".cardBody") ||
+      panel.querySelector(".card-body") ||
+      panel.querySelector("[data-card-body]") ||
+      panel
+    );
   }
 
+  function ensureModal(){
+    if(document.getElementById("vevaTabletopBackdrop")) return;
+
+    var bd = document.createElement("div");
+    bd.id = "vevaTabletopBackdrop";
+    bd.className = "vevaModalBackdrop";
+    bd.setAttribute("aria-hidden","true");
+    bd.innerHTML = ""
+      + "<div class='vevaModal' role='dialog' aria-modal='true'>"
+      +   "<div class='vevaModalHeader'>"
+      +     "<div class='title'>Tabletop view</div>"
+      +     "<button class='vevaModalClose' type='button' aria-label='Close'>×</button>"
+      +   "</div>"
+      +   "<div class='vevaModalBody'>"
+      +     "<canvas class='vevaModalCanvas' id='psTableModalCanvas'></canvas>"
+      +   "</div>"
+      + "</div>";
+
+    document.body.appendChild(bd);
+
+    // Close handlers
+    var closeBtn = bd.querySelector(".vevaModalClose");
+    closeBtn.addEventListener("click", function(ev){
+      ev.preventDefault(); ev.stopPropagation();
+      closeModal();
+    });
+
+    bd.addEventListener("click", function(ev){
+      if(ev.target === bd) closeModal();
+    });
+
+    window.addEventListener("keydown", function(ev){
+      if(ev.key === "Escape") closeModal();
+    });
+  }
+
+  function ensureThumbnail(panel){
+    var body = resolvePanelBody(panel);
+    if(!body) return;
+
+    var wrap = body.querySelector(".psTableThumbWrap");
+    if(wrap) return;
+
+    wrap = document.createElement("div");
+    wrap.className = "psTableThumbWrap";
+    wrap.innerHTML =
+      "<canvas class='psTableThumbCanvas' id='psTableThumbCanvas'></canvas>" +
+      "<div class='psEnlargeHint' aria-label='Click to enlarge'>" +
+        "<span class='icon'>🔍➕</span><span>Click to enlarge</span>" +
+      "</div>";
+
+    // Prefer inserting before #psCards if present, else append.
+    var psCards = body.querySelector("#psCards");
+    if(psCards) body.insertBefore(wrap, psCards);
+    else body.appendChild(wrap);
+
+    wrap.addEventListener("click", function(){
+      openModal();
+    });
+  }
+
+  function ensureUI(){
+    ensureStyles();
+    var panel = document.getElementById("personSearchPanel");
+    if(!panel) return;
+    ensureThumbnail(panel);
+    ensureModal();
+  }
+
+  // -------------------- Modal state --------------------
   var _modalOpen = false;
 
   function openModal(){
@@ -290,7 +346,7 @@
     if(!bd) return;
     bd.setAttribute("aria-hidden","false");
     _modalOpen = true;
-    // Render big view
+
     var items = parseItemsFromText();
     render({ canvas: "psTableModalCanvas", tableSrc: TABLE_SRC, items: items });
   }
@@ -302,47 +358,99 @@
     _modalOpen = false;
   }
 
-  function hardCloseOnLoad(){
+  // Guarantee: never auto-open. We only ever close on init.
+  var _hardClosedOnce = false;
+  function hardCloseOnce(){
+    if(_hardClosedOnce) return;
+    _hardClosedOnce = true;
     var bd = document.getElementById("vevaTabletopBackdrop");
     if(bd) bd.setAttribute("aria-hidden","true");
   }
 
-  var lastSig = "";
-  function tick(){
+  // -------------------- Render scheduling --------------------
+  var lastSig = null; // force first paint
+  var lastPanelSeen = false;
+
+  function safeSig(items){
+    try { return (items && items.length) ? items.join("|") : "__EMPTY__"; }
+    catch(e){ return String(Math.random()); }
+  }
+
+  function paintAll(force){
     ensureUI();
-    hardCloseOnLoad(); // ensure never auto shows
+    hardCloseOnce();
+
+    var panel = document.getElementById("personSearchPanel");
+    var panelNow = !!panel;
+
+    // If panel appears/disappears, force a repaint.
+    if(panelNow !== lastPanelSeen){
+      lastPanelSeen = panelNow;
+      force = true;
+    }
+
     var items = parseItemsFromText();
-    var sig = items.join("|");
-    if(sig !== lastSig){
+    var sig = safeSig(items);
+
+    if(force || sig !== lastSig){
       lastSig = sig;
       render({ canvas: "psTableThumbCanvas", tableSrc: TABLE_SRC, items: items });
       if(_modalOpen){
         render({ canvas: "psTableModalCanvas", tableSrc: TABLE_SRC, items: items });
       }
     }
-    // Also rerender on resize to keep crisp
   }
 
+  // Resize handling: rerender crisp when size changes.
   var resizeTimer = null;
   window.addEventListener("resize", function(){
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(function(){
-      lastSig = ""; // force rerender
-      tick();
+      lastSig = null; // force repaint
+      paintAll(true);
     }, 120);
   });
 
-  // Start polling after DOM ready
+  // Observe thumb container size changes (more reliable than window resize).
+  var _ro = null;
+  function setupResizeObserver(){
+    if(_ro || typeof ResizeObserver === "undefined") return;
+    _ro = new ResizeObserver(function(){
+      lastSig = null;
+      paintAll(true);
+    });
+
+    var wrap = document.querySelector("#personSearchPanel .psTableThumbWrap");
+    if(wrap) _ro.observe(wrap);
+  }
+
+  // Poll for panel presence + text changes (cheap and robust).
+  function tick(){
+    paintAll(false);
+    setupResizeObserver();
+  }
+
+  // Start
   if(document.readyState === "loading"){
     document.addEventListener("DOMContentLoaded", function(){
+      // Ensure UI exists but modal closed; then paint immediately.
+      ensureUI();
+      hardCloseOnce();
+      paintAll(true);
       setInterval(tick, 250);
     });
   }else{
+    ensureUI();
+    hardCloseOnce();
+    paintAll(true);
     setInterval(tick, 250);
   }
 
+  // Public hooks (useful for debugging / manual trigger)
   window.VEVA_TABLETOP = window.VEVA_TABLETOP || {};
   window.VEVA_TABLETOP.render = render;
   window.VEVA_TABLETOP.openModal = openModal;
   window.VEVA_TABLETOP.closeModal = closeModal;
+  window.VEVA_TABLETOP.repaint = function(){ lastSig = null; paintAll(true); };
+
 })();
