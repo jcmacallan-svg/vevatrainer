@@ -1,0 +1,42 @@
+/* tabletop modal + hint styles (drop-in) */
+.psTableWrap{ position: relative; }
+.psEnlargeHint{
+  position:absolute; right:10px; top:10px;
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  display:flex;
+  gap:6px;
+  align-items:center;
+  pointer-events:none;
+  z-index:2;
+}
+.psEnlargeIcon{ font-size: 13px; line-height: 1; }
+
+.psTableModal{
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+}
+.psTableModal[hidden]{ display:none !important; }
+.psTableModalBackdrop{ position:absolute; inset:0; background: rgba(0,0,0,0.65); }
+.psTableModalPanel{
+  position:absolute; inset: 6vh 6vw;
+  background: rgba(15,20,28,0.95);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 16px;
+  overflow:hidden;
+}
+.psTableModalClose{
+  position:absolute; right:12px; top:10px;
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #fff;
+  border-radius: 10px;
+  padding: 6px 10px;
+  cursor: pointer;
+  z-index: 2;
+}
+.psTableCanvasLarge{ width:100%; height:100%; display:block; }
