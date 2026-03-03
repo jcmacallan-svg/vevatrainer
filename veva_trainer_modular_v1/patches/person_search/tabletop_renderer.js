@@ -22,32 +22,28 @@
     var cssW = Math.max(1, Math.round(rect.width));
     var cssH = Math.max(1, Math.round(rect.height));
 
-    var needResize = canvas.width !== Math.round(cssW * dpr) || canvas.height !== Math.round(cssH * dpr);
-    if (needResize) {
-      canvas.width = Math.round(cssW * dpr);
-      canvas.height = Math.round(cssH * dpr);
+    var wantW = Math.round(cssW * dpr);
+    var wantH = Math.round(cssH * dpr);
+
+    if (canvas.width !== wantW || canvas.height !== wantH) {
+      canvas.width = wantW;
+      canvas.height = wantH;
     }
 
-    // draw in CSS pixels
+    // Draw in CSS pixels
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     return { W: cssW, H: cssH };
   }
 
-  function randBetween(min, max) {
-    return min + Math.random() * (max - min);
-  }
-
-  // Draw background with CONTAIN, so whole table (incl. edges) is visible.
-  // Returns the drawn rect so we can place items inside it.
   function drawContain(ctx, img, w, h, pad) {
-    pad = pad || 18;
+    pad = (pad == null) ? 16 : pad;
     var iw = img.naturalWidth || img.width;
     var ih = img.naturalHeight || img.height;
 
     var availW = Math.max(1, w - pad * 2);
     var availH = Math.max(1, h - pad * 2);
 
-    var s = Math.min(availW / iw, availH / ih);
+    var s = Math.min(availW / iw, availH / ih); // CONTAIN
     var dw = iw * s, dh = ih * s;
 
     var dx = (w - dw) / 2;
@@ -55,23 +51,24 @@
 
     ctx.drawImage(img, dx, dy, dw, dh);
 
-    // subtle vignette so the "mat" around the table feels natural
+    // Soft vignette to feel like a table in a scene (not required, but subtle)
     ctx.save();
-    var g = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.25, w / 2, h / 2, Math.max(w, h) * 0.6);
+    var g = ctx.createRadialGradient(w/2, h/2, Math.min(w,h)*0.25, w/2, h/2, Math.max(w,h)*0.6);
     g.addColorStop(0, "rgba(0,0,0,0)");
     g.addColorStop(1, "rgba(0,0,0,0.22)");
     ctx.fillStyle = g;
-    ctx.fillRect(0, 0, w, h);
+    ctx.fillRect(0,0,w,h);
     ctx.restore();
-
-    return { x: dx, y: dy, w: dw, h: dh };
   }
 
-  // Assets (adjust paths if needed)
+  function randBetween(min, max) {
+    return min + Math.random() * (max - min);
+  }
+
+  // Assets
   var DEFAULT_TABLE = "assets/table/tafelachtergrond.png";
 
-  // Map item name -> sprite path (PNG with transparency)
-  // Add aliases freely; if you instead provide it.src in ps.items, that will be used.
+  // Name -> sprite mapping (adjust to your filenames)
   var ITEM_SPRITES = {
     "Gun": "assets/items/gun.png",
     "Small pocket knife": "assets/items/knife.png",
@@ -80,18 +77,18 @@
     "Keys": "assets/items/keys.png",
     "Notebook": "assets/items/notebook.png",
     "Phone": "assets/items/phone.png",
-    "Joint": "assets/items/joint.png"
+    "Joint": "assets/items/joint.png",
+    "Jacket": "assets/items/jacket.png",
+    "Cap": "assets/items/cap.png",
+    "Headgear": "assets/items/cap.png",
+    "Helmet": "assets/items/helmet.png"
   };
-
-  function pickSprite(it) {
-    return (it && (it.src || it.sprite)) || (it && ITEM_SPRITES[it.name]) || "";
-  }
 
   async function render(opts) {
     opts = opts || {};
     var canvasId = opts.canvasId || "psTableCanvas";
     var tableSrc = opts.tableSrc || DEFAULT_TABLE;
-    var items = opts.items || [];
+    var items = Array.isArray(opts.items) ? opts.items : [];
 
     var canvas = document.getElementById(canvasId);
     if (!canvas) return;
@@ -99,74 +96,55 @@
     var ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Fit to panel size (keeps things sharp on HiDPI)
     var size = fitCanvasToCssSize(canvas, ctx);
     var W = size.W, H = size.H;
 
-    ctx.clearRect(0, 0, W, H);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
 
-    // Background table
-    var tableRect = { x: 0, y: 0, w: W, h: H };
+    ctx.clearRect(0, 0, W, H);
+
+    // Background
     try {
       var bg = await loadImage(tableSrc);
-      tableRect = drawContain(ctx, bg, W, H, 18);
+      drawContain(ctx, bg, W, H, 18);
     } catch (e) {
       ctx.fillStyle = "#0b1220";
       ctx.fillRect(0, 0, W, H);
     }
 
-    var list = (Array.isArray(items) ? items : []).slice(0, 6);
+    // Up to 6 items, laid out in 3x2 slots with jitter/rotation
+    var list = items.slice(0, 6);
 
-    // Place items INSIDE the drawn table rect.
-    // We compute a 3x2 grid within the table rect (with inner padding),
-    // then scale each sprite to fit its cell.
-    var innerPad = Math.max(14, Math.round(Math.min(tableRect.w, tableRect.h) * 0.06)); // ~6% padding
-    var tx = tableRect.x + innerPad;
-    var ty = tableRect.y + innerPad;
-    var tw = Math.max(1, tableRect.w - innerPad * 2);
-    var th = Math.max(1, tableRect.h - innerPad * 2);
+    var slots = [
+      { x: 0.22, y: 0.34 }, { x: 0.50, y: 0.34 }, { x: 0.78, y: 0.34 },
+      { x: 0.22, y: 0.70 }, { x: 0.50, y: 0.70 }, { x: 0.78, y: 0.70 }
+    ];
 
-    var cols = 3, rows = 2;
-    var cellW = tw / cols;
-    var cellH = th / rows;
-
-    // target fill within each cell (tweakable)
-    var cellFill = 0.72;  // percent of cell width/height used by item
-    var maxRot = 0.16;    // radians (~9 degrees)
+    // Scale to fit regardless of panel size:
+    // aim for ~1/4 of canvas width per item, but clamp so it stays reasonable.
+    var targetW = Math.max(140, Math.min(260, Math.round(W * 0.22)));
 
     for (var i = 0; i < list.length; i++) {
       var it = list[i] || {};
-      var src = pickSprite(it);
+      var slot = slots[i] || slots[slots.length - 1];
+
+      var src = it.src || it.sprite || (it.name ? ITEM_SPRITES[it.name] : "");
+
       if (!src) continue;
 
-      var c = i % cols;
-      var r = Math.floor(i / cols);
-
-      // center of the cell + jitter
-      var cx = tx + c * cellW + cellW / 2 + randBetween(-cellW * 0.06, cellW * 0.06);
-      var cy = ty + r * cellH + cellH / 2 + randBetween(-cellH * 0.05, cellH * 0.05);
-
-      var rot = randBetween(-maxRot, maxRot);
+      var cx = slot.x * W + randBetween(-18, 18);
+      var cy = slot.y * H + randBetween(-12, 12);
+      var rot = randBetween(-0.18, 0.18);
 
       try {
         var img = await loadImage(src);
+
         var iw = img.naturalWidth || img.width;
         var ih = img.naturalHeight || img.height;
 
-        // Fit item into cell (preserve aspect)
-        var targetW = cellW * cellFill;
-        var targetH = cellH * cellFill;
-
-        var s = Math.min(targetW / iw, targetH / ih);
-
-        // Prevent tiny items becoming unreadably small on very wide screens:
-        // clamp to a reasonable minimum, but never exceed the fit scale.
-        var minPx = Math.max(60, Math.round(Math.min(W, H) * 0.10));
-        var minS = Math.min(targetW / iw, targetH / ih, minPx / Math.max(iw, ih));
-        s = Math.max(s, minS);
-
+        // Fit width to targetW (keeps items consistent)
+        var s = targetW / iw;
         var dw = iw * s;
         var dh = ih * s;
 
@@ -174,18 +152,19 @@
         ctx.translate(cx, cy);
         ctx.rotate(rot);
 
-        // Shadow (looks like item is on the table)
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+
+        // Shadow "on the table"
         ctx.shadowColor = "rgba(0,0,0,0.33)";
         ctx.shadowBlur = 26;
         ctx.shadowOffsetX = 10;
         ctx.shadowOffsetY = 16;
 
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = "high";
         ctx.drawImage(img, -dw / 2, -dh / 2, dw, dh);
         ctx.restore();
       } catch (e2) {
-        // skip missing sprites
+        // ignore load errors
       }
     }
   }

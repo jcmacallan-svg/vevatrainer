@@ -136,22 +136,6 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 .superGrid input,.superGrid select{background:var(--field);color:var(--text);border:1px solid var(--border);border-radius:12px;padding:10px 10px;outline:none;}
 .superGrid input:focus,.superGrid select:focus{border-color:rgba(58,167,255,.55);}
 .psOutfit{color:var(--muted);font-size:13px;line-height:1.35;margin-bottom:10px;}
-
-.psTableWrap{
-  width: 100%;
-  height: 320px;
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  overflow: hidden;
-  background: rgba(255,255,255,0.03);
-  margin: 10px 0 12px;
-}
-.psTableCanvas{
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
 .cards{display:grid;grid-template-columns: 1fr 0.20fr;gap:10px;}
 .itemCard{border:1px solid var(--border);background:rgba(255,255,255,.03);border-radius:14px;padding:10px;}
 .itemCard .t{font-weight:800;}
@@ -743,3 +727,39 @@ body.hasPopup #portraitRow{display:none !important;}
 .sideHelp{margin:10px 0 0; padding:10px 12px; border:1px solid rgba(255,255,255,.08); border-radius:12px; background:rgba(20,35,60,.35);}
 .sideHelpTitle{font-weight:700; margin-bottom:6px; font-size:12px; opacity:.95;}
 .sideHelpBody{font-size:12px; line-height:1.35; opacity:.85;}
+
+
+/* --- Person Search tabletop --- */
+.psTableItemsText{
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+  margin: 6px 0 10px;
+}
+
+.psTableWrap{
+  width: 100%;
+  height: min(360px, 38vh);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  background: rgba(255,255,255,0.03);
+  margin: 8px 0 12px;
+}
+
+.psTableCanvas{
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.psItemList{
+  margin: 0;
+  padding-left: 18px;
+  color: rgba(255,255,255,0.92);
+  font-size: 13px;
+}
+.psItemList li{
+  margin: 4px 0;
+  color: rgba(255,255,255,0.92);
+}

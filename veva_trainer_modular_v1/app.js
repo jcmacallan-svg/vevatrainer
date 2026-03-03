@@ -84,6 +84,7 @@
   const transitionText = $("#transitionText");
   const transitionBanner = $("#transitionBanner");
   const psOutfit = $("#psOutfit");
+  const psTableItemsText = $("#psTableItemsText");
   const psCards = $("#psCards");
   const psRiskChip = $("#psRiskChip");
 
@@ -760,35 +761,74 @@ function showSignIn(){
 
   }
 
-  function renderPS(){
+    function renderPS(){
     const ps = state.ps; if (!ps) return;
-    if (psRiskChip) psRiskChip.textContent="RISK: "+(ps.hasIllegal ? "POSSIBLE CONTRABAND" : "LOW");
+
+    if (psRiskChip) psRiskChip.textContent = "RISK: " + (ps.hasIllegal ? "POSSIBLE CONTRABAND" : "LOW");
+
+    // Outfit line (same as before)
     if (psOutfit){
-      const o=ps.outfit;
-      const parts=[o.style==="workwear"?"Workwear":"Casual", o.cap?"cap":"no cap", o.jacket?"jacket":"no jacket", o.bag?"bag":"no bag"];
-      psOutfit.textContent="Outfit: "+parts.join(" · ");
+      const o = ps.outfit || {};
+      const parts = [
+        (o.style === "workwear") ? "Workwear" : "Casual",
+        o.cap ? "cap" : "no cap",
+        o.jacket ? "jacket" : "no jacket",
+        o.bag ? "bag" : "no bag"
+      ];
+      psOutfit.textContent = "Outfit: " + parts.join(" · ");
     }
+
+    // Items that are actually on the table:
+    // - always the visitor pocket/bag items
+    // - plus jacket/cap ONLY after the student asked to remove outerwear
+    const fl = state.flags || {};
+    const o = ps.outfit || {};
+    const onTable = [];
+    (ps.items || []).forEach(it => onTable.push(it));
+
+    if (fl.psRemoveOuter){
+      if (o.jacket) onTable.push({ name: "Jacket", where: "removed", kind: "legal" });
+      if (o.cap) onTable.push({ name: "Cap", where: "removed", kind: "legal" });
+      if (o.headgear) onTable.push({ name: "Headgear", where: "removed", kind: "legal" });
+      if (o.helmet) onTable.push({ name: "Helmet", where: "removed", kind: "legal" });
+    }
+
+    // Hard max 6 visible items
+    const visible = onTable.slice(0, 6);
+
+    // Text list
+    if (psTableItemsText){
+      const names = visible.map(x => x.name).filter(Boolean);
+      psTableItemsText.textContent = names.length
+        ? ("You see the following items on the table: " + names.join(", ") + ".")
+        : "You see no items on the table.";
+    }
+
+    // Optional: keep the cards area as a simple bullet list (instead of grid cards)
     if (psCards){
-      psCards.innerHTML="";
-      for (const it of ps.items){
-        const c=document.createElement("div");
-        c.className="itemCard";
-        c.innerHTML=`<div class="t">${it.name}</div><div class="s">${it.where}${it.kind==="illegal" ? " · ⚠︎" : ""}</div>`;
-        psCards.appendChild(c);
-      }
+      psCards.innerHTML = "";
+      const ul = document.createElement("ul");
+      ul.className = "psItemList";
+      visible.forEach(it => {
+        const li = document.createElement("li");
+        const warn = (it.kind === "illegal") ? " ⚠︎" : "";
+        li.textContent = String(it.name || "Item") + warn;
+        ul.appendChild(li);
+      });
+      psCards.appendChild(ul);
     }
-  
-    // Tabletop render (background + max 6 item PNGs)
+
+    // Render tabletop (background + item PNGs)
     try{
       if (window.VEVA_TABLETOP && window.VEVA_TABLETOP.render){
         window.VEVA_TABLETOP.render({
           canvasId: "psTableCanvas",
           tableSrc: "assets/table/tafelachtergrond.png",
-          items: (ps.items || []).slice(0, 6)
+          items: visible
         });
       }
     }catch(e){}
-}
+  }
 
   // Hints
   function shouldHints(){ return (session.difficulty||"standard")!=="advanced"; }
