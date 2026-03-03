@@ -193,18 +193,31 @@
                 <div class="cardTop">
                   <div>
                     <div class="cardTitle">Person Search — Items</div>
-                    <div class="cardSub">You see the following items on the table:</div>
+                    <div class="cardSub" id="psCardsIntro">You see the following items on the table:</div>
                   </div>
                   <div class="chips"><span class="chip" id="psRiskChip">RISK: —</span></div>
                 </div>
                 <div class="cardBody">
                   <div id="psOutfit" class="psOutfit"></div>
-                  <div id="psTableItemsText" class="psTableItemsText"></div>
-                  <div class="psTableWrap">
-                    <canvas id="psTableCanvas" class="psTableCanvas"></canvas>
+                  <div id="psItemsText" class="psItemsText"></div>
+
+                  <div class="psTableThumbWrap" id="psTableThumbWrap" title="Click to enlarge">
+                    <canvas id="psTableCanvasThumb" class="psTableCanvas"></canvas>
                   </div>
-                  <div id="psCards"></div>
-                </div>
+
+                  <div class="cards" id="psCards"></div>
+
+                  <!-- Modal for enlarged table -->
+                  <div id="psTableModal" class="psModal" hidden>
+                    <div class="psModalInner" role="dialog" aria-modal="true" aria-label="Tabletop view">
+                      <button id="psModalClose" class="psModalClose" type="button" aria-label="Close">×</button>
+                      <div class="psModalTitle">Tabletop view</div>
+                      <div class="psTableModalWrap">
+                        <canvas id="psTableCanvasModal" class="psTableCanvas"></canvas>
+                      </div>
+                    </div>
+                  </div>
+</div>
               </div>
 
               <div id="signInPanel" class="card" hidden>

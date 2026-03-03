@@ -84,8 +84,11 @@
   const transitionText = $("#transitionText");
   const transitionBanner = $("#transitionBanner");
   const psOutfit = $("#psOutfit");
-  const psTableItemsText = $("#psTableItemsText");
+  const psItemsText = $("#psItemsText");
   const psCards = $("#psCards");
+  const psTableThumbWrap = $("#psTableThumbWrap");
+  const psTableModal = $("#psTableModal");
+  const psModalClose = $("#psModalClose");
   const psRiskChip = $("#psRiskChip");
 
   const signInPanel = $("#signInPanel");
@@ -761,73 +764,90 @@ function showSignIn(){
 
   }
 
-    function renderPS(){
+
+  function initPSTableModal(){
+    if (!psTableThumbWrap || !psTableModal) return;
+    if (psTableThumbWrap.__vevaBound) return;
+    psTableThumbWrap.__vevaBound = true;
+
+    function open(){
+      psTableModal.hidden = false;
+      psTableModal.style.display = "";
+      // render large canvas
+      try{
+        const ps = state.ps || {};
+        if (window.VEVA_TABLETOP && window.VEVA_TABLETOP.render){
+          window.VEVA_TABLETOP.render({
+            canvasId: "psTableCanvasModal",
+            tableSrc: "assets/table/tafelachtergrond.png",
+            items: buildTableItems(ps).slice(0,6),
+            pad: 18
+          });
+        }
+      }catch(e){}
+    }
+    function close(){
+      psTableModal.hidden = true;
+      psTableModal.style.display = "none";
+    }
+
+    psTableThumbWrap.addEventListener("click", open);
+    if (psModalClose) psModalClose.addEventListener("click", close);
+    psTableModal.addEventListener("click", function(ev){
+      if (ev.target === psTableModal) close();
+    });
+    window.addEventListener("keydown", function(ev){
+      if (ev.key === "Escape" && !psTableModal.hidden) close();
+    });
+  }
+
+  function buildTableItems(ps){
+    const items = (ps && ps.items) ? ps.items.slice() : [];
+    // Add apparel to table if present (optional assets)
+    if (ps && ps.outfit){
+      if (ps.outfit.jacket) items.push({ name: "Jacket", key:"jacket", where:"on table", kind:"legal" });
+      if (ps.outfit.cap) items.push({ name: "Cap", key:"cap", where:"on table", kind:"legal" });
+    }
+    // Ensure max 6 visually
+    return items;
+  }
+
+  function renderPS(){
     const ps = state.ps; if (!ps) return;
-
-    if (psRiskChip) psRiskChip.textContent = "RISK: " + (ps.hasIllegal ? "POSSIBLE CONTRABAND" : "LOW");
-
-    // Outfit line (same as before)
+    if (psRiskChip) psRiskChip.textContent="RISK: "+(ps.hasIllegal ? "POSSIBLE CONTRABAND" : "LOW");
     if (psOutfit){
-      const o = ps.outfit || {};
-      const parts = [
-        (o.style === "workwear") ? "Workwear" : "Casual",
-        o.cap ? "cap" : "no cap",
-        o.jacket ? "jacket" : "no jacket",
-        o.bag ? "bag" : "no bag"
-      ];
-      psOutfit.textContent = "Outfit: " + parts.join(" · ");
+      const o=ps.outfit;
+      const parts=[o.style==="workwear"?"Workwear":"Casual", o.cap?"cap":"no cap", o.jacket?"jacket":"no jacket", o.bag?"bag":"no bag"];
+      psOutfit.textContent="Outfit: "+parts.join(" · ");
     }
-
-    // Items that are actually on the table:
-    // - always the visitor pocket/bag items
-    // - plus jacket/cap ONLY after the student asked to remove outerwear
-    const fl = state.flags || {};
-    const o = ps.outfit || {};
-    const onTable = [];
-    (ps.items || []).forEach(it => onTable.push(it));
-
-    if (fl.psRemoveOuter){
-      if (o.jacket) onTable.push({ name: "Jacket", where: "removed", kind: "legal" });
-      if (o.cap) onTable.push({ name: "Cap", where: "removed", kind: "legal" });
-      if (o.headgear) onTable.push({ name: "Headgear", where: "removed", kind: "legal" });
-      if (o.helmet) onTable.push({ name: "Helmet", where: "removed", kind: "legal" });
-    }
-
-    // Hard max 6 visible items
-    const visible = onTable.slice(0, 6);
-
-    // Text list
-    if (psTableItemsText){
-      const names = visible.map(x => x.name).filter(Boolean);
-      psTableItemsText.textContent = names.length
-        ? ("You see the following items on the table: " + names.join(", ") + ".")
-        : "You see no items on the table.";
-    }
-
-    // Optional: keep the cards area as a simple bullet list (instead of grid cards)
     if (psCards){
-      psCards.innerHTML = "";
-      const ul = document.createElement("ul");
-      ul.className = "psItemList";
-      visible.forEach(it => {
-        const li = document.createElement("li");
-        const warn = (it.kind === "illegal") ? " ⚠︎" : "";
-        li.textContent = String(it.name || "Item") + warn;
-        ul.appendChild(li);
-      });
-      psCards.appendChild(ul);
+      psCards.innerHTML="";
+      for (const it of ps.items){
+        const c=document.createElement("div");
+        c.className="itemCard";
+        c.innerHTML=`<div class="t">${it.name}</div><div class="s">${it.where}${it.kind==="illegal" ? " · ⚠︎" : ""}</div>`;
+        psCards.appendChild(c);
+      }
     }
 
-    // Render tabletop (background + item PNGs)
+    if (psItemsText){
+      const list = buildTableItems(ps).slice(0,6).map(function(it){ return it.name; });
+      psItemsText.textContent = list.length ? ("You see the following items on the table: " + list.join(", ") + ".") : "You see no items on the table.";
+    }
+
+    // Tabletop thumbnail render
     try{
       if (window.VEVA_TABLETOP && window.VEVA_TABLETOP.render){
         window.VEVA_TABLETOP.render({
-          canvasId: "psTableCanvas",
+          canvasId: "psTableCanvasThumb",
           tableSrc: "assets/table/tafelachtergrond.png",
-          items: visible
+          items: buildTableItems(ps).slice(0,6),
+          pad: 18
         });
       }
     }catch(e){}
+    initPSTableModal();
+
   }
 
   // Hints
