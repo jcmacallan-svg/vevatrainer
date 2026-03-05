@@ -1,21 +1,40 @@
-VEVA Tabletop patch (patch-only)
+// patches/shared/logger.js
+(function(){
+  const CFG = window.CONFIG || {};
+  const ENDPOINT = CFG.logEndpoint || "";
+  const BATCH_EVERY = Number(CFG.logBatchEvery || 1);
+  const buf = [];
+  let counter = 0;
 
-Deze zip bevat ALLEEN patch-files (geen index.html / styles.css), zodat je niet per ongeluk je app overschrijft.
+  function nowIso(){ return new Date().toISOString(); }
 
-Plaats de bestanden in je project op dezelfde paden:
-- patches/person_search/tabletop_renderer.js
-- patches/person_search/tabletop_ui.js
+  async function flush(){
+    if (!ENDPOINT || !buf.length) { buf.length = 0; return; }
+    const payload = { events: buf.splice(0, buf.length) };
+    try{
+      await fetch(ENDPOINT, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify(payload),
+        keepalive: true
+      });
+    }catch(e){
+      try{
+        const k = "veva.offlineLog";
+        const prev = JSON.parse(localStorage.getItem(k) || "[]");
+        prev.push(payload);
+        localStorage.setItem(k, JSON.stringify(prev).slice(0, 2000000));
+      }catch(e2){}
+      console.warn("Logging failed:", e);
+    }
+  }
 
-Boot.js:
-Voeg 2 loads toe in de person_search chain, NA visuals_person_search.js en VOOR flow_person_search.js:
-  load("patches/person_search/visuals_person_search.js", function(){
-    load("patches/person_search/tabletop_renderer.js", function(){
-      load("patches/person_search/tabletop_ui.js", function(){
-        load("patches/person_search/flow_person_search.js", function(){
-
-Als je al een hook in app.js hebt die VEVA_TABLETOP.render aanroept voor het thumbnail canvas, dan blijft dat werken.
-De UI patch injecteert zelf:
-- thumbnail canvas (psTableThumb) + hint rechtsboven
-- modal canvas (psTableBig) die alleen opent na klik
-- verbergt de oude item-cards (#psCards)
-
+  window.VEVA_LOG = async function(event){
+    try{
+      buf.push({ t: nowIso(), ...event });
+      counter++;
+      if (counter % BATCH_EVERY === 0) await flush();
+    }catch(e){ console.warn("VEVA_LOG error", e); }
+  };
+  window.VEVA_LOG_FLUSH = flush;
+})();
