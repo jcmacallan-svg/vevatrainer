@@ -64,3 +64,4 @@ window.BUILD = { version: "8.0.5-modular+v1_7_20", name: "VEVA Ingang/Uitgang Tr
     });
   });
 })();
+});
