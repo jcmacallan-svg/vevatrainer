@@ -11,9 +11,33 @@ window.BUILD = { version: "8.0.5-modular+v1_7_20", name: "VEVA Ingang/Uitgang Tr
   function load(src, cb) {
     const s = document.createElement("script");
     s.src = src + "?v=" + encodeURIComponent(v);
-    s.defer = true;
+    // NOTE: dynamically injected scripts don't reliably honor `defer` across browsers.
+    // Keep ordering via callback chaining and force sync-like behavior.
+    s.async = false;
     s.onload = cb || function () {};
-    s.onerror = function () { console.warn("Failed to load", s.src); };
+    s.onerror = function () {
+      // If a patch file is missing on GitHub Pages, the old loader would stall forever.
+      // Continue boot so the app still loads, and show a small on-screen warning.
+      try {
+        console.warn("Failed to load", s.src);
+        const id = "vevaBootWarn";
+        let bar = document.getElementById(id);
+        if (!bar) {
+          bar = document.createElement("div");
+          bar.id = id;
+          bar.style.cssText = "position:fixed;left:12px;right:12px;bottom:12px;z-index:99999;"+
+            "background:rgba(180,60,60,0.92);border:1px solid rgba(255,255,255,0.18);"+
+            "color:#fff;padding:10px 12px;border-radius:12px;font:12px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial;"+
+            "box-shadow:0 12px 40px rgba(0,0,0,0.45);";
+          document.body.appendChild(bar);
+        }
+        const msg = document.createElement("div");
+        msg.textContent = "⚠️ Failed to load: " + src + " (app will continue).";
+        bar.appendChild(msg);
+      } catch (e) {}
+      // IMPORTANT: continue boot chain.
+      (cb || function(){})();
+    };
     document.head.appendChild(s);
   }
 
