@@ -212,6 +212,9 @@
   const pick = (arr)=> (Array.isArray(arr)&&arr.length) ? arr[Math.floor(Math.random()*arr.length)] : "";
   const randInt = (a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 
+  // Person Search behaviour toggles
+  const PS_UNKNOWN_CHANCE = (CFG.psUnknownChance !== undefined) ? Number(CFG.psUnknownChance) : 0.25; // 0..1
+
   function normalize(s){
     return String(s||"").toLowerCase().replace(/[^\p{L}\p{N}: ]/gu," ").replace(/\s+/g," ").trim();
   }
@@ -357,6 +360,12 @@
     if (/\bsharp\b|\bneedle\b|\bknife\b|\bra(z|s)or\b/i.test(n) && /\bdo\s+you\s+have|any\b/i.test(n)) return "ps_ask_sharp";
     if (/\bempty\s+your\s+pockets\b/i.test(n)) return "ps_empty_pockets";
     if (/\bplace\s+all\s+items\b|\bon\s+the\s+table\b/i.test(n)) return "ps_items_table";
+    if ((/\b(take\s*off|remove|strip)\b/i.test(n)) && (
+          /\ball\s+(clothes|clothing)\b/i.test(n) ||
+          /\beverything\b/i.test(n) ||
+          /\ball\s+your\s+clothing\b/i.test(n) ||
+          /\bfully\s+undress\b/i.test(n)
+        )) return "ps_remove_all_clothes";
     if (/\barmpits\b/i.test(n) && /\bsearch|checking\b|\bam\s+going\s+to\b/i.test(n)) return "ps_explain_armpits";
     if (/\bwaist|waistband|belt\b/i.test(n) && /\bcheck|search|checking\b|\bam\s+checking\b/i.test(n)) return "ps_explain_waist";
     // "Put your leg on my knee" should count as the leg-on-knee instruction
@@ -774,8 +783,8 @@ function showSignIn(){
     const jacketTxt = o.jacket ? "a jacket" : "no jacket";
     const bagTxt = o.bag ? "a bag" : "no bag";
 
-    // Items list (max 6) and filter out any stray invalid names
-    const rawItems = Array.isArray(ps.items) ? ps.items.slice(0, 6) : [];
+    // Items on table (max 6) and filter out any stray invalid names
+    const rawItems = Array.isArray(ps.tableItems) ? ps.tableItems.slice(0, 6) : [];
     const items = rawItems
       .filter(it => it && it.name && !(/twelve\s*gun/i).test(String(it.name)))
       .map(it => String(it.name));
@@ -788,7 +797,7 @@ function showSignIn(){
         `<div class="psLine">You see the following items on the table: <b>${itemsText}</b>.</div>`;
     }
 
-    // Interactive item pills (tap to ask what it is / why they have it)
+    // Interactive item pills (tap to select an item; student must type the question)
     if (psItemsText){
       psItemsText.innerHTML = "";
       const wrap = document.createElement("div");
@@ -796,13 +805,21 @@ function showSignIn(){
 
       const help = document.createElement("div");
       help.className = "psPillsHelp";
-      help.textContent = "Tap an item to ask the visitor what it is and why they have it.";
+      help.textContent = "Tap an item to select it, then type your question (e.g., \"What is this?\").";
       wrap.appendChild(help);
 
       const pills = document.createElement("div");
       pills.className = "psPills";
 
-      const srcItems = Array.isArray(ps.items) ? ps.items.slice(0,6) : [];
+      const srcItems = Array.isArray(ps.tableItems) ? ps.tableItems.slice(0,6) : [];
+
+      if (!srcItems.length){
+        const empty = document.createElement("div");
+        empty.className = "psPillsEmpty";
+        empty.textContent = "No items on the table yet. Ask the visitor to empty their pockets.";
+        pills.appendChild(empty);
+      }
+
       srcItems
         .filter(it => it && it.name && !(/twelve\s*gun/i).test(String(it.name)))
         .forEach((it)=>{
@@ -812,10 +829,13 @@ function showSignIn(){
           btn.textContent = String(it.name);
           btn.setAttribute("aria-label", `Ask about ${it.name}`);
           btn.addEventListener("click", ()=>{
-            // Student asks
-            addMsg("student", `What is this: ${it.name}?`);
-            // Visitor answers
-            enqueueVisitor(psItemExplanation(it));
+            // Select item only (student must type their question)
+            try{ ps.selectedItem = it; }catch{}
+            try{
+              pills.querySelectorAll(".psItemPill").forEach(b=>b.classList.remove("selected"));
+              btn.classList.add("selected");
+            }catch{}
+            try{ textInput?.focus(); }catch{}
           });
           pills.appendChild(btn);
         });
@@ -866,6 +886,48 @@ function showSignIn(){
     if (band === "evasive") pool = evasive.concat(pool);
     if (band === "cautious") pool = pool.concat([`It’s a ${name}. I didn’t mean to cause any issues — it was in ${where}.`]);
     return pick(pool);
+  }
+
+  function isAskWhatIsQuestion(raw){
+    const n = normalize(raw||"");
+    if (/\bwhat\s+is\s+(this|that|it)\b/i.test(n)) return true;
+    if (/\bwhat\s+is\s+this\s+item\b/i.test(n)) return true;
+    return false;
+  }
+
+  function psEmptyPockets(){
+    if (!state?.ps) return;
+    const ps = state.ps;
+
+    ps.pocketsEmptiedCount = Number(ps.pocketsEmptiedCount || 0);
+    ps.tableItems = Array.isArray(ps.tableItems) ? ps.tableItems : [];
+    ps.pocketItems = Array.isArray(ps.pocketItems) ? ps.pocketItems : [];
+
+    if (ps.pocketsEmptiedCount === 0){
+      const willHideUnknown = Math.random() < Math.max(0, Math.min(1, PS_UNKNOWN_CHANCE));
+      if (willHideUnknown && !ps.hiddenUnknown){
+        ps.hiddenUnknown = { name:"unknown item", kind:"unknown", where:"my pocket" };
+        ps.hiddenUnknownRevealed = false;
+      }
+
+      ps.tableItems = ps.tableItems.concat(ps.pocketItems);
+      ps.pocketItems = [];
+
+      ps.pocketsEmptiedCount = 1;
+      renderPS();
+      enqueueVisitor("Okay. I will empty my pockets and put the items on the table.");
+      return;
+    }
+
+    if (ps.hiddenUnknown && !ps.hiddenUnknownRevealed){
+      ps.tableItems.push(ps.hiddenUnknown);
+      ps.hiddenUnknownRevealed = true;
+      renderPS();
+      enqueueVisitor("Oh—wait. I missed something. Sorry. Here it is.");
+      return;
+    }
+
+    enqueueVisitor("My pockets are empty.");
   }
 
   // Hints
@@ -1377,7 +1439,18 @@ function nextHint(){
     const outfit=V?.makeOutfit?V.makeOutfit():{cap:false,jacket:false,bag:false,style:"casual"};
     const itemsObj=V?.makeItems?V.makeItems():{items:[],hasIllegal:false};
     const sharpItem = pick([null,null,null,"small pocket knife","needle","razor blade"]); // ~40% chance
-    state.ps={outfit, items:itemsObj.items, hasIllegal:itemsObj.hasIllegal, sharpItem};
+    // Items start in pockets; they only appear on the table after the student asks.
+    state.ps={
+      outfit,
+      pocketItems: Array.isArray(itemsObj.items) ? itemsObj.items : [],
+      tableItems: [],
+      hasIllegal: !!itemsObj.hasIllegal,
+      sharpItem,
+      selectedItem: null,
+      pocketsEmptiedCount: 0,
+      hiddenUnknown: null,
+      hiddenUnknownRevealed: false,
+    };
     if (portraitMood) portraitMood.textContent="Person Search";
     if (portraitDesc) portraitDesc.textContent="Give clear instructions. If you find something, ask them to take it out.";
     showPersonSearch();
@@ -1577,6 +1650,36 @@ function nextHint(){
     if (intent==="ps_position_arms" || intent==="ps_position_legs") intent = "ps_position";
     if (intent==="ps_search_areas") intent = "ps_explain_waist";
     if (intent==="ps_leg_on_knee") intent = "ps_leg_on_knee";
+
+    // Manual item questioning flow:
+    // - Student taps an item pill to select it.
+    // - Student types "What is this?" (or similar).
+    // - Visitor answers what it is + excuse why it was still in pockets/bag.
+    if (intent==="unknown" && isAskWhatIsQuestion(raw)){
+      const it = state.ps?.selectedItem;
+      if (it){
+        enqueueVisitor(psItemExplanation(it));
+      } else {
+        enqueueVisitor("Which item do you mean? Please point to it.");
+      }
+      updateHint();
+      return;
+    }
+
+    // Empty pockets / place items on table
+    if (intent==="ps_empty_pockets" || intent==="ps_items_table"){
+      psEmptyPockets();
+      updateHint();
+      return;
+    }
+
+    // If explicitly asked to remove ALL clothes
+    if (intent==="ps_remove_all_clothes"){
+      // We comply (as requested for the training), but keep it professional.
+      enqueueVisitor("Okay. If you require it, I will remove all clothing.");
+      updateHint();
+      return;
+    }
 
     if (intent==="ps_ask_sharp"){
       state.flags.psSharpAsked = true;

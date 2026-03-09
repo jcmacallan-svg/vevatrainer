@@ -753,6 +753,16 @@ body.hasPopup #portraitRow{display:none !important;}
 .psItemPill:hover{ border-color: rgba(255,255,255,0.28); background: rgba(255,255,255,0.06); }
 .psItemPill:active{ transform: translateY(1px); }
 .psItemPill:focus{ outline: none; box-shadow: 0 0 0 3px rgba(91, 160, 255, 0.18); }
+.psItemPill.selected{
+  border-color: rgba(91, 160, 255, 0.55);
+  background: rgba(91, 160, 255, 0.14);
+}
+
+.psPillsEmpty{
+  font-size: 12px;
+  color: var(--muted);
+  padding: 6px 2px;
+}
 
 
 /* Tabletop modal visibility */
