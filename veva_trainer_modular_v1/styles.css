@@ -735,7 +735,7 @@ body.hasPopup #portraitRow{display:none !important;}
 #psCards{ display:none !important; }
 
 /* Person Search: clickable item pills */
-.psPillsWrap{ margin-top: 10px; }
+.psPillsWrap{ margin-top: 18px; }
 .psPillsHelp{ font-size:12px; color:var(--muted); margin: 0 0 8px; }
 .psPills{ display:flex; flex-wrap:wrap; gap:8px; }
 .psItemPill{
@@ -769,3 +769,11 @@ body.hasPopup #portraitRow{display:none !important;}
 .psTableModal{ display:none; }
 .psTableModal.open{ display:flex; }
 .psTableModal[hidden]{ display:none !important; }
+
+/* Person Search: remove the "Click to enlarge" tabletop preview area */
+.psTableThumbWrap{ display:none !important; }
+#psTableThumbWrap{ display:none !important; }
+/* If any modal/backdrop is injected by older patches, keep it hidden too */
+.psModal{ display:none !important; }
+#psTableModal{ display:none !important; }
+#vevaTabletopBackdrop{ display:none !important; }
