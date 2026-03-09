@@ -86,6 +86,7 @@
   const psOutfit = $("#psOutfit");
   const psCards = $("#psCards");
   const psRiskChip = $("#psRiskChip");
+  const psItemsText = $("#psItemsText");
 
   const signInPanel = $("#signInPanel");
   const si_name = $("#si_name");
@@ -787,12 +788,84 @@ function showSignIn(){
         `<div class="psLine">You see the following items on the table: <b>${itemsText}</b>.</div>`;
     }
 
-    // Hide/remove legacy item cards under the tabletop
+    // Interactive item pills (tap to ask what it is / why they have it)
+    if (psItemsText){
+      psItemsText.innerHTML = "";
+      const wrap = document.createElement("div");
+      wrap.className = "psPillsWrap";
+
+      const help = document.createElement("div");
+      help.className = "psPillsHelp";
+      help.textContent = "Tap an item to ask the visitor what it is and why they have it.";
+      wrap.appendChild(help);
+
+      const pills = document.createElement("div");
+      pills.className = "psPills";
+
+      const srcItems = Array.isArray(ps.items) ? ps.items.slice(0,6) : [];
+      srcItems
+        .filter(it => it && it.name && !(/twelve\s*gun/i).test(String(it.name)))
+        .forEach((it)=>{
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "psItemPill";
+          btn.textContent = String(it.name);
+          btn.setAttribute("aria-label", `Ask about ${it.name}`);
+          btn.addEventListener("click", ()=>{
+            // Student asks
+            addMsg("student", `What is this: ${it.name}?`);
+            // Visitor answers
+            enqueueVisitor(psItemExplanation(it));
+          });
+          pills.appendChild(btn);
+        });
+
+      wrap.appendChild(pills);
+      psItemsText.appendChild(wrap);
+    }
+
+    // Keep legacy item cards hidden (we use tabletop + pills)
     if (psCards){
       psCards.innerHTML = "";
       psCards.style.display = "none";
       psCards.hidden = true;
     }
+  }
+
+  function psItemExplanation(item){
+    const name = String(item?.name || "this");
+    const where = item?.where ? String(item.where) : "my pocket";
+    const kind = String(item?.kind || "legal");
+    const band = bandFromMood();
+
+    // Reasons can vary from "forgot" to "didn't know I had to empty my pockets".
+    // Keep it short: it should feel like a natural visitor reply.
+    const legalReasons = [
+      `It’s my ${name}. I use it all the time — I just forgot it was still in ${where}.`,
+      `That’s just my ${name}. Sorry — I didn’t realize I had to empty my pockets.`,
+      `My ${name}. I carry it for work/school — I should’ve taken it out of ${where} first.`,
+      `It’s a ${name}. I honestly forgot it was in ${where}.`,
+      `A ${name}. I didn’t think about it — I can put it in the tray.`
+    ];
+
+    const illegalReasons = [
+      `Uh… that’s a ${name}. I forgot it was in ${where} — I didn’t mean to bring it in.`,
+      `It’s a ${name}. I didn’t know that wasn’t allowed — I should’ve emptied my pockets.`,
+      `A ${name}. I must’ve left it in ${where} by accident — sorry.`,
+      `That’s a ${name}… I wasn’t thinking. I can hand it over.`
+    ];
+
+    const evasive = [
+      `It’s… a ${name}. I didn’t think it was a big deal — it was in ${where}.`,
+      `A ${name}. Can we just get this over with?`,
+      `It’s a ${name}. I forgot, alright?`
+    ];
+
+    // Pick a tone that matches the current mood band.
+    let pool = (kind === "illegal") ? illegalReasons : legalReasons;
+    if (band === "evasive") pool = evasive.concat(pool);
+    if (band === "cautious") pool = pool.concat([`It’s a ${name}. I didn’t mean to cause any issues — it was in ${where}.`]);
+    return pick(pool);
   }
 
   // Hints
