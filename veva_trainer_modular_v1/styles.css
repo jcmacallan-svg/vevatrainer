@@ -735,7 +735,7 @@ body.hasPopup #portraitRow{display:none !important;}
 #psCards{ display:none !important; }
 
 /* Person Search: clickable item pills */
-.psPillsWrap{ margin-top: 18px; }
+.psPillsWrap{ margin-top: 10px; }
 .psPillsHelp{ font-size:12px; color:var(--muted); margin: 0 0 8px; }
 .psPills{ display:flex; flex-wrap:wrap; gap:8px; }
 .psItemPill{
@@ -753,16 +753,6 @@ body.hasPopup #portraitRow{display:none !important;}
 .psItemPill:hover{ border-color: rgba(255,255,255,0.28); background: rgba(255,255,255,0.06); }
 .psItemPill:active{ transform: translateY(1px); }
 .psItemPill:focus{ outline: none; box-shadow: 0 0 0 3px rgba(91, 160, 255, 0.18); }
-.psItemPill.selected{
-  border-color: rgba(91, 160, 255, 0.55);
-  background: rgba(91, 160, 255, 0.14);
-}
-
-.psPillsEmpty{
-  font-size: 12px;
-  color: var(--muted);
-  padding: 6px 2px;
-}
 
 
 /* Tabletop modal visibility */
@@ -770,10 +760,16 @@ body.hasPopup #portraitRow{display:none !important;}
 .psTableModal.open{ display:flex; }
 .psTableModal[hidden]{ display:none !important; }
 
-/* Person Search: remove the "Click to enlarge" tabletop preview area */
-.psTableThumbWrap{ display:none !important; }
-#psTableThumbWrap{ display:none !important; }
-/* If any modal/backdrop is injected by older patches, keep it hidden too */
-.psModal{ display:none !important; }
-#psTableModal{ display:none !important; }
-#vevaTabletopBackdrop{ display:none !important; }
+
+/* Person Search UI: hide click-to-enlarge tabletop preview */
+.psTableThumbWrap,
+.psTableModal,
+.psTableBackdrop{
+  display: none !important;
+}
+
+/* Person Search pills */
+.psPillsRow{ margin-top: 10px; }
+.psPillsRowLabel{ font-size: 12px; opacity: .75; margin: 6px 0; }
+.psItemPill.isSelected{ outline: 2px solid rgba(255,255,255,.25); }
+.psItemPill--inPocket{ border-style: dashed !important; opacity: .95; }

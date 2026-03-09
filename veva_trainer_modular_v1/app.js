@@ -212,8 +212,8 @@
   const pick = (arr)=> (Array.isArray(arr)&&arr.length) ? arr[Math.floor(Math.random()*arr.length)] : "";
   const randInt = (a,b)=>Math.floor(Math.random()*(b-a+1))+a;
 
-  // Person Search behaviour toggles
-  const PS_UNKNOWN_CHANCE = (CFG.psUnknownChance !== undefined) ? Number(CFG.psUnknownChance) : 0.25; // 0..1
+  let __uid=0;
+  const uid = (p="id")=>`${p}_${++__uid}`;
 
   function normalize(s){
     return String(s||"").toLowerCase().replace(/[^\p{L}\p{N}: ]/gu," ").replace(/\s+/g," ").trim();
@@ -358,14 +358,9 @@
     
     // Person Search: expanded patterns
     if (/\bsharp\b|\bneedle\b|\bknife\b|\bra(z|s)or\b/i.test(n) && /\bdo\s+you\s+have|any\b/i.test(n)) return "ps_ask_sharp";
+    if (/\b(strip|take\s+off\s+all\s+clothes|remove\s+all\s+clothes|remove\s+everything)\b/i.test(n)) return "ps_strip";
     if (/\bempty\s+your\s+pockets\b/i.test(n)) return "ps_empty_pockets";
     if (/\bplace\s+all\s+items\b|\bon\s+the\s+table\b/i.test(n)) return "ps_items_table";
-    if ((/\b(take\s*off|remove|strip)\b/i.test(n)) && (
-          /\ball\s+(clothes|clothing)\b/i.test(n) ||
-          /\beverything\b/i.test(n) ||
-          /\ball\s+your\s+clothing\b/i.test(n) ||
-          /\bfully\s+undress\b/i.test(n)
-        )) return "ps_remove_all_clothes";
     if (/\barmpits\b/i.test(n) && /\bsearch|checking\b|\bam\s+going\s+to\b/i.test(n)) return "ps_explain_armpits";
     if (/\bwaist|waistband|belt\b/i.test(n) && /\bcheck|search|checking\b|\bam\s+checking\b/i.test(n)) return "ps_explain_waist";
     // "Put your leg on my knee" should count as the leg-on-knee instruction
@@ -783,8 +778,8 @@ function showSignIn(){
     const jacketTxt = o.jacket ? "a jacket" : "no jacket";
     const bagTxt = o.bag ? "a bag" : "no bag";
 
-    // Items on table (max 6) and filter out any stray invalid names
-    const rawItems = Array.isArray(ps.tableItems) ? ps.tableItems.slice(0, 6) : [];
+    // Items list (max 6) and filter out any stray invalid names
+    const rawItems = Array.isArray(ps.items) ? ps.items.slice(0, 6) : [];
     const items = rawItems
       .filter(it => it && it.name && !(/twelve\s*gun/i).test(String(it.name)))
       .map(it => String(it.name));
@@ -797,7 +792,7 @@ function showSignIn(){
         `<div class="psLine">You see the following items on the table: <b>${itemsText}</b>.</div>`;
     }
 
-    // Interactive item pills (tap to select an item; student must type the question)
+    // Interactive item pills (tap to select, then type your question)
     if (psItemsText){
       psItemsText.innerHTML = "";
       const wrap = document.createElement("div");
@@ -808,39 +803,47 @@ function showSignIn(){
       help.textContent = "Tap an item to select it, then type your question (e.g., \"What is this?\").";
       wrap.appendChild(help);
 
-      const pills = document.createElement("div");
-      pills.className = "psPills";
+      const makeRow = (label, arr, inPocket)=>{
+        const row = document.createElement("div");
+        row.className = "psPillsRow";
+        const lab = document.createElement("div");
+        lab.className = "psPillsRowLabel";
+        lab.textContent = label;
+        row.appendChild(lab);
 
-      const srcItems = Array.isArray(ps.tableItems) ? ps.tableItems.slice(0,6) : [];
+        const pills = document.createElement("div");
+        pills.className = "psPills";
 
-      if (!srcItems.length){
-        const empty = document.createElement("div");
-        empty.className = "psPillsEmpty";
-        empty.textContent = "No items on the table yet. Ask the visitor to empty their pockets.";
-        pills.appendChild(empty);
-      }
-
-      srcItems
-        .filter(it => it && it.name && !(/twelve\s*gun/i).test(String(it.name)))
-        .forEach((it)=>{
-          const btn = document.createElement("button");
-          btn.type = "button";
-          btn.className = "psItemPill";
-          btn.textContent = String(it.name);
-          btn.setAttribute("aria-label", `Ask about ${it.name}`);
-          btn.addEventListener("click", ()=>{
-            // Select item only (student must type their question)
-            try{ ps.selectedItem = it; }catch{}
-            try{
-              pills.querySelectorAll(".psItemPill").forEach(b=>b.classList.remove("selected"));
-              btn.classList.add("selected");
-            }catch{}
-            try{ textInput?.focus(); }catch{}
+        (arr||[])
+          .filter(it => it && it.name && !(/twelve\s*gun/i).test(String(it.name)))
+          .slice(0, 10)
+          .forEach((it)=>{
+            const btn = document.createElement("button");
+            btn.type = "button";
+            const isSel = (state.ps?.selectedId && it.id === state.ps.selectedId);
+            btn.className = "psItemPill" + (inPocket ? " psItemPill--inPocket" : "") + (isSel ? " isSelected" : "");
+            btn.textContent = String(it.name);
+            btn.setAttribute("aria-pressed", isSel ? "true" : "false");
+            btn.addEventListener("click", ()=>{
+              if (!state.ps) return;
+              state.ps.selectedId = it.id;
+              state.ps.lastFeltId = it.id;
+              renderPS();
+              try{ textInput?.focus(); }catch{}
+            });
+            pills.appendChild(btn);
           });
-          pills.appendChild(btn);
-        });
 
-      wrap.appendChild(pills);
+        row.appendChild(pills);
+        return row;
+      };
+
+      const tableItems = Array.isArray(ps.items) ? ps.items : [];
+      const pocketItems = Array.isArray(ps.pocketItems) ? ps.pocketItems : [];
+
+      if (tableItems.length) wrap.appendChild(makeRow("On the table", tableItems, false));
+      if (pocketItems.length) wrap.appendChild(makeRow("Felt in pockets (not yet removed)", pocketItems, true));
+
       psItemsText.appendChild(wrap);
     }
 
@@ -853,81 +856,218 @@ function showSignIn(){
   }
 
   function psItemExplanation(item){
-    const name = String(item?.name || "this");
+    const displayName = String(item?.name || "this");
+    const actualName  = String(item?.actualName || item?.name || "this");
     const where = item?.where ? String(item.where) : "my pocket";
-    const kind = String(item?.kind || "legal");
-    const band = bandFromMood();
 
-    // Reasons can vary from "forgot" to "didn't know I had to empty my pockets".
-    // Keep it short: it should feel like a natural visitor reply.
-    const legalReasons = [
-      `It’s my ${name}. I use it all the time — I just forgot it was still in ${where}.`,
-      `That’s just my ${name}. Sorry — I didn’t realize I had to empty my pockets.`,
-      `My ${name}. I carry it for work/school — I should’ve taken it out of ${where} first.`,
-      `It’s a ${name}. I honestly forgot it was in ${where}.`,
-      `A ${name}. I didn’t think about it — I can put it in the tray.`
+    const isContraband = (nm)=>/\b(gun|firearm|knife|blade|whisky|vodka|beer|alcohol|joint|weed|cannabis|drugs?)\b/i.test(String(nm||""));
+    const contraband = isContraband(actualName);
+    const unknown = /unknown/i.test(displayName) || (String(item?.kind||"")==="unknown");
+
+    // Non-contraband: just say what it is (no extra justification needed).
+    if (!contraband && !unknown){
+      return `It’s my ${actualName}.`;
+    }
+
+    // Contraband / unknown: include an excuse for why it was still in the pockets.
+    const excuses = [
+      `Sorry — I forgot it was still in ${where}.`,
+      `I didn’t realize I had to empty my pockets.`,
+      `I honestly wasn’t thinking — it must’ve stayed in ${where}.`,
+      `I must have missed it when I emptied my pockets. Sorry.`,
+      `I didn’t mean to bring it in — I forgot it was there.`
     ];
 
-    const illegalReasons = [
-      `Uh… that’s a ${name}. I forgot it was in ${where} — I didn’t mean to bring it in.`,
-      `It’s a ${name}. I didn’t know that wasn’t allowed — I should’ve emptied my pockets.`,
-      `A ${name}. I must’ve left it in ${where} by accident — sorry.`,
-      `That’s a ${name}… I wasn’t thinking. I can hand it over.`
-    ];
+    if (unknown){
+      const filler = [
+        `Uh… it’s a ${actualName}.`,
+        `I think it’s a ${actualName}.`,
+        `It looks like a ${actualName}.`
+      ];
+      return `${pick(filler)} ${pick(excuses)}`;
+    }
 
-    const evasive = [
-      `It’s… a ${name}. I didn’t think it was a big deal — it was in ${where}.`,
-      `A ${name}. Can we just get this over with?`,
-      `It’s a ${name}. I forgot, alright?`
+    // Contraband
+    const openers = [
+      `Uh… that’s a ${actualName}.`,
+      `It’s a ${actualName}.`,
+      `That’s a ${actualName}…`
     ];
-
-    // Pick a tone that matches the current mood band.
-    let pool = (kind === "illegal") ? illegalReasons : legalReasons;
-    if (band === "evasive") pool = evasive.concat(pool);
-    if (band === "cautious") pool = pool.concat([`It’s a ${name}. I didn’t mean to cause any issues — it was in ${where}.`]);
-    return pick(pool);
+    return `${pick(openers)} ${pick(excuses)}`;
   }
 
-  function isAskWhatIsQuestion(raw){
-    const n = normalize(raw||"");
-    if (/\bwhat\s+is\s+(this|that|it)\b/i.test(n)) return true;
-    if (/\bwhat\s+is\s+this\s+item\b/i.test(n)) return true;
-    return false;
+  // --- Person Search: pocket discoveries during pat-down ---
+  function psIsActive(){ return !!state?.ps && state.flowName==="Person Search"; }
+
+  function psFindById(id){
+    const ps = state?.ps;
+    if (!ps || !id) return null;
+    const a = Array.isArray(ps.items) ? ps.items : [];
+    const b = Array.isArray(ps.pocketItems) ? ps.pocketItems : [];
+    return a.find(x=>x?.id===id) || b.find(x=>x?.id===id) || null;
+  }
+
+  function psPickFeltLocation(){
+    return pick(["left pocket","right pocket","jacket pocket","waistband area"]);
+  }
+
+  function psCreatePocketItem(){
+    const location = psPickFeltLocation();
+
+    const benign = [
+      {name:"Phone", actualName:"phone", kind:"legal"},
+      {name:"USB", actualName:"USB stick", kind:"legal"},
+      {name:"Headphones", actualName:"headphones", kind:"legal"},
+      {name:"Keys", actualName:"keys", kind:"legal"},
+      {name:"Wallet", actualName:"wallet", kind:"legal"},
+      {name:"ID", actualName:"ID card", kind:"legal"},
+      {name:"Notebook", actualName:"small notebook", kind:"legal"},
+      {name:"Glasses", actualName:"glasses", kind:"legal"},
+      {name:"Comb", actualName:"comb", kind:"legal"},
+      {name:"Labello", actualName:"lip balm", kind:"legal"},
+      {name:"Cigarette", actualName:"cigarette pack", kind:"legal"}
+    ];
+
+    const contraband = [
+      {name:"Knife", actualName:"knife", kind:"illegal"},
+      {name:"Gun", actualName:"gun", kind:"illegal"},
+      {name:"Whisky", actualName:"small whisky bottle", kind:"illegal"},
+      {name:"Joint", actualName:"joint", kind:"illegal"}
+    ];
+
+    // Chance the felt object is "unknown" to the student.
+    const unknownRoll = Math.random() < 0.35;
+
+    // If scenario already hints at illegal items, slightly increase chance of contraband.
+    const illegalBias = state?.ps?.hasIllegal ? 0.35 : 0.18;
+    const isIllegal = Math.random() < illegalBias;
+
+    const chosen = isIllegal ? pick(contraband) : pick(benign);
+
+    if (unknownRoll){
+      // Display as unknown, but keep an actual name for explanation.
+      return {
+        id: uid("psPocket"),
+        name: "Unknown item",
+        actualName: chosen.actualName || chosen.name,
+        kind: "unknown",
+        where: location,
+        inPocket: true
+      };
+    }
+
+    return {
+      id: uid("psPocket"),
+      name: chosen.name,
+      actualName: chosen.actualName || chosen.name,
+      kind: chosen.kind || "legal",
+      where: location,
+      inPocket: true
+    };
+  }
+
+  function psMaybeFeltDuringWaistSearch(){
+    if (!psIsActive()) return false;
+    const ps = state.ps;
+
+    // Prevent spamming: max 2 "felt" items in pockets at a time.
+    const pocketCount = Array.isArray(ps.pocketItems) ? ps.pocketItems.length : 0;
+    if (pocketCount >= 2) return false;
+
+    // 60% chance you actually feel something.
+    const found = Math.random() < 0.60;
+    if (!found) return false;
+
+    const it = psCreatePocketItem();
+    ps.pocketItems = Array.isArray(ps.pocketItems) ? ps.pocketItems : [];
+    ps.pocketItems.push(it);
+    ps.lastFeltId = it.id;
+    ps.selectedId = it.id;
+
+    enqueueVisitor(`As you pat around my waist, you feel a small object in my ${it.where}.`);
+    renderPS();
+    try{ textInput?.focus(); }catch{}
+    return true;
+  }
+
+  function psTakeOutSelected(){
+    if (!psIsActive()) return false;
+    const ps = state.ps;
+    const id = ps.selectedId || ps.lastFeltId;
+    const idx = (ps.pocketItems||[]).findIndex(x=>x?.id===id);
+    if (idx < 0) return false;
+
+    const it = ps.pocketItems[idx];
+    ps.pocketItems.splice(idx,1);
+    it.inPocket = false;
+    ps.items = Array.isArray(ps.items) ? ps.items : [];
+    ps.items.push(it);
+
+    enqueueVisitor("Okay. I’ll take it out and place it carefully on the table.");
+    renderPS();
+    return true;
   }
 
   function psEmptyPockets(){
-    if (!state?.ps) return;
+    if (!psIsActive()) return false;
     const ps = state.ps;
-
-    ps.pocketsEmptiedCount = Number(ps.pocketsEmptiedCount || 0);
-    ps.tableItems = Array.isArray(ps.tableItems) ? ps.tableItems : [];
     ps.pocketItems = Array.isArray(ps.pocketItems) ? ps.pocketItems : [];
 
-    if (ps.pocketsEmptiedCount === 0){
-      const willHideUnknown = Math.random() < Math.max(0, Math.min(1, PS_UNKNOWN_CHANCE));
-      if (willHideUnknown && !ps.hiddenUnknown){
-        ps.hiddenUnknown = { name:"unknown item", kind:"unknown", where:"my pocket" };
-        ps.hiddenUnknownRevealed = false;
+    // If we already left something behind earlier and the student asks again, reveal it now.
+    if (ps.leftBehindId && !ps.leftBehindResolved){
+      const lbIdx = ps.pocketItems.findIndex(x=>x?.id===ps.leftBehindId);
+      if (lbIdx >= 0){
+        const it = ps.pocketItems[lbIdx];
+        ps.pocketItems.splice(lbIdx,1);
+        it.inPocket = false;
+        ps.items = Array.isArray(ps.items) ? ps.items : [];
+        ps.items.push(it);
+        ps.leftBehindResolved = true;
+        enqueueVisitor("Oh—wait. I missed something. I’ll put this on the table as well.");
       }
-
-      ps.tableItems = ps.tableItems.concat(ps.pocketItems);
-      ps.pocketItems = [];
-
-      ps.pocketsEmptiedCount = 1;
-      renderPS();
-      enqueueVisitor("Okay. I will empty my pockets and put the items on the table.");
-      return;
     }
 
-    if (ps.hiddenUnknown && !ps.hiddenUnknownRevealed){
-      ps.tableItems.push(ps.hiddenUnknown);
-      ps.hiddenUnknownRevealed = true;
-      renderPS();
-      enqueueVisitor("Oh—wait. I missed something. Sorry. Here it is.");
-      return;
+    // First empty-pockets request: chance to leave one unknown item behind.
+    if (!ps.leftBehindId && ps.pocketItems.length){
+      if (Math.random() < 0.25){
+        // Prefer leaving an unknown item; otherwise convert one item to unknown.
+        let leave = ps.pocketItems.find(x=>/unknown/i.test(String(x?.name||"")));
+        if (!leave){
+          leave = ps.pocketItems[ps.pocketItems.length-1];
+          leave.name = "Unknown item";
+          leave.kind = "unknown";
+        }
+        ps.leftBehindId = leave.id;
+      }
     }
 
-    enqueueVisitor("My pockets are empty.");
+    // Move everything except leftBehindId (if set and not resolved).
+    const keepId = (ps.leftBehindId && !ps.leftBehindResolved) ? ps.leftBehindId : null;
+    const toMove = ps.pocketItems.filter(x=>x?.id!==keepId);
+    ps.pocketItems = ps.pocketItems.filter(x=>x?.id===keepId);
+
+    if (toMove.length){
+      ps.items = Array.isArray(ps.items) ? ps.items : [];
+      toMove.forEach(it=>{ it.inPocket=false; ps.items.push(it); });
+      enqueueVisitor("Okay. I’ll empty my pockets and place the items on the table.");
+    } else {
+      enqueueVisitor("Okay. My pockets are empty.");
+    }
+
+    renderPS();
+    return true;
+  }
+
+  function psAnswerSelectedWhatIsThis(){
+    if (!psIsActive()) return false;
+    const ps = state.ps;
+    const it = psFindById(ps.selectedId || ps.lastFeltId);
+    if (!it){
+      enqueueVisitor("Which item do you mean? Please tap an item first.");
+      return true;
+    }
+    enqueueVisitor(psItemExplanation(it));
+    return true;
   }
 
   // Hints
@@ -1439,17 +1579,16 @@ function nextHint(){
     const outfit=V?.makeOutfit?V.makeOutfit():{cap:false,jacket:false,bag:false,style:"casual"};
     const itemsObj=V?.makeItems?V.makeItems():{items:[],hasIllegal:false};
     const sharpItem = pick([null,null,null,"small pocket knife","needle","razor blade"]); // ~40% chance
-    // Items start in pockets; they only appear on the table after the student asks.
     state.ps={
       outfit,
-      pocketItems: Array.isArray(itemsObj.items) ? itemsObj.items : [],
-      tableItems: [],
-      hasIllegal: !!itemsObj.hasIllegal,
-      sharpItem,
-      selectedItem: null,
-      pocketsEmptiedCount: 0,
-      hiddenUnknown: null,
-      hiddenUnknownRevealed: false,
+      items:(itemsObj.items||[]).map((it)=>({...(it||{}), id:(it&&it.id)||uid("psItem"), inPocket:false})),
+      pocketItems:[],
+      lastFeltId:null,
+      selectedId:null,
+      leftBehindId:null,
+      leftBehindResolved:false,
+      hasIllegal:itemsObj.hasIllegal,
+      sharpItem
     };
     if (portraitMood) portraitMood.textContent="Person Search";
     if (portraitDesc) portraitDesc.textContent="Give clear instructions. If you find something, ask them to take it out.";
@@ -1651,36 +1790,6 @@ function nextHint(){
     if (intent==="ps_search_areas") intent = "ps_explain_waist";
     if (intent==="ps_leg_on_knee") intent = "ps_leg_on_knee";
 
-    // Manual item questioning flow:
-    // - Student taps an item pill to select it.
-    // - Student types "What is this?" (or similar).
-    // - Visitor answers what it is + excuse why it was still in pockets/bag.
-    if (intent==="unknown" && isAskWhatIsQuestion(raw)){
-      const it = state.ps?.selectedItem;
-      if (it){
-        enqueueVisitor(psItemExplanation(it));
-      } else {
-        enqueueVisitor("Which item do you mean? Please point to it.");
-      }
-      updateHint();
-      return;
-    }
-
-    // Empty pockets / place items on table
-    if (intent==="ps_empty_pockets" || intent==="ps_items_table"){
-      psEmptyPockets();
-      updateHint();
-      return;
-    }
-
-    // If explicitly asked to remove ALL clothes
-    if (intent==="ps_remove_all_clothes"){
-      // We comply (as requested for the training), but keep it professional.
-      enqueueVisitor("Okay. If you require it, I will remove all clothing.");
-      updateHint();
-      return;
-    }
-
     if (intent==="ps_ask_sharp"){
       state.flags.psSharpAsked = true;
       updateChecklist();
@@ -1711,6 +1820,24 @@ function nextHint(){
       return;
     }
 
+    // Pocket / clothing instructions
+    if (intent==="ps_strip"){
+      state.flags.psStrip = true;
+      updateChecklist();
+      enqueueVisitor("Okay… I will remove all my clothes as requested.");
+      updateHint();
+      return;
+    }
+
+    if (intent==="ps_empty_pockets" || intent==="ps_items_table"){
+      state.flags.psEmptyPockets = true;
+      updateChecklist();
+      try{ psEmptyPockets(); }catch(e){ enqueueVisitor("Okay."); }
+      updateHint();
+      return;
+    }
+
+
     // Explain where you will search (must mention at least armpits + waistband/private)
     if (intent==="ps_explain_armpits"){
       state.flags.psExplainArmpits = true;
@@ -1723,6 +1850,8 @@ function nextHint(){
       state.flags.psExplainWaist = true;
       updateChecklist();
       enqueueVisitor("Okay.");
+      // When the student announces they will search around the waist, there is a chance you actually feel an item.
+      try{ psMaybeFeltDuringWaistSearch(); }catch(e){}
       updateHint();
       return;
     }
@@ -1754,6 +1883,22 @@ function nextHint(){
 
       updateHint();
       return;
+    }
+
+
+    // Free-form questions during Person Search (student must type it themselves)
+    if (state.flowName==="Person Search" && intent==="unknown"){
+      const n = normalize(raw||"");
+      if (/\bwhat\s+is\s+this\b|\bwhat\'s\s+this\b|\bwhat\s+is\s+that\b/i.test(n)){
+        try{ psAnswerSelectedWhatIsThis(); }catch(e){ enqueueVisitor("Which item do you mean?"); }
+        updateHint();
+        return;
+      }
+
+      if (/\b(take\s+it\s+out|remove\s+it|pull\s+it\s+out|take\s+that\s+out|remove\s+that)\b/i.test(n) || (/\b(place|put|set)\b/i.test(n) && /\b(on|in)\b/i.test(n) && /\btable|tray\b/i.test(n))){
+        const ok = (function(){ try{ return psTakeOutSelected(); }catch(e){ return false; } })();
+        if (ok){ updateHint(); return; }
+      }
     }
 
     if (intent==="ps_clear" || intent==="ps_resolve" || intent==="go_sign_in"){
