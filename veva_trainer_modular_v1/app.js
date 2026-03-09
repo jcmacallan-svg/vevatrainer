@@ -152,6 +152,7 @@
     ps_remove: $("#cl_ps_remove"),
     ps_position: $("#cl_ps_position"),
     ps_cleared: $("#cl_ps_cleared"),
+    ps_react: $("#cl_ps_react"),
 
     // Sign-in
     si_signed: $("#cl_si_signed"),
@@ -337,6 +338,15 @@
 
   function detectIntent(raw){
     const n = normalize(raw);
+
+    // Context-aware Person Search shortcuts (avoid gate intents stealing PS commands)
+    if (state?.flowName === "Person Search"){
+      if (/\bwhat\s+(is|'s)\s+(this|that)\b/i.test(n)) return "ps_what_is_this";
+      if (/\b(i\s*(felt|feel)\s+something|you\s+have\s+something)\b/i.test(n) && /\b(pocket|pockets|waist|waistband|belt)\b/i.test(n)) return "ps_force_felt";
+      if (/\b(take\s+(it|that)\s+out|remove\s+(it|that)|pull\s+(it|that)\s+out)\b/i.test(n) || ((/\b(place|put|set|lay)\b/i.test(n)) && /\b(table|tray)\b/i.test(n))) return "ps_take_out";
+      if (/(\bdeny\b|\brefuse\b)[^.]{0,40}\b(entry|access)\b|\baccess\s+denied\b|\byou\s+cannot\s+enter\b/i.test(n)) return "ps_deny_entry";
+      if (/\bwarning\b|\bthis\s+is\s+your\s+warning\b|\bnext\s+time\b|\bi\s+will\s+warn\b/i.test(n)) return "ps_warn_entry";
+    }
     // Press for answer / ultimatum (used when visitor is evasive)
     if (/\b(please\s+answer|answer\s+(the\s+)?question|answer\s+directly|i\s+need\s+an\s+answer|i\s+need\s+a\s+clear\s+answer|stop\s+avoiding|don\'?t\s+avoid|cooperate|non\-?cooperative|if\s+you\s+don\'?t\s+cooperate|otherwise\s+entry\s+will\s+be\s+denied|i\s+will\s+deny\s+(your\s+)?entry|you\s+must\s+answer)\b/i.test(n)) return "press_for_answer";
     // Priority disambiguation for 5W appointment questions
@@ -974,9 +984,12 @@ function showSignIn(){
     const pocketCount = Array.isArray(ps.pocketItems) ? ps.pocketItems.length : 0;
     if (pocketCount >= 2) return false;
 
-    // 60% chance you actually feel something.
-    const found = Math.random() < 0.60;
-    if (!found) return false;
+    // 75% chance you actually feel something.
+    const found = Math.random() < 0.75;
+    if (!found){
+      enqueueVisitor("I don’t think there’s anything there.");
+      return false;
+    }
 
     const it = psCreatePocketItem();
     ps.pocketItems = Array.isArray(ps.pocketItems) ? ps.pocketItems : [];
@@ -1002,8 +1015,13 @@ function showSignIn(){
     it.inPocket = false;
     ps.items = Array.isArray(ps.items) ? ps.items : [];
     ps.items.push(it);
+    ps.lastFoundOnTableId = it.id;
 
-    enqueueVisitor("Okay. I’ll take it out and place it carefully on the table.");
+    const contraband = (String(it.kind)==="illegal") || /\b(gun|firearm|knife|blade|whisky|vodka|beer|alcohol|joint|weed|cannabis|drugs?)\b/i.test(String(it.actualName||it.name||""));
+    const unknown = (String(it.kind)==="unknown") || /unknown/i.test(String(it.name||""));
+    enqueueVisitor((contraband || unknown)
+      ? "Okay… sorry. I’ll take it out and place it carefully on the table."
+      : "Okay. I’ll take it out and place it carefully on the table.");
     renderPS();
     return true;
   }
@@ -1049,6 +1067,7 @@ function showSignIn(){
     if (toMove.length){
       ps.items = Array.isArray(ps.items) ? ps.items : [];
       toMove.forEach(it=>{ it.inPocket=false; ps.items.push(it); });
+      ps.lastFoundOnTableId = toMove[toMove.length-1].id;
       enqueueVisitor("Okay. I’ll empty my pockets and place the items on the table.");
     } else {
       enqueueVisitor("Okay. My pockets are empty.");
@@ -1133,7 +1152,7 @@ function showSignIn(){
 
     // missed marking: Gate keys after supervisor contact / move to PS / explicit lock
     const missableGate = new Set(["gate_name","gate_purpose","gate_appt","gate_who","gate_time","gate_about","gate_where","gate_id","gate_supervisor","gate_search","gate_rules"]);
-    const missablePS = new Set(["ps_sharp","ps_remove","ps_position","ps_cleared"]);
+    const missablePS = new Set(["ps_sharp","ps_remove","ps_position","ps_react","ps_cleared"]);
     const missableSI = new Set(["si_signed","si_issued","si_pass_no","si_visible","si_show","si_return","si_alarm","si_closes"]);
 
     const gateMiss = !!fl.sentToPersonSearch;
@@ -1184,6 +1203,7 @@ function showSignIn(){
       ps_sharp: !!fl.psSharpAsked,
       ps_remove: (!needsOuter) || !!fl.psRemoveOuter,
       ps_position: !!fl.psPositioned,
+      ps_react: !!fl.psReactedFound,
       ps_cleared: !!fl.psCleared
     };
   }
@@ -1208,6 +1228,7 @@ function showSignIn(){
       ps_sharp: 'Example: "Do you have any sharp objects on you?"',
       ps_remove: 'Example: "Please remove your jacket and headgear."',
       ps_position: 'Example: "Spread your arms and legs."',
+      ps_react: 'Example: "This item is not allowed. I have to deny your entry." (or: "This is a warning.")',
       ps_cleared: 'Example: "I\'ve checked everything—you\'re OK. Clear to proceed."',
       si_signed: 'Example: "Please sign here."',
       si_pass_no: 'Example: "Your pass number is VP-1234."',
@@ -1452,6 +1473,7 @@ function updateChecklist(){
     // Only required if the visitor is actually wearing outerwear/headgear.
     setChecklistDone(checklistEls.ps_remove, (!needsOuter) || !!fl.psRemoveOuter, "ps_remove");
     setChecklistDone(checklistEls.ps_position, !!fl.psPositioned, "ps_position");
+    setChecklistDone(checklistEls.ps_react, !!fl.psReactedFound, "ps_react");
     setChecklistDone(checklistEls.ps_cleared, !!fl.psCleared, "ps_cleared");
 
     setChecklistDone(checklistEls.si_signed, !!fl.siSigned, "si_signed");
@@ -1885,6 +1907,74 @@ function nextHint(){
       return;
     }
 
+
+
+    // Found-item interactions (explicit intents)
+    if (state.flowName==="Person Search" && intent==="ps_force_felt"){
+      // Force a "felt something" discovery (useful when the student verbalizes feeling an object)
+      try{
+        if (psIsActive()){
+          const ps = state.ps;
+          const pocketCount = Array.isArray(ps.pocketItems) ? ps.pocketItems.length : 0;
+          if (pocketCount < 2){
+            const it = psCreatePocketItem();
+            ps.pocketItems = Array.isArray(ps.pocketItems) ? ps.pocketItems : [];
+            ps.pocketItems.push(it);
+            ps.lastFeltId = it.id;
+            ps.selectedId = it.id;
+            enqueueVisitor(`You feel a small object in my ${it.where}.`);
+            renderPS();
+            try{ textInput?.focus(); }catch{}
+          } else {
+            enqueueVisitor("You already felt items in my pockets. Please deal with those first.");
+          }
+        }
+      }catch(e){ enqueueVisitor("Okay."); }
+      updateHint();
+      return;
+    }
+
+    if (state.flowName==="Person Search" && intent==="ps_what_is_this"){
+      try{ psAnswerSelectedWhatIsThis(); }catch(e){ enqueueVisitor("Which item do you mean? Please tap an item first."); }
+      updateHint();
+      return;
+    }
+
+    if (state.flowName==="Person Search" && intent==="ps_take_out"){
+      const ok = (function(){ try{ return psTakeOutSelected(); }catch(e){ return false; } })();
+      if (!ok){
+        enqueueVisitor("Which item do you mean? Please tap the item first.");
+      }
+      updateHint();
+      return;
+    }
+
+    if (state.flowName==="Person Search" && (intent==="ps_warn_entry" || intent==="ps_deny_entry")){
+      state.flags = state.flags || {};
+      const fl = state.flags;
+      fl.psReactedFound = true;
+
+      // Try to base the visitor reaction on the currently selected or last found item.
+      let it = null;
+      try{
+        const ps = state.ps || {};
+        it = psFindById(ps.selectedId || ps.lastFeltId || ps.lastFoundOnTableId);
+      }catch(e){}
+
+      if (intent==="ps_deny_entry"){
+        fl.psDeniedEntry = true;
+        enqueueVisitor(it && (String(it.kind)==="illegal" || /unknown/i.test(String(it.name||"")))
+          ? "Understood… I’m sorry. I’ll leave."
+          : "Okay. I understand.");
+      } else {
+        fl.psWarnedEntry = true;
+        enqueueVisitor("Okay. I understand.");
+      }
+
+      updateChecklist();
+      updateHint();
+      return;
+    }
 
     // Free-form questions during Person Search (student must type it themselves)
     if (state.flowName==="Person Search" && intent==="unknown"){
