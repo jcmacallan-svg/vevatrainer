@@ -346,6 +346,10 @@
       if (/\b(take\s+(it|that)\s+out|remove\s+(it|that)|pull\s+(it|that)\s+out)\b/i.test(n) || ((/\b(place|put|set|lay)\b/i.test(n)) && /\b(table|tray)\b/i.test(n))) return "ps_take_out";
       if (/(\bdeny\b|\brefuse\b)[^.]{0,40}\b(entry|access)\b|\baccess\s+denied\b|\byou\s+cannot\s+enter\b/i.test(n)) return "ps_deny_entry";
       if (/\bwarning\b|\bthis\s+is\s+your\s+warning\b|\bnext\s+time\b|\bi\s+will\s+warn\b/i.test(n)) return "ps_warn_entry";
+// Confiscation / taking items (esp. contraband)
+if (/\b(confiscate|confiscating)\b/i.test(n) || ((/\b(i\s*'?m\s+going\s+to|i\s+will)\b/i.test(n)) && /\b(take|keep|hold)\b/i.test(n) && /\b(this|that|it)\b/i.test(n))) return "ps_confiscate";
+// Ask about items in pockets (can trigger a declared item)
+if (/\b(do\s+you\s+have|have\s+you\s+got|are\s+you\s+carrying|anything)\b/i.test(n) && /\b(pocket|pockets)\b/i.test(n)) return "ps_ask_pockets";
     }
     // Press for answer / ultimatum (used when visitor is evasive)
     if (/\b(please\s+answer|answer\s+(the\s+)?question|answer\s+directly|i\s+need\s+an\s+answer|i\s+need\s+a\s+clear\s+answer|stop\s+avoiding|don\'?t\s+avoid|cooperate|non\-?cooperative|if\s+you\s+don\'?t\s+cooperate|otherwise\s+entry\s+will\s+be\s+denied|i\s+will\s+deny\s+(your\s+)?entry|you\s+must\s+answer)\b/i.test(n)) return "press_for_answer";
@@ -853,6 +857,8 @@ function showSignIn(){
 
       if (tableItems.length) wrap.appendChild(makeRow("On the table", tableItems, false));
       if (pocketItems.length) wrap.appendChild(makeRow("Felt in pockets (not yet removed)", pocketItems, true));
+      const confiscated = Array.isArray(ps.confiscated) ? ps.confiscated : [];
+      if (confiscated.length) wrap.appendChild(makeRow("Confiscated", confiscated, false));
 
       psItemsText.appendChild(wrap);
     }
@@ -872,7 +878,7 @@ function showSignIn(){
 
     const isContraband = (nm)=>/\b(gun|firearm|knife|blade|whisky|vodka|beer|alcohol|joint|weed|cannabis|drugs?)\b/i.test(String(nm||""));
     const contraband = isContraband(actualName);
-    const unknown = /unknown/i.test(displayName) || (String(item?.kind||"")==="unknown");
+    const unknown = !!item?.wasUnknown || /unknown/i.test(displayName) || (String(item?.kind||"").toLowerCase()==="unknown");
 
     // Non-contraband: just say what it is (no extra justification needed).
     if (!contraband && !unknown){
@@ -1026,6 +1032,79 @@ function showSignIn(){
     return true;
   }
 
+function psIsContraband(it){
+  if (!it) return false;
+  const name = String(it.actualName || it.name || "").toLowerCase();
+  const kind = String(it.kind || "").toLowerCase();
+  if (kind === "illegal") return true;
+  return /\b(gun|firearm|pistol|knife|blade|razor|ammo|whisky|vodka|beer|alcohol|joint|weed|cannabis|drug|drugs|cocaine|mdma|xtc)\b/i.test(name);
+}
+
+function psRevealUnknown(it){
+  if (!it) return;
+  const isUnknown = /unknown/i.test(String(it.name||"")) || String(it.kind||"").toLowerCase()==="unknown";
+  if (!isUnknown) return;
+
+  const actual = String(it.actualName || "item").trim();
+  const display = actual
+    .split(/[\s\-]+/g)
+    .filter(Boolean)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+
+  it.wasUnknown = true;
+  it.name = display || "Item";
+  it.kind = psIsContraband(it) ? "illegal" : "legal";
+}
+
+function psRemoveItemFromLists(id){
+  const ps = state.ps || {};
+  ps.items = Array.isArray(ps.items) ? ps.items : [];
+  ps.pocketItems = Array.isArray(ps.pocketItems) ? ps.pocketItems : [];
+  let it = null;
+
+  const a = ps.items.findIndex(x=>x?.id===id);
+  if (a>=0){ it = ps.items[a]; ps.items.splice(a,1); }
+
+  if (!it){
+    const b = ps.pocketItems.findIndex(x=>x?.id===id);
+    if (b>=0){ it = ps.pocketItems[b]; ps.pocketItems.splice(b,1); }
+  }
+  return it;
+}
+
+function psConfiscateSelected(){
+  if (!psIsActive()) return false;
+  const ps = state.ps || {};
+  const id = ps.selectedId || ps.lastFeltId || ps.lastFoundOnTableId;
+  const it = psRemoveItemFromLists(id);
+  if (!it) return false;
+
+  ps.confiscated = Array.isArray(ps.confiscated) ? ps.confiscated : [];
+
+  // If it's unknown, reveal it before confiscation so the student sees what it was.
+  psRevealUnknown(it);
+
+  ps.confiscated.push(it);
+  ps.selectedId = null;
+
+  const contraband = psIsContraband(it) || !!it.wasUnknown;
+
+  if (contraband){
+    enqueueVisitor(Math.random() < 0.55
+      ? "Okay… I understand. You can confiscate it. I won’t get it back today."
+      : "Understood. You can take it. I will leave it here.");
+  } else {
+    enqueueVisitor(Math.random() < 0.65
+      ? "Okay. I understand. I will get it back at the end of my visit."
+      : "Understood. I will keep it here.");
+  }
+
+  renderPS();
+  return true;
+}
+
+
   function psEmptyPockets(){
     if (!psIsActive()) return false;
     const ps = state.ps;
@@ -1078,16 +1157,22 @@ function showSignIn(){
   }
 
   function psAnswerSelectedWhatIsThis(){
-    if (!psIsActive()) return false;
-    const ps = state.ps;
-    const it = psFindById(ps.selectedId || ps.lastFeltId);
-    if (!it){
-      enqueueVisitor("Which item do you mean? Please tap an item first.");
-      return true;
-    }
-    enqueueVisitor(psItemExplanation(it));
+  if (!psIsActive()) return false;
+  const ps = state.ps;
+  const it = psFindById(ps.selectedId || ps.lastFeltId || ps.lastFoundOnTableId);
+  if (!it){
+    enqueueVisitor("Which item do you mean? Please tap an item first.");
     return true;
   }
+
+  // If it was an unknown item, reveal its identity the first time the student asks.
+  try{ psRevealUnknown(it); }catch(e){}
+
+  enqueueVisitor(psItemExplanation(it));
+  renderPS();
+  return true;
+}
+
 
   // Hints
   function shouldHints(){ return (session.difficulty||"standard")!=="advanced"; }
@@ -1605,6 +1690,7 @@ function nextHint(){
       outfit,
       items:(itemsObj.items||[]).map((it)=>({...(it||{}), id:(it&&it.id)||uid("psItem"), inPocket:false})),
       pocketItems:[],
+      confiscated:[],
       lastFeltId:null,
       selectedId:null,
       leftBehindId:null,
@@ -1813,18 +1899,87 @@ function nextHint(){
     if (intent==="ps_leg_on_knee") intent = "ps_leg_on_knee";
 
     if (intent==="ps_ask_sharp"){
-      state.flags.psSharpAsked = true;
-      updateChecklist();
-      if (state.ps?.sharpItem){
-        enqueueVisitor(`Yes. I have a ${state.ps.sharpItem}.`);
-        enqueueVisitor("Here you go. I can hand it in now.");
-        state.ps.sharpItem = null;
-      } else {
-        enqueueVisitor("No, I don't have any sharp objects on me.");
-      }
-      updateHint();
-      return;
-    }
+  state.flags.psSharpAsked = true;
+  updateChecklist();
+
+  // If the scenario includes a sharp object, make it appear as a selectable pill (still in pocket)
+  const ps = state.ps || {};
+  if (ps?.sharpItem){
+    const rawItem = String(ps.sharpItem);
+    let label = "Sharp object";
+    let actual = rawItem;
+
+    if (/knife/i.test(rawItem)){ label = "Knife"; actual = "knife"; }
+    else if (/razor/i.test(rawItem)){ label = "Razor blade"; actual = "razor blade"; }
+    else if (/needle/i.test(rawItem)){ label = "Needle"; actual = "needle"; }
+
+    const it = {
+      id: uid("psPocket"),
+      name: label,
+      actualName: actual,
+      kind: "illegal",
+      where: psPickFeltLocation(),
+      inPocket: true,
+      declared: true
+    };
+
+    ps.pocketItems = Array.isArray(ps.pocketItems) ? ps.pocketItems : [];
+    ps.pocketItems.push(it);
+    ps.lastFeltId = it.id;
+    ps.selectedId = it.id;
+
+    enqueueVisitor(`Yes. I have a ${rawItem}. It is in my ${it.where}.`);
+    enqueueVisitor("Please tell me what to do with it.");
+    ps.sharpItem = null;
+
+    renderPS();
+    try{ textInput?.focus(); }catch{}
+  } else {
+    enqueueVisitor("No, I don't have any sharp objects on me.");
+  }
+
+  updateHint();
+  return;
+}
+
+
+if (intent==="ps_ask_pockets"){
+  const ps = state.ps || {};
+  ps.pocketItems = Array.isArray(ps.pocketItems) ? ps.pocketItems : [];
+
+  // Don't spam: if there is already something pending in pockets, keep focus on that.
+  if (ps.pocketItems.length){
+    enqueueVisitor("Yes — there is still something in my pockets. Please deal with that first.");
+    renderPS();
+    updateHint();
+    return;
+  }
+
+  // Chance the visitor admits something is in the pockets when asked.
+  const admitChance = ps.hasIllegal ? 0.70 : 0.50;
+  const admits = Math.random() < admitChance;
+
+  if (!admits){
+    enqueueVisitor("No, I don't have anything else in my pockets.");
+    updateHint();
+    return;
+  }
+
+  const it = psCreatePocketItem();
+  it.declared = true;
+  it.inPocket = true;
+
+  ps.pocketItems.push(it);
+  ps.lastFeltId = it.id;
+  ps.selectedId = it.id;
+
+  enqueueVisitor(`Yes. I have something in my ${it.where}.`);
+  enqueueVisitor("Please tell me what you want me to do with it.");
+  renderPS();
+  try{ textInput?.focus(); }catch{}
+  updateHint();
+  return;
+}
 
     if (intent==="ps_remove_outer"){
       state.flags.psRemoveOuter = true;
@@ -1949,6 +2104,20 @@ function nextHint(){
       return;
     }
 
+if (state.flowName==="Person Search" && intent==="ps_confiscate"){
+  const ok = (function(){ try{ return psConfiscateSelected(); }catch(e){ return false; } })();
+  if (!ok){
+    enqueueVisitor("Which item do you want to confiscate? Please tap an item first.");
+  } else {
+    state.flags = state.flags || {};
+    state.flags.psReactedFound = true;
+    state.flags.psConfiscated = true;
+    updateChecklist();
+  }
+  updateHint();
+  return;
+}
+
     if (state.flowName==="Person Search" && (intent==="ps_warn_entry" || intent==="ps_deny_entry")){
       state.flags = state.flags || {};
       const fl = state.flags;
@@ -1988,6 +2157,13 @@ function nextHint(){
       if (/\b(take\s+it\s+out|remove\s+it|pull\s+it\s+out|take\s+that\s+out|remove\s+that)\b/i.test(n) || (/\b(place|put|set)\b/i.test(n) && /\b(on|in)\b/i.test(n) && /\btable|tray\b/i.test(n))){
         const ok = (function(){ try{ return psTakeOutSelected(); }catch(e){ return false; } })();
         if (ok){ updateHint(); return; }
+if (/\b(confiscate|confiscating)\b/i.test(n) || ((/\b(i\s*'?m\s+going\s+to|i\s+will)\b/i.test(n)) && /\b(take|keep|hold)\b/i.test(n) && /\b(this|that|it)\b/i.test(n))){
+  const ok = (function(){ try{ return psConfiscateSelected(); }catch(e){ return false; } })();
+  if (!ok) enqueueVisitor("Which item do you want to confiscate? Please tap an item first.");
+  updateHint();
+  return;
+}
+
       }
     }
 
