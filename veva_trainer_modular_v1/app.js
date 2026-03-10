@@ -1,3 +1,6 @@
+
+  // Helper: pick random element
+  function pickArr(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 // app.js (core modular engine) - see README for overview
 // NOTE: This is a full working core. Keep patches modular; extend there first.
 
@@ -133,62 +136,39 @@
   }
 
   function showScenePopup(title, sub, imgSrc, ms=3000){
-    // If popup markup is missing (or removed by layout), create it on the fly.
-    if (!scenePopup){
-      try{
-        const wrap = document.createElement("div");
-        wrap.id = "scenePopup";
-        wrap.className = "scenePopup";
-        wrap.hidden = true;
-        wrap.innerHTML = `
-          <div class="scenePopupCard">
-            <img id="scenePopupImg" alt="" />
-            <div class="scenePopupText">
-              <div id="scenePopupTitle" class="scenePopupTitle"></div>
-              <div id="scenePopupSub" class="scenePopupSub"></div>
-            </div>
-          </div>`;
-        document.body.appendChild(wrap);
-        // rebind refs
-        window.scenePopup = wrap;
-      }catch(e){}
+    if (!scenePopup) {
+      // Create popup on the fly if missing
+      scenePopup = document.createElement("div");
+      scenePopup.id = "scenePopup";
+      scenePopup.innerHTML = `<div class="scenePopupCard"><img id="scenePopupImg" alt="visitor"/><div class="scenePopupText"><div id="scenePopupTitle"></div><div id="scenePopupSub"></div></div></div>`;
+      document.body.appendChild(scenePopup);
+      scenePopupTitle = document.getElementById("scenePopupTitle");
+      scenePopupSub = document.getElementById("scenePopupSub");
+      scenePopupImg = document.getElementById("scenePopupImg");
     }
-    // Re-resolve in case we just created it
-    const _popup = document.getElementById("scenePopup");
-    if (!_popup) return;
     // Ensure popup is not inside a hidden panel
-    // Ensure popup is not inside a hidden panel (can happen during transitions)
     try{
-      if (_popup.parentElement && _popup.parentElement !== document.body){
-        // If any ancestor is hidden, move popup to <body>
-        let a = _popup.parentElement, hiddenAncestor = false;
-        while (a && a !== document.body){
-          if (a.hidden) { hiddenAncestor = true; break; }
-          a = a.parentElement;
-        }
-        if (hiddenAncestor) document.body.appendChild(_popup);
+      if (scenePopup.parentElement && scenePopup.parentElement !== document.body){
+        let a = scenePopup.parentElement, hiddenAncestor = false;
+        while (a && a !== document.body){ if (a.hidden) { hiddenAncestor = true; break; } a = a.parentElement; }
+        if (hiddenAncestor) document.body.appendChild(scenePopup);
       }
-      // Also force it visible above everything
-      _popup.style.position = "fixed";
-      _popup.style.inset = "0";
-      _popup.style.zIndex = "9999";
-      _popup.style.display = "";
+      scenePopup.style.position = "fixed";
+      scenePopup.style.inset = "0";
+      scenePopup.style.zIndex = "9999";
     }catch(e){}
     try{ if (scenePopupTimer) clearTimeout(scenePopupTimer); }catch{}
-    const _titleEl=document.getElementById('scenePopupTitle'); if (_titleEl) _titleEl.textContent = title || "";
-    const _subEl=document.getElementById('scenePopupSub'); if (_subEl) _subEl.textContent = sub || "";
-    const _imgEl=document.getElementById('scenePopupImg'); if (_imgEl){
-      _imgEl.src = imgSrc || (state?.visitor?.photoSrc || TRANSPARENT_PX);
+    if (scenePopupTitle) scenePopupTitle.textContent = title || "";
+    if (scenePopupSub) scenePopupSub.textContent = sub || "";
+    if (scenePopupImg){
+      scenePopupImg.src = imgSrc || (state?.visitor?.photoSrc || TRANSPARENT_PX);
     }
-    _popup.hidden = false;
-    scenePopupTimer = setTimeout(()=>{ _popup.hidden = true; }, ms);
+    scenePopup.hidden = false;
+    scenePopupTimer = setTimeout(()=>{ scenePopup.hidden = true; }, ms);
   }
   
-  function pad(n){ return String(n).padStart(2,"0"); }
-
-function startMeetingSequence(source){
-    // Allow re-entry if something interrupted the first attempt
-    if (state.flags.meetingSequenceStarted && state.stage==="si_checkout") return;
+  function startMeetingSequence(source){
+    if (state.flags.meetingSequenceStarted) return;
     state.flags.meetingSequenceStarted = true;
     // Compute a simple timeline: appointment time -> +30..45 minutes
     const appt = getMeetingTime(state);
@@ -198,9 +178,8 @@ function startMeetingSequence(source){
     state.facts.returnTime = back;
     state.facts.minutesGone = minutesGone;
     // Popup: visitor goes to meeting
-    // (Do NOT hide panels before showing popup; popup may live inside a panel in some layouts.)
-    // Hide panels right after popup is shown to keep focus on transition.
     setTimeout(()=>{ try{ hideAllPanels(); }catch(e){} try{ syncPortraitVisibility(); }catch(e){} }, 50);
+    // Popup: visitor goes to meeting
     showScenePopup("Visitor goes to appointment", back ? `Gone for ${minutesGone} minutes (${appt} → ${back})` : "Gone for ${minutesGone} minutes", state.visitor?.photoSrc, 3000);
     // After a few moments, visitor returns
     setTimeout(()=>{
@@ -753,16 +732,13 @@ function getMeetingTime(state){
       typingVisitor = false;
       // remove any pending typing placeholder and render
       addMsg("visitor", t);
-      window.VEVA_LOG?.({type:"visitor", stage: state?.stage, text: t});
+            try{ if (typeof afterShown === "function") afterShown(); }catch(e){}
+window.VEVA_LOG?.({type:"visitor", stage: state?.stage, text: t});
       speakVisitor(t);
       renderChat();
-      try{ if (typeof afterShown === "function") afterShown(); }catch(e){}
-
       updateHint();
     }, delay);
-
-    return delay;
-}
+  }
 
 
   function drain(){
@@ -1763,17 +1739,12 @@ function postToSheets(payload){
   try{
     const url = window.CONFIG?.logEndpoint;
     if (!url) return;
-    const body = JSON.stringify(payload);
-    // Prefer sendBeacon (no CORS preflight, best-effort delivery)
-    if (navigator.sendBeacon){
-      try{
-        const blob = new Blob([body], { type: "text/plain;charset=UTF-8" });
-        navigator.sendBeacon(url, blob);
-        return;
-      }catch(e){}
-    }
-    // Fallback: no-cors POST without custom headers (avoid preflight)
-    fetch(url, { method: "POST", mode: "no-cors", body }).catch(()=>{});
+    fetch(url, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    }).catch(()=>{});
   }catch{}
 }
 
@@ -2504,12 +2475,6 @@ function handleSI(intent, raw){
 
     // Any-questions step after base rules
     if (intent==="si_any_questions"){
-      if (state.flags.siAskedQuestions){
-        // Prevent multiple random question rolls; proceed to meeting.
-        enqueueVisitor(pickArr(["Okay.", "Understood.", "Alright."]), ()=>{ setTimeout(()=>{ state.flags.meetingSequenceStarted=false; startMeetingSequence("si_repeat_any_questions"); }, 2500); });
-        updateHint();
-        return;
-      }
       state.flags.siAskedQuestions = true;
       state.flags.siAwaitingQuestions = false;
       updateChecklist();
@@ -2526,8 +2491,7 @@ function handleSI(intent, raw){
       } else {
         state.flags.siVisitorQuestionAnswered = true;
         state.flags.siVisitorQuestion = "none";
-        enqueueVisitor("No, thank you.", ()=>{ setTimeout(()=>{ state.flags.meetingSequenceStarted=false; startMeetingSequence("si_no_questions"); }, 2500); });
-        // If no questions, visitor goes to appointment right away
+        enqueueVisitor("No, thank you.", ()=>{ setTimeout(()=>startMeetingSequence("si_no_questions"), 2200); });
       }
       updateHint();
       return;
@@ -2535,7 +2499,7 @@ function handleSI(intent, raw){
 
     // Answer route question
     if (intent==="si_follow_colleague"){
-      enqueueVisitor(pickArr(["Okay, I will follow your colleague.", "Alright—lead on.", "Okay."]), ()=>{ setTimeout(()=>{ state.flags.meetingSequenceStarted=false; startMeetingSequence("si_way"); }, 2500); });
+      enqueueVisitor(pickArr(["Okay, I will follow your colleague.", "Alright—lead on.", "Okay."]), ()=>{ setTimeout(()=>startMeetingSequence("si_way"), 2200); });
       state.flags.siVisitorQuestionAnswered = true;
       updateHint();
       updateChecklist();
@@ -2544,7 +2508,7 @@ function handleSI(intent, raw){
 
     // Answer assembly question (green sign with white arrows)
     if (intent==="si_assembly_explain"){
-      enqueueVisitor(pickArr(["Thank you.", "Understood—thank you.", "Okay, thanks.", "Alright, I\'ll go to the assembly area.", "Alright, I\'ll go there."]), ()=>{ setTimeout(()=>{ state.flags.meetingSequenceStarted=false; startMeetingSequence("si_assembly"); }, 2500); });
+      enqueueVisitor(pickArr(["Thank you.", "Understood—thank you.", "Okay, thanks."]), ()=>{ setTimeout(()=>startMeetingSequence("si_assembly"), 2200); });
       state.flags.siVisitorQuestionAnswered = true;
       updateHint();
       updateChecklist();
