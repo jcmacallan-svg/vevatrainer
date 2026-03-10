@@ -168,6 +168,9 @@
       state.flags.siView = "register";
       // Prepare checkout field
       if (si_outTime && !si_outTime.value && back) si_outTime.value = back;
+      // Student should confirm / fill departure time manually
+      state.flags.coOutTimeSet = false;
+      if (si_outTime) si_outTime.classList.add("missing");
       showSignIn();
       updateHint();
     }, 6500);
@@ -211,6 +214,11 @@ const passNo = $("#passNo");
     si_return: $("#cl_si_return"),
     si_alarm: $("#cl_si_alarm"),
     si_closes: $("#cl_si_closes"),
+
+    // Sign-out / return phase
+    co_pass: $("#cl_co_pass"),
+    co_outtime: $("#cl_co_outtime"),
+    co_signed: $("#cl_co_signed"),
   };
 
   // Login
@@ -530,7 +538,8 @@ function getMeetingTime(state){
 
     
     // Robust Gate patterns (always-on)
-    if (/\b(what\s*(is|'s)\s*your\s*name|your\s*name\s*please)\b/i.test(n)) return "ask_name";
+    // Ask name (supports "state your full name" anywhere in the flow)
+    if (/\b(what\s*(is|'s)\s*your\s*name|your\s*name\s*please|please\s+(state|tell|give)\s+(me\s+)?your\s+(full\s+)?name|\b(state|tell|give)\s+(me\s+)?your\s+(full\s+)?name)\b/i.test(n)) return "ask_name";
     if (/\b(surname|last\s*name|family\s*name)\b/i.test(n) && (/\bwhat\b/i.test(n) || /\byour\b/i.test(n))) return "ask_surname";
     if (/\b(purpose|reason)\b.*\b(visit|here)\b|\bwhy\s+are\s+you\s+here\b/i.test(n)) return "ask_purpose";
     if (/\bdo\s+you\s+have\s+an?\s+appointment\b|\bappointment\?\b/i.test(n)) return "ask_appt";
@@ -596,8 +605,8 @@ function getMeetingTime(state){
     // Defensive fallbacks for phrasing variants (local, so checklist keeps working even if VEVA_INTENTS is missing)
     if (/\b(hi|hello|good\s+(morning|afternoon|evening))\b/i.test(n) && /\bhelp\b/i.test(n)) return "greet";
 
-    // Gate: name
-    if (/\b(what\s+is|may\s+i\s+have|can\s+i\s+have)\s+(your\s+)?(full\s+)?name\b/i.test(n)) return "ask_name";
+    // Gate: name (incl. "please state your full name")
+    if (/\b(what\s+is|may\s+i\s+have|can\s+i\s+have|please\s+(state|tell|give)|\b(state|tell|give))\s+(me\s+)?(your\s+)?(full\s+)?name\b/i.test(n)) return "ask_name";
     if (/\bsurname\b/i.test(n) && /\b(what\s+is|your)\b/i.test(n)) return "ask_surname";
 
     // Gate: purpose
@@ -636,6 +645,9 @@ function getMeetingTime(state){
     if (/\b(go\s+to|proceed\s+to|walk\s+to)\b.*\b(sign\s*-?in|sign\s*in\s+office|reception|sign\s*in\s+desk)\b/i.test(n)) return "go_sign_in";
 
 
+
+    // Checkout / sign-out: request return of visitor pass
+    if (/(hand\s+in|give\s+me|return).*?(visitor\s+)?(pass|badge)/i.test(raw) || /(visitor\s+)?(pass|badge).*?(back|return)/i.test(raw)) return "co_return_pass";
     return "unknown";
   }
 
@@ -1444,7 +1456,7 @@ function showPass(){
     // missed marking: Gate keys after supervisor contact / move to PS / explicit lock
     const missableGate = new Set(["gate_name","gate_purpose","gate_appt","gate_who","gate_time","gate_about","gate_where","gate_id","gate_supervisor","gate_search","gate_rules"]);
     const missablePS = new Set(["ps_sharp","ps_remove","ps_position","ps_react","ps_cleared"]);
-    const missableSI = new Set(["si_signed","si_issued","si_pass_no","si_visible","si_show","si_return","si_alarm","si_closes"]);
+    const missableSI = new Set(["si_signed","si_issued","si_pass_no","si_visible","si_show","si_return","si_alarm","si_closes","co_pass","co_outtime","co_signed"]);
 
     const gateMiss = !!fl.sentToPersonSearch;
     const psMiss = !!fl.sentToSignIn;
@@ -1818,6 +1830,12 @@ function updateChecklist(){
     setChecklistDone(checklistEls.si_alarm, !!fl.siRuleAlarmAssembly, "si_alarm");
     setChecklistDone(checklistEls.si_closes, !!fl.siRuleBaseCloses, "si_closes");
 
+    // Sign-out / return phase (only relevant after visitor returns)
+    const inCheckout = !!fl.siCheckoutActive;
+    setChecklistDone(checklistEls.co_pass, !!fl.coPassReturned, "co_pass");
+    setChecklistDone(checklistEls.co_outtime, !!fl.coOutTimeSet, "co_outtime");
+    setChecklistDone(checklistEls.co_signed, !!fl.coSignedOut, "co_signed");
+
     checkAutoEnd();
   }
   
@@ -1828,6 +1846,8 @@ function updateChecklist(){
     // Auto-end only when user reached Sign-in and completed all required items for reached phases
     const fl = state.flags || {};
     if (!state.reachedSI) return;
+    // Do not auto-end until the full return/sign-out step is completed.
+    if (!fl.coSignedOut) return;
 
     const gateOk = !!fl.nameAsked && !!fl.purposeAsked && !!fl.apptAsked && !!fl.whoAsked && !!fl.timeAsked && !!fl.aboutAsked && !!fl.whereAsked
       && !!fl.idChecked && !!fl.reportedSupervisor && !!fl.searchExplained && !!fl.illegalDone && !!fl.sentToPersonSearch;
@@ -1841,13 +1861,16 @@ function updateChecklist(){
     const siOk = !!fl.siSigned && !!fl.siIssued && !!fl.siPassNoStated && !!fl.siRuleVisible && !!fl.siRuleShowOnRequest
       && !!fl.siRuleReturnOnExit && !!fl.siRuleAlarmAssembly && !!fl.siRuleBaseCloses;
 
-    if (gateOk && psOk && siOk){
+    const coOk = !fl.siCheckoutActive || (!!fl.coPassReturned && !!fl.coOutTimeSet && !!fl.coSignedOut);
+
+    if (gateOk && psOk && siOk && coOk){
       state.autoEnded = true;
       // tiny delay so UI updates render before modal appears
       setTimeout(()=>{ try{ endScenario(); } catch(e){} }, 250);
     }
   }
 function nextHint(){
+    if (state.stage==="ended") return "END SCENARIO";
     if (state.stage.startsWith("gate_")){
       const f=state.facts;
       if (!f.name) return 'Example: "What is your full name?"';
@@ -2516,11 +2539,25 @@ function handleSI(intent, raw){
       if (sigBox){ sigBox.classList.remove("sigRun"); void sigBox.offsetWidth; sigBox.classList.add("sigRun"); }
       if (si_sig) si_sig.value = "signed";
 
-      // Mark checklist immediately, then transition the UI to the base-rules screen after the signature animation starts.
+      // Mark checklist immediately.
       updateChecklist();
       enqueueVisitor("Okay.");
 
-      // After the signature is drawn, hide the register first (transition), then show base rules as a separate screen.
+      // If we are in checkout (sign-out), finish the scenario after the signature.
+      if (state.flags.siCheckoutActive){
+        state.flags.coSignedOut = true;
+        // Require out time to be set (if not, highlight field)
+        state.flags.coOutTimeSet = !!(si_outTime && (si_outTime.value||"").trim());
+        if (si_outTime) si_outTime.classList.toggle("missing", !state.flags.coOutTimeSet);
+        updateChecklist();
+        // End state (hint will show END SCENARIO)
+        state.stage = "ended";
+        state.flags.ended = true;
+        updateHint();
+        return;
+      }
+
+      // Entry mode: after the signature is drawn, hide the register first (transition), then show base rules as a separate screen.
       setTimeout(()=>{ try{ state.flags.siView = "blank"; setSignInView("blank"); }catch(e){} }, 3000);
       setTimeout(()=>{ try{ state.flags.siView = "rules"; setSignInView("rules"); }catch(e){} }, 6000);
 updateHint();
@@ -2828,6 +2865,13 @@ btnSend?.addEventListener("click", ()=>{
   si_company?.addEventListener("input", ()=>{
     const missing = !(si_company.value||"").trim();
     si_company.classList.toggle("missing", missing);
+  });
+
+  si_outTime?.addEventListener("input", ()=>{
+    if (!state) return;
+    state.flags.coOutTimeSet = !!(si_outTime.value||"").trim();
+    si_outTime.classList.toggle("missing", !state.flags.coOutTimeSet);
+    updateChecklist();
   });
 
   btnPassReturn?.addEventListener("click", ()=>{
