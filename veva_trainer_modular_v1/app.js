@@ -309,6 +309,78 @@
     return "cautious";
   }
 
+  // mood helpers (used for "Why are you nervous/angry/hurried?" checks)
+  function setMoodKey(key){
+    const found = MOODS.find(m=>m.key===key);
+    if(found) currentMood = found;
+    // Update the top portrait line during the gate approach screen if visible
+    try{
+      if (portraitMood && String(portraitMood.textContent||"").includes("A visitor is approaching")){
+        portraitMood.textContent = `A visitor is approaching the gate. ${currentMood.line}`;
+      }
+    }catch(e){}
+  }
+
+  function maybeCalmDown(){
+    // After a mood-check or de-escalation, the visitor may calm down one step.
+    const k = currentMood?.key || "neutral";
+    const roll = Math.random();
+    if (k==="irritated"){
+      if (roll < 0.55) setMoodKey("mixed");
+    } else if (k==="nervous"){
+      if (roll < 0.55) setMoodKey("mixed");
+    } else if (k==="mixed"){
+      if (roll < 0.45) setMoodKey("neutral");
+    }
+  }
+
+  function moodExplanation(asked){
+    const k = currentMood?.key || "neutral";
+    const a = asked || k;
+
+    const nervous = [
+      "I'm a bit nervous—it's my first time here and I don't want to mess up.",
+      "Honestly, security checks make me a little anxious.",
+      "I'm running a bit late and I'm stressed about my appointment.",
+      "I just had too much coffee and I'm a little on edge."
+    ];
+    const irritated = [
+      "I've been stuck in traffic and I'm already late—it's frustrating.",
+      "I've been sent back and forth and it's getting on my nerves.",
+      "I'm just stressed, okay? I don't mean to be rude.",
+      "I didn't expect this to take so long."
+    ];
+    const hurried = [
+      "I'm in a hurry because I'm late for my appointment.",
+      "I was told to be here at a specific time and I'm cutting it close.",
+      "My contact is waiting for me, so I'm trying to be quick."
+    ];
+    const mixed = [
+      "I'm a bit uneasy—just trying to do everything right.",
+      "It's a new place for me, so I'm a little tense.",
+      "I didn't realize the procedure would be this strict."
+    ];
+    const neutral = [
+      "Nothing specific—I'm fine.",
+      "I'm okay. Just here for my appointment."
+    ];
+    const relaxed = [
+      "I'm fine—just following the procedure.",
+      "All good. I'm here for my appointment."
+    ];
+
+    function pickArr(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+    if (a==="angry" || a==="mad" || a==="irritated" || k==="irritated") return pickArr(irritated);
+    if (a==="hurried" || a==="hurry" || a==="rushed") return pickArr(hurried);
+    if (a==="fidgety") return pickArr(nervous);
+    if (a==="nervous") return pickArr(nervous);
+    if (k==="nervous") return pickArr(nervous);
+    if (k==="mixed") return pickArr(mixed);
+    if (k==="relaxed") return pickArr(relaxed);
+    return pickArr(neutral);
+  }
+
   function getMeetingTime(state){
     if (state.facts.meetingTime && /^\d{2}:\d{2}$/.test(state.facts.meetingTime)) return state.facts.meetingTime;
     const now=new Date(); const dt=new Date(now.getTime()+randInt(15,25)*60*1000);
@@ -365,7 +437,31 @@
       if (/(\bdeny\b|\brefuse\b)[^.]{0,40}\b(entry|access)\b|\baccess\s+denied\b|\byou\s+cannot\s+enter\b/i.test(n)) return "ps_deny_entry";
       if (/\bwarning\b|\bthis\s+is\s+your\s+warning\b|\bnext\s+time\b|\bi\s+will\s+warn\b/i.test(n)) return "ps_warn_entry";
     }
-    // Press for answer / ultimatum (used when visitor is evasive)
+    
+    // Mood check (available anywhere)
+    if (/\bwhy\s+are\s+you\s+(nervous|fidgety|angry|mad|irritated|hurried|rushed)\b/i.test(n) ||
+        /\bwhy\s+are\s+you\s+in\s+a\s+hurry\b/i.test(n) ||
+        /\byou\s+seem\s+(nervous|fidgety|angry|mad|irritated|in\s+a\s+hurry|hurried|rushed)\b/i.test(n) ||
+        /\bare\s+you\s+(nervous|fidgety|angry|mad|irritated|hurried|rushed)\b/i.test(n)){
+      return "ask_mood";
+    }
+
+    // Generic helpful phrases (training feel)
+    if (/\bhow\s+can\s+i\s+help\s+you\b/i.test(n) || /\bwhat\s+can\s+i\s+do\s+for\s+you\b/i.test(n)){
+      return "offer_help";
+    }
+
+    // Follow colleague / escort
+    if (/\bfollow\s+my\s+(colleague|coworker|co\-?worker)\b/i.test(n) || /\bfollow\s+(him|her|them)\b/i.test(n) || /\bcome\s+with\s+my\s+(colleague|coworker|co\-?worker)\b/i.test(n)){
+      return "follow_colleague";
+    }
+
+    // De-escalation / tone control
+    if (/\bcalm\s+down\b|\bwatch\s+your\s+tone\b|\bbehave\b|\b(be|act)\s+normal\b|\blose\s+the\s+attitude\b|\bif\s+you\s+don\'?t\s+calm\s+down\b/i.test(n)){
+      return "deescalate";
+    }
+
+// Press for answer / ultimatum (used when visitor is evasive)
     if (/\b(please\s+answer|answer\s+(the\s+)?question|answer\s+directly|i\s+need\s+an\s+answer|i\s+need\s+a\s+clear\s+answer|stop\s+avoiding|don\'?t\s+avoid|cooperate|non\-?cooperative|if\s+you\s+don\'?t\s+cooperate|otherwise\s+entry\s+will\s+be\s+denied|i\s+will\s+deny\s+(your\s+)?entry|you\s+must\s+answer)\b/i.test(n)) return "press_for_answer";
     // Priority disambiguation for 5W appointment questions
     if (/\b(with\s+who(m)?|appointment\s+with|who\s+are\s+you\s+(meeting|seeing))\b/i.test(n)) return "who_meeting";
@@ -1538,44 +1634,86 @@ function buildScenarioSummary(){
     if (summaryModal) summaryModal.hidden=false;
   }
 
-  // --- Results logging (Google Sheets via Apps Script Web App) ---
-  function logResultsToSheets(sum){
-    try{
-      const url = window.CONFIG?.logEndpoint;
-      if (!url) return;
+  
+// --- Results logging (Google Sheets via Apps Script Web App) ---
+function postToSheets(payload){
+  try{
+    const url = window.CONFIG?.logEndpoint;
+    if (!url) return;
+    fetch(url, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    }).catch(()=>{});
+  }catch{}
+}
 
-      const student = (session?.surname || "").trim();
-      const className = (session?.group || "").trim();
-      const difficulty = (session?.difficulty || "standard").trim();
-      state.runId = state.runId || ("RUN-"+randInt(100000,999999));
+function logScenarioStartToSheets(){
+  try{
+    const student = (session?.surname || "").trim();
+    const className = (session?.group || "").trim();
+    const difficulty = (session?.difficulty || "standard").trim();
+    state.runId = state.runId || ("RUN-"+randInt(100000,999999));
 
-      const payload = {
-        ts: new Date().toISOString(),
-        event: eventName,
-        student,
-        className,
-        runId: state.runId,
-        stats: {
-          difficulty,
-          totalScore: (sum?.score ?? ""),
-          gateScore: (sum?.gateScore ?? ""),
-          personSearchScore: (sum?.psScore==null) ? "" : sum.psScore,
-          signInScore: (sum?.siScore==null) ? "" : sum.siScore,
-          top3: sum?.topFixes || [],
-          build: String(BUILD?.version || ""),
-          userAgent: navigator.userAgent
-        },
+    const payload = {
+      ts: new Date().toISOString(),
+      event: "scenario_start",
+      student,
+      className,
+      runId: state.runId,
+      mood: String(currentMood?.key || ""),
+      stage: String(state?.stage || ""),
+      stats: {
+        difficulty,
+        build: String(BUILD?.version || ""),
         userAgent: navigator.userAgent
-      };
+      }
+    };
+    postToSheets(payload);
+  }catch{}
+}
 
-      fetch(url, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(payload)
-      }).catch(()=>{});
-    }catch{}
-  }
+function logResultsToSheets(sum, eventName){
+  try{
+    sum = sum || buildScenarioSummary();
+    eventName = eventName || "endScenario";
+
+    const student = (session?.surname || "").trim();
+    const className = (session?.group || "").trim();
+    const difficulty = (session?.difficulty || "standard").trim();
+    state.runId = state.runId || ("RUN-"+randInt(100000,999999));
+
+    // Mistakes: all checklist items that are not OK (miss + todo), with labels.
+    const mistakes = (sum?.rows || [])
+      .filter(r=> (r.status==="miss" || r.status==="todo"))
+      .map(r=>({section:r.section, key:r.key, label:r.label, status:r.status}));
+
+    const payload = {
+      ts: new Date().toISOString(),
+      event: eventName,
+      student,
+      className,
+      runId: state.runId,
+      stats: {
+        difficulty,
+        totalScore: (sum?.score ?? ""),
+        gateScore: (sum?.gateScore ?? ""),
+        personSearchScore: (sum?.psScore==null) ? "" : sum.psScore,
+        signInScore: (sum?.siScore==null) ? "" : sum.siScore,
+        done: (sum?.okA ?? ""),
+        missed: (sum?.missA ?? ""),
+        remaining: (sum?.todoA ?? ""),
+        mistakes,
+        top3Fixes: sum?.topFixes || [],
+        build: String(BUILD?.version || ""),
+        userAgent: navigator.userAgent
+      }
+    };
+
+    postToSheets(payload);
+  }catch{}
+}
 
   function endScenarioNow(eventName){
     eventName = eventName || "endScenario";
@@ -1586,7 +1724,7 @@ function buildScenarioSummary(){
     const sum = buildScenarioSummary();
     showScenarioSummary(sum);
     // Fire-and-forget Google Sheets logging
-    try{ logResultsToSheets(sum); }catch{}
+    try{ logResultsToSheets(sum, eventName); }catch{}
   }
 
 function updateChecklist(){
@@ -1726,6 +1864,7 @@ function nextHint(){
       state.stage="gate_start";
       enqueueVisitor(phrase("shared","greeting",state));
       window.VEVA_LOG?.({type:"system", action:"scenario_start", student:session, mood:currentMood.key, evasiveFor:state.evasiveFor});
+      try{ logScenarioStartToSheets(); }catch{}
       updateHint();
     }, 3000);
   }
@@ -2445,6 +2584,57 @@ updateHint();
         updateChecklist();
       }
       enqueueVisitor(`My name is ${state.visitor.first}.`);
+      updateHint();
+      return;
+    }
+
+    if (intent === "ask_mood"){
+      const n = normalize(txt);
+      let asked = null;
+      const mm = n.match(/\b(nervous|fidgety|angry|mad|irritated|hurried|rushed)\b/i);
+      if (mm) asked = mm[1].toLowerCase();
+      if (/in\s+a\s+hurry/i.test(n)) asked = "hurried";
+
+      enqueueVisitor(moodExplanation(asked));
+      // After being confronted / questioned, visitor may calm down slightly.
+      maybeCalmDown();
+      window.VEVA_LOG?.({type:"system", action:"mood_check", asked, mood:currentMood.key});
+      updateHint();
+      return;
+    }
+
+    if (intent === "offer_help"){
+      // Keep it simple: this just kicks off the 5W/H conversation naturally.
+      const curt = (currentMood?.key==="irritated");
+      enqueueVisitor(curt
+        ? "I'm here to see someone. Can we do this quickly?"
+        : "I hope you can. I'm looking for someone—I'm here for an appointment."
+      );
+      window.VEVA_LOG?.({type:"system", action:"offer_help_reply", mood:currentMood.key});
+      updateHint();
+      return;
+    }
+
+    if (intent === "follow_colleague"){
+      const curt = (currentMood?.key==="irritated");
+      enqueueVisitor(curt ? "Fine." : pick(["Okay, I will follow your colleague.", "Okay. Lead on.", "Alright, I'll follow."]));
+      window.VEVA_LOG?.({type:"system", action:"follow_colleague_ack", mood:currentMood.key});
+      updateHint();
+      return;
+    }
+
+    if (intent === "deescalate"){
+      const k = currentMood?.key || "neutral";
+      let reply = "Okay.";
+      if (k==="irritated") reply = pick(["Alright. I'll keep it professional.", "Okay. Sorry.", "Fine. I'll cooperate."]);
+      else if (k==="nervous" || k==="mixed") reply = pick(["Sorry—I'm a bit tense.", "Okay. I'll calm down.", "Understood."]);
+      else reply = pick(["Understood.", "Okay.", "No problem."]);
+      enqueueVisitor(reply);
+      // Stronger calming effect
+      if (k==="irritated") setMoodKey("mixed");
+      else if (k==="nervous") setMoodKey("mixed");
+      else if (k==="mixed") setMoodKey("neutral");
+      window.VEVA_LOG?.({type:"system", action:"deescalate", from:k, to:currentMood.key});
       updateHint();
       return;
     }
