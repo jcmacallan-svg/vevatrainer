@@ -147,19 +147,21 @@
   function startMeetingSequence(source){
     if (state.flags.meetingSequenceStarted) return;
     state.flags.meetingSequenceStarted = true;
-    // Compute a simple timeline: appointment time -> +30 minutes
+    // Compute a simple timeline: appointment time -> +30..45 minutes
     const appt = getMeetingTime(state);
-    const back = addMinutesHHMM(appt, 34) || "";
+    const minutesGone = randInt(30, 45);
+    const back = addMinutesHHMM(appt, minutesGone) || "";
     state.facts = state.facts || {};
     state.facts.returnTime = back;
+    state.facts.minutesGone = minutesGone;
     // Hide panels during transition popups
     hideAllPanels();
     syncPortraitVisibility();
     // Popup: visitor goes to meeting
-    showScenePopup("Visitor goes to appointment", back ? `Gone for 34 minutes (${appt} → ${back})` : "Gone for 34 minutes", state.visitor?.photoSrc, 3000);
+    showScenePopup("Visitor goes to appointment", back ? `Gone for ${minutesGone} minutes (${appt} → ${back})` : "Gone for ${minutesGone} minutes", state.visitor?.photoSrc, 3000);
     // After a few moments, visitor returns
     setTimeout(()=>{
-      showScenePopup("A few moments later…", back ? `The visitor is now back at your sign-in office (${back}). Make sure he hands in his visitor pass (he will ask to hand it in).` : "The visitor is now back at your sign-in office. Make sure he hands in his visitor pass (he will ask to hand it in).", state.visitor?.photoSrc, 3000);
+      showScenePopup(`${minutesGone} minutes later…`, back ? `The visitor is now back at your sign-in office (${back}). Make sure he hands in his visitor pass (he will ask to hand it in).` : "The visitor is now back at your sign-in office. Make sure he hands in his visitor pass (he will ask to hand it in).", state.visitor?.photoSrc, 3000);
     }, 3500);
     setTimeout(()=>{
       // Switch to checkout in sign-in office
@@ -693,7 +695,7 @@ function getMeetingTime(state){
 
   const q=[]; let tmr=null; let approach=null;
   
-    function enqueueVisitor(text){
+    function enqueueVisitor(text, afterShown){
     // Show typing dots for ~2–3s max (fast iteration; length adds but is capped)
     const t = String(text||"");
     typingVisitor = true;
@@ -711,9 +713,13 @@ function getMeetingTime(state){
       window.VEVA_LOG?.({type:"visitor", stage: state?.stage, text: t});
       speakVisitor(t);
       renderChat();
+      try{ if (typeof afterShown === "function") afterShown(); }catch(e){}
+
       updateHint();
     }, delay);
-  }
+
+    return delay;
+}
 
 
   function drain(){
@@ -2466,9 +2472,8 @@ function handleSI(intent, raw){
       } else {
         state.flags.siVisitorQuestionAnswered = true;
         state.flags.siVisitorQuestion = "none";
-        enqueueVisitor("No, thank you.");
+        enqueueVisitor("No, thank you.", ()=>{ setTimeout(()=>{ state.flags.meetingSequenceStarted=false; startMeetingSequence("si_no_questions"); }, 2200); });
         // If no questions, visitor goes to appointment right away
-        setTimeout(()=>startMeetingSequence("si_no_questions"), 600);
       }
       updateHint();
       return;
@@ -2476,9 +2481,8 @@ function handleSI(intent, raw){
 
     // Answer route question
     if (intent==="si_follow_colleague"){
-      enqueueVisitor(pickArr(["Okay, I will follow your colleague.", "Alright—lead on.", "Okay."]));
+      enqueueVisitor(pickArr(["Okay, I will follow your colleague.", "Alright—lead on.", "Okay."]), ()=>{ setTimeout(()=>{ state.flags.meetingSequenceStarted=false; startMeetingSequence("si_way"); }, 2200); });
       state.flags.siVisitorQuestionAnswered = true;
-      setTimeout(()=>startMeetingSequence("si_way"), 600);
       updateHint();
       updateChecklist();
       return;
@@ -2486,9 +2490,8 @@ function handleSI(intent, raw){
 
     // Answer assembly question (green sign with white arrows)
     if (intent==="si_assembly_explain"){
-      enqueueVisitor(pickArr(["Thank you.", "Understood—thank you.", "Okay, thanks."]));
+      enqueueVisitor(pickArr(["Thank you.", "Understood—thank you.", "Okay, thanks.", "Alright, I\'ll go to the assembly area.", "Alright, I\'ll go there."]), ()=>{ setTimeout(()=>{ state.flags.meetingSequenceStarted=false; startMeetingSequence("si_assembly"); }, 2200); });
       state.flags.siVisitorQuestionAnswered = true;
-      setTimeout(()=>startMeetingSequence("si_assembly"), 600);
       updateHint();
       updateChecklist();
       return;
