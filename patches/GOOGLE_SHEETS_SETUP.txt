@@ -1,0 +1,64 @@
+Google Sheets logging (Apps Script Web App)
+
+1) Create a Google Sheet (e.g. "VEVA Trainer Results").
+   Add a sheet/tab named: Results
+   Put these headers in row 1:
+   Timestamp | Event | RunId | Student | Group | Difficulty | TotalScore | GateScore | PersonSearchScore | SignInScore | Done | Missed | Remaining | Mistakes (JSON) | Build | UserAgent
+
+2) In the Google Sheet: Extensions -> Apps Script
+   Paste the script below and save.
+
+3) Deploy -> New deployment -> Web app
+   - Execute as: Me
+   - Who has access: Anyone
+   Copy the Web App URL.
+
+4) Open veva_trainer_modular_v1/config.js and set:
+   logEndpoint: "<YOUR WEB APP URL>"
+
+5) Run the trainer, finish a scenario. It will POST the results to the sheet.
+
+Apps Script code:
+----------------
+function doPost(e) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sh = ss.getSheetByName('Results') || ss.insertSheet('Results');
+
+    // Ensure header
+    if (sh.getLastRow() === 0) {
+      sh.appendRow([
+        'Timestamp','Event','RunId','Student','Group','Difficulty',
+        'TotalScore','GateScore','PersonSearchScore','SignInScore',
+        'Done','Missed','Remaining','Mistakes (JSON)','Build','UserAgent'
+      ]);
+    }
+
+    var body = e && e.postData && e.postData.contents ? e.postData.contents : '{}';
+    var payload = JSON.parse(body);
+    var stats = payload.stats || {};
+
+    sh.appendRow([
+      payload.ts || new Date().toISOString(),
+      payload.event || '',
+      payload.runId || '',
+      payload.student || '',
+      payload.className || '',
+      stats.difficulty || '',
+      stats.totalScore || '',
+      stats.gateScore || '',
+      stats.personSearchScore || '',
+      stats.signInScore || '',
+      stats.done || '',
+      stats.missed || '',
+      stats.remaining || '',
+      JSON.stringify(stats.mistakes || []),
+      stats.build || '',
+      stats.userAgent || payload.userAgent || ''
+    ]);
+
+    return ContentService.createTextOutput('OK');
+  } catch (err) {
+    return ContentService.createTextOutput('ERROR: ' + err);
+  }
+}
