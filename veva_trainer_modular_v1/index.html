@@ -7,6 +7,16 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body class="prestart">
+  <!-- Scene / transition popup (auto-hides) -->
+  <div id="scenePopup" class="scenePopup" hidden aria-live="polite" aria-atomic="true">
+    <div class="scenePopupCard">
+      <img id="scenePopupImg" class="scenePopupImg" alt="Visitor" />
+      <div class="scenePopupText">
+        <div id="scenePopupTitle" class="scenePopupTitle">—</div>
+        <div id="scenePopupSub" class="scenePopupSub">—</div>
+      </div>
+    </div>
+  </div>
   <div class="topPills" id="topPills">
     <div id="versionPill" class="pill">v—</div>
     <div id="studentPill" class="pill">Student: —</div>

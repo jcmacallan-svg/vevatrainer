@@ -5,6 +5,14 @@
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;overflow:hidden;}
+
+/* Scene / transition popup */
+.scenePopup{position:fixed;inset:0;display:flex;align-items:flex-start;justify-content:center;padding-top:72px;background:rgba(0,0,0,.35);z-index:9999;}
+.scenePopup[hidden]{display:none !important;}
+.scenePopupCard{width:min(720px,92vw);display:flex;gap:16px;align-items:center;padding:18px;border-radius:18px;background:rgba(17,24,39,.95);box-shadow:0 18px 60px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.08);}
+.scenePopupImg{width:96px;height:96px;border-radius:16px;object-fit:cover;background:rgba(255,255,255,.06);}
+.scenePopupTitle{font-size:20px;font-weight:800;line-height:1.15;}
+.scenePopupSub{margin-top:4px;font-size:14px;color:rgba(229,231,235,.85);line-height:1.35;}
 .topPills{position:fixed;top:10px;left:10px;right:10px;display:flex;gap:10px;z-index:50;pointer-events:none;}
 .pill{pointer-events:auto;background:rgba(22,27,34,.9);border:1px solid var(--border);padding:8px 12px;border-radius:999px;color:var(--text);font-size:13px;box-shadow:var(--shadow);}
 .app{height:100vh;display:flex;padding-top:54px;}

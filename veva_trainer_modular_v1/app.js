@@ -83,6 +83,12 @@
   const transitionModal = $("#transitionModal");
   const transitionText = $("#transitionText");
   const transitionBanner = $("#transitionBanner");
+  // Scene popup (for transitions like gate -> PS -> sign-in)
+  const scenePopup = $("#scenePopup");
+  const scenePopupImg = $("#scenePopupImg");
+  const scenePopupTitle = $("#scenePopupTitle");
+  const scenePopupSub = $("#scenePopupSub");
+  let scenePopupTimer = null;
   const psOutfit = $("#psOutfit");
   const psCards = $("#psCards");
   const psRiskChip = $("#psRiskChip");
@@ -123,6 +129,18 @@
 
     // Also expose a body class for CSS fallback
     try{ document.body.classList.toggle("hasPopup", anyVisible); }catch{}
+  }
+
+  function showScenePopup(title, sub, imgSrc, ms=3000){
+    if (!scenePopup) return;
+    try{ if (scenePopupTimer) clearTimeout(scenePopupTimer); }catch{}
+    if (scenePopupTitle) scenePopupTitle.textContent = title || "";
+    if (scenePopupSub) scenePopupSub.textContent = sub || "";
+    if (scenePopupImg){
+      scenePopupImg.src = imgSrc || (state?.visitor?.photoSrc || TRANSPARENT_PX);
+    }
+    scenePopup.hidden = false;
+    scenePopupTimer = setTimeout(()=>{ scenePopup.hidden = true; }, ms);
   }
   const passNo = $("#passNo");
   const passName = $("#passName");
@@ -1700,8 +1718,8 @@ function nextHint(){
     if (portraitMood) portraitMood.textContent = `A visitor is approaching the gate. ${currentMood.line}`;
     if (portraitDesc) portraitDesc.textContent = "";
 
-    // Add a short scene-setting line in the chat at scenario start.
-    addMsg("visitor", "A visitor is approaching the gate.");
+    // Show scene popup instead of adding narration as a visitor chat message.
+    showScenePopup("Visitor approaches the gate", "The visitor arrives at the checkpoint.", v.photoSrc, 3000);
 
     if (approach) clearTimeout(approach);
     approach=setTimeout(()=>{
@@ -1709,7 +1727,7 @@ function nextHint(){
       enqueueVisitor(phrase("shared","greeting",state));
       window.VEVA_LOG?.({type:"system", action:"scenario_start", student:session, mood:currentMood.key, evasiveFor:state.evasiveFor});
       updateHint();
-    }, 5000);
+    }, 3000);
   }
 
   function gateComplete(){
@@ -1738,7 +1756,7 @@ function nextHint(){
     if (portraitMood) portraitMood.textContent="Person Search";
     if (portraitDesc) portraitDesc.textContent="Give clear instructions. If you find something, ask them to take it out.";
     showPersonSearch();
-    enqueueVisitor(pick(window.VEVA_PHRASES?.person_search?.arrival || ["You arrive at the person search area."]));
+    // Arrival is shown via the scene popup during transition; don't narrate it as visitor chat.
     updateHint();
   }
 
@@ -1901,18 +1919,15 @@ function nextHint(){
       state.flags.sentToPersonSearch=true;
       updateChecklist();
       enqueueVisitor("Okay.");
-      // Student initiates move to person search
+      // Student initiates move to person search — show a short popup (no narration in chat)
+      showScenePopup(
+        "Visitor arrived",
+        "The visitor has arrived at the person search area.",
+        state?.visitor?.photoSrc,
+        3000
+      );
 
-      // Show 5s transition popup instead of a visitor line
-      if (transitionText) transitionText.textContent = "The visitor follows you to the person search area.";
-      if (transitionBanner){ transitionBanner.textContent = "The visitor is following you to the person search area."; transitionBanner.hidden=false; }
-      if (transitionModal) transitionModal.hidden = false;
-
-      setTimeout(()=>{
-        if (transitionModal) transitionModal.hidden = true;
-        if (transitionBanner) transitionBanner.hidden = true;
-        enterPersonSearch();
-      }, 5000);
+      setTimeout(()=>{ enterPersonSearch(); }, 3000);
       return;
     }
 
@@ -2410,7 +2425,13 @@ updateHint();
       state.stage="si_arrival";
       updateChecklist();
       showSignIn();
-      enqueueVisitor("Okay. I will proceed to the sign-in office.");
+      enqueueVisitor("Okay.");
+      showScenePopup(
+        "Visitor arrived",
+        "The visitor has arrived at the sign-in office.",
+        state?.visitor?.photoSrc,
+        3000
+      );
       updateHint();
       return;
     }
