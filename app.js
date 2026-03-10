@@ -715,6 +715,15 @@ personSearchPanel.hidden=false;
     if (titleEl) titleEl.textContent = isRules ? "Wachtconsignes" : "Sign-in Register";
     if (subEl) subEl.textContent = isRules ? "Base rules briefing" : "Fill in the entry log.";
     if (chipEl) chipEl.textContent = isRules ? "RULES" : "REGISTER";
+
+    // Make RULES behave like a separate screen (no scrolling past the register)
+    try{
+      if (panelTitle) panelTitle.textContent = isRules ? "Base rules" : "Sign-in";
+      if (panelSub) panelSub.textContent = isRules ? "Rules briefing" : "Register + pass";
+      const body = signInPanel ? signInPanel.querySelector(".cardBody") : null;
+      if (body) body.scrollTop = 0;
+      if (signInPanel) signInPanel.scrollTop = 0;
+    }catch(e){}
   }
 
 function showSignIn(){
