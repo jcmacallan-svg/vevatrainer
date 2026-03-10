@@ -144,7 +144,9 @@
     scenePopupTimer = setTimeout(()=>{ scenePopup.hidden = true; }, ms);
   }
   
-  function startMeetingSequence(source){
+  function pad(n){ return String(n).padStart(2,"0"); }
+
+function startMeetingSequence(source){
     if (state.flags.meetingSequenceStarted) return;
     state.flags.meetingSequenceStarted = true;
     // Compute a simple timeline: appointment time -> +30..45 minutes
@@ -1720,12 +1722,17 @@ function postToSheets(payload){
   try{
     const url = window.CONFIG?.logEndpoint;
     if (!url) return;
-    fetch(url, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(payload)
-    }).catch(()=>{});
+    const body = JSON.stringify(payload);
+    // Prefer sendBeacon (no CORS preflight, best-effort delivery)
+    if (navigator.sendBeacon){
+      try{
+        const blob = new Blob([body], { type: "text/plain;charset=UTF-8" });
+        navigator.sendBeacon(url, blob);
+        return;
+      }catch(e){}
+    }
+    // Fallback: no-cors POST without custom headers (avoid preflight)
+    fetch(url, { method: "POST", mode: "no-cors", body }).catch(()=>{});
   }catch{}
 }
 
@@ -2456,6 +2463,12 @@ function handleSI(intent, raw){
 
     // Any-questions step after base rules
     if (intent==="si_any_questions"){
+      if (state.flags.siAskedQuestions){
+        // Prevent multiple random question rolls; proceed to meeting.
+        enqueueVisitor(pickArr(["Okay.", "Understood.", "Alright."]), ()=>{ setTimeout(()=>{ state.flags.meetingSequenceStarted=false; startMeetingSequence("si_repeat_any_questions"); }, 2200); });
+        updateHint();
+        return;
+      }
       state.flags.siAskedQuestions = true;
       state.flags.siAwaitingQuestions = false;
       updateChecklist();
