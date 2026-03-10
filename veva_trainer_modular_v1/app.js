@@ -721,7 +721,7 @@ function getMeetingTime(state){
     // Show typing dots for ~2–3s max (fast iteration; length adds but is capped)
     const t = String(text||"");
     typingVisitor = true;
-    renderTyping();
+    try{ renderTyping(); }catch(e){}
 
     // Base delay 2000–2600ms, plus a small length bonus, hard-capped at 3000ms.
     const base = 2000 + Math.floor(Math.random() * 601); // 2000..2600
@@ -730,14 +730,16 @@ function getMeetingTime(state){
 
     setTimeout(()=>{
       typingVisitor = false;
-      // remove any pending typing placeholder and render
-      addMsg("visitor", t);
-            try{ if (typeof afterShown === "function") afterShown(); }catch(e){}
-window.VEVA_LOG?.({type:"visitor", stage: state?.stage, text: t});
-      speakVisitor(t);
-      renderChat();
-      updateHint();
+      // Render visitor message; never let logging errors break the flow.
+      try{ addMsg("visitor", t); }catch(e){}
+      try{ speakVisitor(t); }catch(e){}
+      try{ renderChat(); }catch(e){}
+      try{ window.VEVA_LOG?.({type:"visitor", stage: state?.stage, text: t}); }catch(e){}
+      try{ if (typeof afterShown === "function") afterShown(); }catch(e){}
+      try{ updateHint(); }catch(e){}
     }, delay);
+
+    return delay;
   }
 
 
@@ -2484,14 +2486,17 @@ function handleSI(intent, raw){
         state.flags.siVisitorQuestionAnswered = false;
         state.flags.siVisitorQuestion = "way";
         enqueueVisitor("Yes—can you show me the way?");
-      } else if (r < 0.80){
+            // Fallback: start meeting even if callback is skipped
+      const fallbackMeetingTimer = setTimeout(()=>{ try{ startMeetingSequence("si_no_questions"); }catch(e){} }, 2600);
+} else if (r < 0.80){
         state.flags.siVisitorQuestionAnswered = false;
         state.flags.siVisitorQuestion = "assembly";
         enqueueVisitor("Yes—where is the assembly area?");
       } else {
         state.flags.siVisitorQuestionAnswered = true;
         state.flags.siVisitorQuestion = "none";
-        enqueueVisitor("No, thank you.", ()=>{ setTimeout(()=>startMeetingSequence("si_no_questions"), 2200); });
+        enqueueVisitor("No, thank you.", ()=>{ try{ clearTimeout(fallbackMeetingTimer); }catch(e){}
+        setTimeout(()=>startMeetingSequence("si_no_questions"), 2200); });
       }
       updateHint();
       return;
@@ -2499,7 +2504,10 @@ function handleSI(intent, raw){
 
     // Answer route question
     if (intent==="si_follow_colleague"){
-      enqueueVisitor(pickArr(["Okay, I will follow your colleague.", "Alright—lead on.", "Okay."]), ()=>{ setTimeout(()=>startMeetingSequence("si_way"), 2200); });
+      enqueueVisitor(pickArr(["Okay, I will follow your colleague.", "Alright—lead on.", "Okay."]), ()=>{ try{ clearTimeout(fallbackMeetingTimer); }catch(e){}
+        setTimeout(()=>startMeetingSequence("si_way"), 2200);       // Fallback: start meeting even if callback is skipped
+      const fallbackMeetingTimer = setTimeout(()=>{ try{ startMeetingSequence("si_way"); }catch(e){} }, 2600);
+});
       state.flags.siVisitorQuestionAnswered = true;
       updateHint();
       updateChecklist();
@@ -2508,7 +2516,10 @@ function handleSI(intent, raw){
 
     // Answer assembly question (green sign with white arrows)
     if (intent==="si_assembly_explain"){
-      enqueueVisitor(pickArr(["Thank you.", "Understood—thank you.", "Okay, thanks."]), ()=>{ setTimeout(()=>startMeetingSequence("si_assembly"), 2200); });
+      enqueueVisitor(pickArr(["Thank you.", "Understood—thank you.", "Okay, thanks."]), ()=>{ try{ clearTimeout(fallbackMeetingTimer); }catch(e){}
+        setTimeout(()=>startMeetingSequence("si_assembly"), 2200);       // Fallback: start meeting even if callback is skipped
+      const fallbackMeetingTimer = setTimeout(()=>{ try{ startMeetingSequence("si_assembly"); }catch(e){} }, 2600);
+});
       state.flags.siVisitorQuestionAnswered = true;
       updateHint();
       updateChecklist();
