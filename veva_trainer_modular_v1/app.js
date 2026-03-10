@@ -698,28 +698,31 @@ personSearchPanel.hidden=false;
     const chipEl = signInPanel ? signInPanel.querySelector(".chip") : null;
 
     const isRules = (mode==="rules");
+    const isBlank = (mode==="blank"); // transitional screen after signing
+    const hideRegister = isRules || isBlank;
+
     if (si_form){
-      si_form.hidden = isRules;
-      si_form.style.display = isRules ? "none" : "";
+      si_form.hidden = hideRegister;
+      si_form.style.display = hideRegister ? "none" : "";
     }
     const sigLabel = signInPanel ? signInPanel.querySelector(".sigLabel") : null;
     if (sigLabel){
-      sigLabel.hidden = isRules;
-      sigLabel.style.display = isRules ? "none" : "";
+      // Keep signature visible during register; hide it on blank/rules screens.
+      sigLabel.hidden = hideRegister;
+      sigLabel.style.display = hideRegister ? "none" : "";
     }
     if (si_rulesForm){
       si_rulesForm.hidden = !isRules;
       si_rulesForm.style.display = isRules ? "" : "none";
     }
-
-    if (titleEl) titleEl.textContent = isRules ? "Wachtconsignes" : "Sign-in Register";
-    if (subEl) subEl.textContent = isRules ? "Base rules briefing" : "Fill in the entry log.";
-    if (chipEl) chipEl.textContent = isRules ? "RULES" : "REGISTER";
+if (titleEl) titleEl.textContent = isRules ? "Wachtconsignes" : (isBlank ? "Processing…" : "Sign-in Register");
+    if (subEl) subEl.textContent = isRules ? "Base rules briefing" : (isBlank ? "Please wait…" : "Fill in the entry log.");
+    if (chipEl) chipEl.textContent = isRules ? "RULES" : (isBlank ? "WAIT" : "REGISTER");
 
     // Make RULES behave like a separate screen (no scrolling past the register)
     try{
-      if (panelTitle) panelTitle.textContent = isRules ? "Base rules" : "Sign-in";
-      if (panelSub) panelSub.textContent = isRules ? "Rules briefing" : "Register + pass";
+      if (panelTitle) panelTitle.textContent = isRules ? "Base rules" : (isBlank ? "Please wait" : "Sign-in");
+      if (panelSub) panelSub.textContent = isRules ? "Rules briefing" : (isBlank ? "Preparing base rules…" : "Register + pass");
       const body = signInPanel ? signInPanel.querySelector(".cardBody") : null;
       if (body) body.scrollTop = 0;
       if (signInPanel) signInPanel.scrollTop = 0;
@@ -2289,10 +2292,10 @@ function handleSI(intent, raw){
       updateChecklist();
       enqueueVisitor("Okay.");
 
-      // After the signature is drawn, switch to the rules overview (register form hides, rules appear).
-      setTimeout(()=>{ try{ setSignInView("rules"); }catch(e){} }, 3000);
-
-      updateHint();
+      // After the signature is drawn, hide the register first (transition), then show base rules as a separate screen.
+      setTimeout(()=>{ try{ setSignInView("blank"); }catch(e){} }, 3000);
+      setTimeout(()=>{ try{ setSignInView("rules"); }catch(e){} }, 6000);
+updateHint();
       return;
     }
     if (intent==="si_issue_pass"){
