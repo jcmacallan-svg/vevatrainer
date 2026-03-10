@@ -149,17 +149,17 @@
     state.flags.meetingSequenceStarted = true;
     // Compute a simple timeline: appointment time -> +30 minutes
     const appt = getMeetingTime(state);
-    const back = addMinutesHHMM(appt, 30) || "";
+    const back = addMinutesHHMM(appt, 34) || "";
     state.facts = state.facts || {};
     state.facts.returnTime = back;
     // Hide panels during transition popups
     hideAllPanels();
     syncPortraitVisibility();
     // Popup: visitor goes to meeting
-    showScenePopup("Visitor goes to appointment", back ? `Gone for 30 minutes (${appt} → ${back})` : "Gone for 30 minutes", state.visitor?.photoSrc, 3000);
+    showScenePopup("Visitor goes to appointment", back ? `Gone for 34 minutes (${appt} → ${back})` : "Gone for 34 minutes", state.visitor?.photoSrc, 3000);
     // After a few moments, visitor returns
     setTimeout(()=>{
-      showScenePopup("A few moments later…", back ? `The visitor is now back at your sign-in office (${back}). Make sure he hands in his visitor pass.` : "The visitor is now back at your sign-in office. Make sure he hands in his visitor pass.", state.visitor?.photoSrc, 3000);
+      showScenePopup("A few moments later…", back ? `The visitor is now back at your sign-in office (${back}). Make sure he hands in his visitor pass (he will ask to hand it in).` : "The visitor is now back at your sign-in office. Make sure he hands in his visitor pass (he will ask to hand it in).", state.visitor?.photoSrc, 3000);
     }, 3500);
     setTimeout(()=>{
       // Switch to checkout in sign-in office
@@ -214,6 +214,7 @@ const passNo = $("#passNo");
     si_return: $("#cl_si_return"),
     si_alarm: $("#cl_si_alarm"),
     si_closes: $("#cl_si_closes"),
+    si_questions: $("#cl_si_questions"),
 
     // Sign-out / return phase
     co_pass: $("#cl_co_pass"),
@@ -604,6 +605,13 @@ function getMeetingTime(state){
 
     // Defensive fallbacks for phrasing variants (local, so checklist keeps working even if VEVA_INTENTS is missing)
     if (/\b(hi|hello|good\s+(morning|afternoon|evening))\b/i.test(n) && /\bhelp\b/i.test(n)) return "greet";
+    // Context-aware Sign-in shortcuts
+    if (state?.flowName === "Sign-in Office" || state?.stage === "sign_in" || state?.stage === "si_checkout"){
+      if (/\b(any\s+questions\??|do\s+you\s+have\s+any\s+questions\??)\b/i.test(n)) return "si_any_questions";
+      if (/\b(follow\s+my\s+colleague|this\s+way|lead\s+on|come\s+with\s+me)\b/i.test(n)) return "si_follow_colleague";
+      if (/\b(assembly\s+(area|point)|green\s+sign|white\s+arrows)\b/i.test(n) && /\b(over\s+here|this\s+way|it\'?s)\b/i.test(n)) return "si_assembly_explain";
+    }
+
 
     // Gate: name (incl. "please state your full name")
     if (/\b(what\s+is|may\s+i\s+have|can\s+i\s+have|please\s+(state|tell|give)|\b(state|tell|give))\s+(me\s+)?(your\s+)?(full\s+)?name\b/i.test(n)) return "ask_name";
@@ -1829,6 +1837,7 @@ function updateChecklist(){
     setChecklistDone(checklistEls.si_return, !!fl.siRuleReturnOnExit, "si_return");
     setChecklistDone(checklistEls.si_alarm, !!fl.siRuleAlarmAssembly, "si_alarm");
     setChecklistDone(checklistEls.si_closes, !!fl.siRuleBaseCloses, "si_closes");
+    setChecklistDone(checklistEls.si_questions, !!fl.siAskedQuestions, "si_questions");
 
     // Sign-out / return phase (only relevant after visitor returns)
     const inCheckout = !!fl.siCheckoutActive;
@@ -1895,7 +1904,12 @@ function nextHint(){
     }
     if (state.stage.startsWith("si_")){
       if (!state.flags.siIssued) return "Fill the register and issue a visitor pass.";
-      return "Ask them to return the pass when leaving.";
+      // After base rules are done: ask if they have questions
+      if (state.flags.siAwaitingQuestions && !state.flags.siAskedQuestions) return 'Example: "Any questions?"';
+      // If visitor asked something, answer it
+      if (state.flags.siVisitorQuestion==="way" && !state.flags.siVisitorQuestionAnswered) return 'Example: "Follow my colleague."';
+      if (state.flags.siVisitorQuestion==="assembly" && !state.flags.siVisitorQuestionAnswered) return 'Example: "It\'s over here with the green sign with the white arrows."';
+      return "Continue the sign-in procedure.";
     }
     return "Continue.";
   }
@@ -2433,6 +2447,52 @@ function nextHint(){
 function handleSI(intent, raw){
     showSignIn();
     const n = String(raw||"");
+
+    // Any-questions step after base rules
+    if (intent==="si_any_questions"){
+      state.flags.siAskedQuestions = true;
+      state.flags.siAwaitingQuestions = false;
+      updateChecklist();
+      // Visitor may ask a final question (or none)
+      const r = Math.random();
+      if (r < 0.45){
+        state.flags.siVisitorQuestionAnswered = false;
+        state.flags.siVisitorQuestion = "way";
+        enqueueVisitor("Yes—can you show me the way?");
+      } else if (r < 0.80){
+        state.flags.siVisitorQuestionAnswered = false;
+        state.flags.siVisitorQuestion = "assembly";
+        enqueueVisitor("Yes—where is the assembly area?");
+      } else {
+        state.flags.siVisitorQuestionAnswered = true;
+        state.flags.siVisitorQuestion = "none";
+        enqueueVisitor("No, thank you.");
+        // If no questions, visitor goes to appointment right away
+        setTimeout(()=>startMeetingSequence("si_no_questions"), 600);
+      }
+      updateHint();
+      return;
+    }
+
+    // Answer route question
+    if (intent==="si_follow_colleague"){
+      enqueueVisitor(pickArr(["Okay, I will follow your colleague.", "Alright—lead on.", "Okay."]));
+      state.flags.siVisitorQuestionAnswered = true;
+      setTimeout(()=>startMeetingSequence("si_way"), 600);
+      updateHint();
+      updateChecklist();
+      return;
+    }
+
+    // Answer assembly question (green sign with white arrows)
+    if (intent==="si_assembly_explain"){
+      enqueueVisitor(pickArr(["Thank you.", "Understood—thank you.", "Okay, thanks."]));
+      state.flags.siVisitorQuestionAnswered = true;
+      setTimeout(()=>startMeetingSequence("si_assembly"), 600);
+      updateHint();
+      updateChecklist();
+      return;
+    }
 
     // In the sign-in office, asking for the visitor's name should return the *full* name
     // and auto-fill it into the sign-in register.
