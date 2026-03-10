@@ -133,38 +133,62 @@
   }
 
   function showScenePopup(title, sub, imgSrc, ms=3000){
-    if (!scenePopup) return;
+    // If popup markup is missing (or removed by layout), create it on the fly.
+    if (!scenePopup){
+      try{
+        const wrap = document.createElement("div");
+        wrap.id = "scenePopup";
+        wrap.className = "scenePopup";
+        wrap.hidden = true;
+        wrap.innerHTML = `
+          <div class="scenePopupCard">
+            <img id="scenePopupImg" alt="" />
+            <div class="scenePopupText">
+              <div id="scenePopupTitle" class="scenePopupTitle"></div>
+              <div id="scenePopupSub" class="scenePopupSub"></div>
+            </div>
+          </div>`;
+        document.body.appendChild(wrap);
+        // rebind refs
+        window.scenePopup = wrap;
+      }catch(e){}
+    }
+    // Re-resolve in case we just created it
+    const _popup = document.getElementById("scenePopup");
+    if (!_popup) return;
+    // Ensure popup is not inside a hidden panel
     // Ensure popup is not inside a hidden panel (can happen during transitions)
     try{
-      if (scenePopup.parentElement && scenePopup.parentElement !== document.body){
+      if (_popup.parentElement && _popup.parentElement !== document.body){
         // If any ancestor is hidden, move popup to <body>
-        let a = scenePopup.parentElement, hiddenAncestor = false;
+        let a = _popup.parentElement, hiddenAncestor = false;
         while (a && a !== document.body){
           if (a.hidden) { hiddenAncestor = true; break; }
           a = a.parentElement;
         }
-        if (hiddenAncestor) document.body.appendChild(scenePopup);
+        if (hiddenAncestor) document.body.appendChild(_popup);
       }
       // Also force it visible above everything
-      scenePopup.style.position = "fixed";
-      scenePopup.style.inset = "0";
-      scenePopup.style.zIndex = "9999";
-      scenePopup.style.display = "";
+      _popup.style.position = "fixed";
+      _popup.style.inset = "0";
+      _popup.style.zIndex = "9999";
+      _popup.style.display = "";
     }catch(e){}
     try{ if (scenePopupTimer) clearTimeout(scenePopupTimer); }catch{}
-    if (scenePopupTitle) scenePopupTitle.textContent = title || "";
-    if (scenePopupSub) scenePopupSub.textContent = sub || "";
-    if (scenePopupImg){
-      scenePopupImg.src = imgSrc || (state?.visitor?.photoSrc || TRANSPARENT_PX);
+    const _titleEl=document.getElementById('scenePopupTitle'); if (_titleEl) _titleEl.textContent = title || "";
+    const _subEl=document.getElementById('scenePopupSub'); if (_subEl) _subEl.textContent = sub || "";
+    const _imgEl=document.getElementById('scenePopupImg'); if (_imgEl){
+      _imgEl.src = imgSrc || (state?.visitor?.photoSrc || TRANSPARENT_PX);
     }
-    scenePopup.hidden = false;
-    scenePopupTimer = setTimeout(()=>{ scenePopup.hidden = true; }, ms);
+    _popup.hidden = false;
+    scenePopupTimer = setTimeout(()=>{ _popup.hidden = true; }, ms);
   }
   
   function pad(n){ return String(n).padStart(2,"0"); }
 
 function startMeetingSequence(source){
-    if (state.flags.meetingSequenceStarted) return;
+    // Allow re-entry if something interrupted the first attempt
+    if (state.flags.meetingSequenceStarted && state.stage==="si_checkout") return;
     state.flags.meetingSequenceStarted = true;
     // Compute a simple timeline: appointment time -> +30..45 minutes
     const appt = getMeetingTime(state);
@@ -2482,7 +2506,7 @@ function handleSI(intent, raw){
     if (intent==="si_any_questions"){
       if (state.flags.siAskedQuestions){
         // Prevent multiple random question rolls; proceed to meeting.
-        enqueueVisitor(pickArr(["Okay.", "Understood.", "Alright."]), ()=>{ setTimeout(()=>{ state.flags.meetingSequenceStarted=false; startMeetingSequence("si_repeat_any_questions"); }, 2200); });
+        enqueueVisitor(pickArr(["Okay.", "Understood.", "Alright."]), ()=>{ setTimeout(()=>{ state.flags.meetingSequenceStarted=false; startMeetingSequence("si_repeat_any_questions"); }, 2500); });
         updateHint();
         return;
       }
@@ -2502,7 +2526,7 @@ function handleSI(intent, raw){
       } else {
         state.flags.siVisitorQuestionAnswered = true;
         state.flags.siVisitorQuestion = "none";
-        enqueueVisitor("No, thank you.", ()=>{ setTimeout(()=>{ state.flags.meetingSequenceStarted=false; startMeetingSequence("si_no_questions"); }, 2200); });
+        enqueueVisitor("No, thank you.", ()=>{ setTimeout(()=>{ state.flags.meetingSequenceStarted=false; startMeetingSequence("si_no_questions"); }, 2500); });
         // If no questions, visitor goes to appointment right away
       }
       updateHint();
@@ -2511,7 +2535,7 @@ function handleSI(intent, raw){
 
     // Answer route question
     if (intent==="si_follow_colleague"){
-      enqueueVisitor(pickArr(["Okay, I will follow your colleague.", "Alright—lead on.", "Okay."]), ()=>{ setTimeout(()=>{ state.flags.meetingSequenceStarted=false; startMeetingSequence("si_way"); }, 2200); });
+      enqueueVisitor(pickArr(["Okay, I will follow your colleague.", "Alright—lead on.", "Okay."]), ()=>{ setTimeout(()=>{ state.flags.meetingSequenceStarted=false; startMeetingSequence("si_way"); }, 2500); });
       state.flags.siVisitorQuestionAnswered = true;
       updateHint();
       updateChecklist();
@@ -2520,7 +2544,7 @@ function handleSI(intent, raw){
 
     // Answer assembly question (green sign with white arrows)
     if (intent==="si_assembly_explain"){
-      enqueueVisitor(pickArr(["Thank you.", "Understood—thank you.", "Okay, thanks.", "Alright, I\'ll go to the assembly area.", "Alright, I\'ll go there."]), ()=>{ setTimeout(()=>{ state.flags.meetingSequenceStarted=false; startMeetingSequence("si_assembly"); }, 2200); });
+      enqueueVisitor(pickArr(["Thank you.", "Understood—thank you.", "Okay, thanks.", "Alright, I\'ll go to the assembly area.", "Alright, I\'ll go there."]), ()=>{ setTimeout(()=>{ state.flags.meetingSequenceStarted=false; startMeetingSequence("si_assembly"); }, 2500); });
       state.flags.siVisitorQuestionAnswered = true;
       updateHint();
       updateChecklist();
