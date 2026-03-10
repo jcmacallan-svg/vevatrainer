@@ -652,7 +652,9 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
   align-items:center;
   justify-content:center;
 }
-.sigSvg{ width:100%; height:100%; }
+.sigSvg{ width:100%; height:100%; display:none; }
+.sigImg{ max-width:100%; max-height:100%; opacity:0; transform:translateY(4px); transition:opacity .25s ease, transform .25s ease; }
+.sigBox.sigRun .sigImg{ opacity:1; transform:translateY(0); }
 .sigPath{ fill:none; stroke:rgba(255,255,255,0.9); stroke-width:3; stroke-linecap:round; stroke-linejoin:round; stroke-dasharray:1400; stroke-dashoffset:1400; }
 .sigRun .sigPath{ animation:sigdraw 1.5s ease-out forwards; }
 @keyframes sigdraw{ to{ stroke-dashoffset:0; } }
@@ -679,7 +681,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 /* Signature animation (auto-generated, no typing needed) */
 #si_sig{ display:none; }
 .sigBox{ padding: 8px 4px; border-top: 1px dashed rgba(255,255,255,.15); }
-.sigSvg{ width: 100%; height: 72px; }
+.sigSvg{ width: 100%; height: 72px; display:none; }
 .sigPath{
   fill: none;
   stroke: currentColor;

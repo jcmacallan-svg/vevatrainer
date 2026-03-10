@@ -2290,7 +2290,7 @@ function handleSI(intent, raw){
       enqueueVisitor("Okay.");
 
       // After the signature is drawn, switch to the rules overview (register form hides, rules appear).
-      setTimeout(()=>{ try{ setSignInView("rules"); }catch(e){} }, 850);
+      setTimeout(()=>{ try{ setSignInView("rules"); }catch(e){} }, 3000);
 
       updateHint();
       return;
