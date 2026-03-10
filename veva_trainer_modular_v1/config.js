@@ -7,6 +7,6 @@ window.CONFIG = {
   debug: true,
   // Google Apps Script Web App endpoint for logging results
   // (expects POST form fields)
-  logEndpoint: "https://script.google.com/macros/s/AKfycbxACQ3xg43B-zHm2x3jX0B3Q9Cqf5cs4CSJtejdMKHZ4nKksQ7C2i_pVuapOWaA66gu/exec",
+  logEndpoint: "https://script.google.com/macros/s/AKfycbx62ZYmt1HlClP-e37zRcsRgFxs6m3mlb5F9BORyyjfvSYw-Yr0gRHfbFtSmDhJMZN9/exec",
   logBatchEvery: 1
 };
