@@ -1342,7 +1342,7 @@ function showSignIn(){
     const needsOuter = !!(outfit.jacket || outfit.cap || outfit.headgear || outfit.helmet);
     state.lockedPS = {
       ps_sharp: !!fl.psSharpAsked,
-      ps_remove: (!needsOuter) || !!fl.psRemoveOuter,
+      ps_remove: !!fl.psRemoveOuter,
       ps_position: !!fl.psPositioned,
       ps_react: !!fl.psReactedFound,
       ps_cleared: !!fl.psCleared
@@ -1612,7 +1612,7 @@ function updateChecklist(){
     const needsOuter = !!(outfit.jacket || outfit.cap || outfit.headgear || outfit.helmet);
     setChecklistDone(checklistEls.ps_sharp, !!fl.psSharpAsked, "ps_sharp");
     // Only required if the visitor is actually wearing outerwear/headgear.
-    setChecklistDone(checklistEls.ps_remove, (!needsOuter) || !!fl.psRemoveOuter, "ps_remove");
+    setChecklistDone(checklistEls.ps_remove, !!fl.psRemoveOuter, "ps_remove");
     setChecklistDone(checklistEls.ps_position, !!fl.psPositioned, "ps_position");
     setChecklistDone(checklistEls.ps_react, !!fl.psReactedFound, "ps_react");
     setChecklistDone(checklistEls.ps_cleared, !!fl.psCleared, "ps_cleared");
