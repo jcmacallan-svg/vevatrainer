@@ -2314,10 +2314,23 @@ function nextHint(){
       state.flags.psCleared = true;
       state.flags.sentToSignIn = true; // finalize PS misses on transition
       updateChecklist();
-      state.flowName="Sign-in";
-      state.stage="si_arrival";
-      showSignIn();
-      enqueueVisitor("Okay. You are cleared. Please proceed to sign-in.");
+
+      // No narration in chat — just acknowledge, then show a short transition popup.
+      enqueueVisitor("Okay.");
+      showScenePopup(
+        "Visitor moving",
+        "The visitor is now walking to the sign-in office.",
+        state?.visitor?.photoSrc,
+        3000
+      );
+
+      // Switch view after the popup has been shown.
+      setTimeout(()=>{
+        state.flowName="Sign-in";
+        state.stage="si_arrival";
+        showSignIn();
+        updateHint();
+      }, 3000);
       updateHint();
       return;
     }
