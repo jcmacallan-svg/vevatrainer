@@ -907,6 +907,9 @@ function showSignIn(){
   }
 
   // --- Person Search: pocket discoveries during pat-down ---
+  // Global limit: we don't want endless new pocket items popping up.
+  const MAX_FORGOTTEN_ITEMS = 2;
+
   function psIsActive(){ return !!state?.ps && state.flowName==="Person Search"; }
 
   function psFindById(id){
@@ -921,7 +924,29 @@ function showSignIn(){
     return pick(["left pocket","right pocket","jacket pocket","waistband area"]);
   }
 
-  function psCreatePocketItem(){
+  function psExistingActualNameSet(){
+    const ps = state?.ps;
+    const s = new Set();
+    if (!ps) return s;
+    const add = (it)=>{
+      if (!it) return;
+      const nm = String(it.actualName || it.name || "").trim().toLowerCase();
+      if (nm) s.add(nm);
+    };
+    (Array.isArray(ps.items) ? ps.items : []).forEach(add);
+    (Array.isArray(ps.pocketItems) ? ps.pocketItems : []).forEach(add);
+    (Array.isArray(ps.confiscated) ? ps.confiscated : []).forEach(add);
+    return s;
+  }
+
+  function psCreatePocketItem(opts){
+    const ps = state?.ps;
+    if (!ps) return null;
+
+    // Enforce global cap.
+    ps.forgottenTotal = Number(ps.forgottenTotal || 0);
+    if (ps.forgottenTotal >= MAX_FORGOTTEN_ITEMS) return null;
+
     const location = psPickFeltLocation();
 
     const benign = [
@@ -945,17 +970,37 @@ function showSignIn(){
       {name:"Joint", actualName:"joint", kind:"illegal"}
     ];
 
+    const exclude = psExistingActualNameSet();
+
     // Chance the felt object is "unknown" to the student.
-    const unknownRoll = Math.random() < 0.35;
+    const forceUnknown = !!opts?.forceUnknown;
+    const unknownRoll = forceUnknown ? true : (Math.random() < 0.35);
 
     // If scenario already hints at illegal items, slightly increase chance of contraband.
-    const illegalBias = state?.ps?.hasIllegal ? 0.35 : 0.18;
-    const isIllegal = Math.random() < illegalBias;
+    const illegalBias = (opts && typeof opts.illegalBias === "number")
+      ? opts.illegalBias
+      : (state?.ps?.hasIllegal ? 0.35 : 0.18);
 
-    const chosen = isIllegal ? pick(contraband) : pick(benign);
+    // Pick something that is NOT already present (no duplicates).
+    let chosen = null;
+    for (let i=0;i<30;i++){
+      const isIllegal = Math.random() < illegalBias;
+      const cand = isIllegal ? pick(contraband) : pick(benign);
+      const nm = String(cand?.actualName || cand?.name || "").trim().toLowerCase();
+      if (!nm) continue;
+      if (exclude.has(nm)) continue;
+      chosen = { ...cand };
+      break;
+    }
+    // Fallback: if everything is "taken", just pick a benign item (still dedupe best-effort)
+    if (!chosen){
+      chosen = pick(benign);
+    }
+
+    ps.forgottenTotal++;
 
     if (unknownRoll){
-      // Display as unknown, but keep an actual name for explanation.
+      // Display as unknown, but keep an actual name for later reveal.
       return {
         id: uid("psPocket"),
         name: "Unknown item",
@@ -976,52 +1021,34 @@ function showSignIn(){
     };
   }
 
-  function psCanSpawnNewPocketItem(){
-    if (!psIsActive()) return false;
-    const ps = state.ps;
-    ps.maxForgotten = (ps.maxForgotten==null) ? 2 : ps.maxForgotten;
-    ps.forgottenTotal = (ps.forgottenTotal==null) ? 0 : ps.forgottenTotal;
-    if (ps.pocketsLocked) return false;
-    if (ps.forgottenTotal >= ps.maxForgotten) return false;
-    return true;
-  }
-
-  function psAddPocketItem(it){
-    const ps = state.ps;
-    ps.pocketItems = Array.isArray(ps.pocketItems) ? ps.pocketItems : [];
-    ps.pocketItems.push(it);
-    ps.forgottenTotal = (ps.forgottenTotal||0) + 1;
-    ps.lastFeltId = it.id;
-    ps.selectedId = it.id;
-  }
-
-  function psSelectExistingPocketItem(){
-    const ps = state.ps;
-    const it = (ps.pocketItems||[])[0];
-    if (!it) return null;
-    ps.lastFeltId = it.id;
-    ps.selectedId = it.id;
-    return it;
-  }
-
   function psMaybeFeltDuringWaistSearch(){
     if (!psIsActive()) return false;
     const ps = state.ps;
 
-    // If the student already asked to empty pockets and something is still left,
-    // do NOT spawn new items. Just "feel" the remaining one and lock further spawns.
-    if (ps.emptyPocketsAsked && (ps.pocketItems||[]).length){
-      const it = psSelectExistingPocketItem();
-      if (!it) return false;
-      enqueueVisitor(`As you pat around my waist, you feel a small object in my ${it.where}.`);
-      ps.pocketsLocked = true; // after the "left behind" item is discovered, no more new items
-      renderPS();
-      try{ textInput?.focus(); }catch{}
-      return true;
+    // If the visitor left exactly one item behind in pockets, "feel" THAT item (no new spawns).
+    if (ps.leftBehindId && !ps.leftBehindFelt){
+      const it = (ps.pocketItems||[]).find(x=>x?.id===ps.leftBehindId);
+      if (it){
+        ps.leftBehindFelt = true;
+        ps.lastFeltId = it.id;
+        ps.selectedId = it.id;
+        ps.noMorePocketDiscoveries = true;
+        enqueueVisitor(`As you pat around my waist, you feel a small object in my ${it.where}.`);
+        renderPS();
+        try{ textInput?.focus(); }catch{}
+        return true;
+      }
     }
 
-    // Hard cap on total forgotten items across the whole search.
-    if (!psCanSpawnNewPocketItem()) return false;
+    // After we already felt a post-empty "left behind" item, do not spawn anything else.
+    if (ps.noMorePocketDiscoveries) {
+      enqueueVisitor("I don’t think there’s anything else there.");
+      return false;
+    }
+
+    // Prevent spamming: max 2 "felt" items in pockets at a time.
+    const pocketCount = Array.isArray(ps.pocketItems) ? ps.pocketItems.length : 0;
+    if (pocketCount >= 2) return false;
 
     // 75% chance you actually feel something.
     const found = Math.random() < 0.75;
@@ -1031,7 +1058,14 @@ function showSignIn(){
     }
 
     const it = psCreatePocketItem();
-    psAddPocketItem(it);
+    if (!it){
+      enqueueVisitor("I don’t think there’s anything there.");
+      return false;
+    }
+    ps.pocketItems = Array.isArray(ps.pocketItems) ? ps.pocketItems : [];
+    ps.pocketItems.push(it);
+    ps.lastFeltId = it.id;
+    ps.selectedId = it.id;
 
     enqueueVisitor(`As you pat around my waist, you feel a small object in my ${it.where}.`);
     renderPS();
@@ -1065,8 +1099,10 @@ function showSignIn(){
   function psEmptyPockets(){
     if (!psIsActive()) return false;
     const ps = state.ps;
-    ps.emptyPocketsAsked = true;
     ps.pocketItems = Array.isArray(ps.pocketItems) ? ps.pocketItems : [];
+
+    // Mark that we have done an empty-pockets step.
+    ps.didEmptyOnce = true;
 
     // If we already left something behind earlier and the student asks again, reveal it now.
     if (ps.leftBehindId && !ps.leftBehindResolved){
@@ -1082,17 +1118,38 @@ function showSignIn(){
       }
     }
 
-    // First empty-pockets request: chance to leave one unknown item behind.
+    // First empty-pockets request: chance to leave ONE item behind.
+    // Make the "left behind" item more likely to be contraband (weapon/drugs/alcohol).
     if (!ps.leftBehindId && ps.pocketItems.length){
       if (Math.random() < 0.25){
-        // Prefer leaving an unknown item; otherwise convert one item to unknown.
-        let leave = ps.pocketItems.find(x=>/unknown/i.test(String(x?.name||"")));
+        const isContraband = (it)=> (String(it?.kind)==="illegal") || /\b(gun|firearm|knife|blade|whisky|vodka|beer|alcohol|joint|weed|cannabis|drugs?)\b/i.test(String(it?.actualName||it?.name||""));
+
+        // Prefer an existing illegal item first.
+        let leave = ps.pocketItems.find(isContraband);
+
+        // Otherwise: convert one pocket item into an "unknown" that is biased illegal.
         if (!leave){
           leave = ps.pocketItems[ps.pocketItems.length-1];
+          // Create a "hidden" item name with higher illegal chance.
+          const hidden = psCreatePocketItem({ illegalBias: 0.60, forceUnknown: true });
+          if (hidden){
+            leave.name = "Unknown item";
+            leave.kind = "unknown";
+            leave.actualName = hidden.actualName;
+          } else {
+            // If we've hit the global cap, still keep it unknown as-is.
+            leave.name = "Unknown item";
+            leave.kind = "unknown";
+          }
+        } else {
+          // Even if it is contraband, keep it "unknown" on the outside to make the discovery meaningful.
           leave.name = "Unknown item";
           leave.kind = "unknown";
         }
+
         ps.leftBehindId = leave.id;
+        ps.leftBehindResolved = false;
+        ps.leftBehindFelt = false;
       }
     }
 
@@ -1121,6 +1178,19 @@ function showSignIn(){
     if (!it){
       enqueueVisitor("Which item do you mean? Please tap an item first.");
       return true;
+    }
+    // If it's unknown, reveal the real name once the student asks.
+    if ((String(it.kind)==="unknown") || /unknown/i.test(String(it.name||""))){
+      const nm = String(it.actualName || "").trim();
+      if (nm){
+        // Title-case-ish for display.
+        const disp = nm.charAt(0).toUpperCase() + nm.slice(1);
+        it.name = disp;
+        // Reclassify based on actual item.
+        const contraband = /\b(gun|firearm|knife|blade|whisky|vodka|beer|alcohol|joint|weed|cannabis|drugs?)\b/i.test(String(nm));
+        it.kind = contraband ? "illegal" : "legal";
+        renderPS();
+      }
     }
     enqueueVisitor(psItemExplanation(it));
     return true;
@@ -1646,11 +1716,6 @@ function nextHint(){
       selectedId:null,
       leftBehindId:null,
       leftBehindResolved:false,
-      // Pocket discovery controls
-      forgottenTotal:0,
-      maxForgotten:2,
-      emptyPocketsAsked:false,
-      pocketsLocked:false,
       hasIllegal:itemsObj.hasIllegal,
       sharpItem
     };
@@ -1858,26 +1923,30 @@ function nextHint(){
       state.flags.psSharpAsked = true;
       updateChecklist();
       if (state.ps?.sharpItem){
-        // Make it appear as a selectable pocket item so the student can control the flow.
-        const ps = state.ps;
-        const name = String(ps.sharpItem);
-        enqueueVisitor(`Yes. I have a ${name}.`);
-        if ((ps.pocketItems||[]).length){
-          // If we already have pocket items, just add it to the list (respect max cap).
-          if (psCanSpawnNewPocketItem()){
-            const it = { id: uid("psPocket"), name: name, actualName: name, kind: "illegal", where: psPickFeltLocation(), inPocket: true };
-            psAddPocketItem(it);
+        const nm = String(state.ps.sharpItem||"");
+        enqueueVisitor(`Yes. I have a ${nm}.`);
+        // Make it actionable: add it as a pocket item pill (student can then take it out / confiscate).
+        try{
+          state.ps.pocketItems = Array.isArray(state.ps.pocketItems) ? state.ps.pocketItems : [];
+          const already = psExistingActualNameSet();
+          const key = nm.trim().toLowerCase();
+          if (key && !already.has(key)){
+            const it = {
+              id: uid("psPocket"),
+              name: nm.charAt(0).toUpperCase()+nm.slice(1),
+              actualName: nm,
+              kind: /\b(knife|blade|gun|firearm)\b/i.test(nm) ? "illegal" : "legal",
+              where: "pocket",
+              inPocket: true
+            };
+            state.ps.pocketItems.push(it);
+            state.ps.selectedId = it.id;
+            state.ps.lastFeltId = it.id;
             renderPS();
           }
-        } else {
-          if (psCanSpawnNewPocketItem()){
-            const it = { id: uid("psPocket"), name: name, actualName: name, kind: "illegal", where: psPickFeltLocation(), inPocket: true };
-            psAddPocketItem(it);
-            renderPS();
-          }
-        }
-        enqueueVisitor("You can tell me what to do with it.");
-        ps.sharpItem = null;
+        }catch(e){}
+        enqueueVisitor("Okay. Please tell me to take it out and place it on the table.");
+        state.ps.sharpItem = null;
       } else {
         enqueueVisitor("No, I don't have any sharp objects on me.");
       }
@@ -1974,21 +2043,38 @@ function nextHint(){
       try{
         if (psIsActive()){
           const ps = state.ps;
-          // If there is already something in the pocket list, just select it (do not create new items).
-          if ((ps.pocketItems||[]).length){
-            const it = psSelectExistingPocketItem();
-            enqueueVisitor(`You feel a small object in my ${it.where}.`);
-            if (ps.emptyPocketsAsked) ps.pocketsLocked = true;
-            renderPS();
-            try{ textInput?.focus(); }catch{}
-          } else if (psCanSpawnNewPocketItem()){
+          // If there is a left-behind item, force-feel that one (do not spawn new).
+          if (ps.leftBehindId && !ps.leftBehindFelt){
+            const it = (ps.pocketItems||[]).find(x=>x?.id===ps.leftBehindId);
+            if (it){
+              ps.leftBehindFelt = true;
+              ps.noMorePocketDiscoveries = true;
+              ps.lastFeltId = it.id;
+              ps.selectedId = it.id;
+              enqueueVisitor(`You feel a small object in my ${it.where}.`);
+              renderPS();
+              try{ textInput?.focus(); }catch{}
+              updateHint();
+              return;
+            }
+          }
+
+          const pocketCount = Array.isArray(ps.pocketItems) ? ps.pocketItems.length : 0;
+          if (pocketCount < 2 && !ps.noMorePocketDiscoveries){
             const it = psCreatePocketItem();
-            psAddPocketItem(it);
-            enqueueVisitor(`You feel a small object in my ${it.where}.`);
-            renderPS();
-            try{ textInput?.focus(); }catch{}
+            if (!it){
+              enqueueVisitor("You don’t feel anything else.");
+            } else {
+              ps.pocketItems = Array.isArray(ps.pocketItems) ? ps.pocketItems : [];
+              ps.pocketItems.push(it);
+              ps.lastFeltId = it.id;
+              ps.selectedId = it.id;
+              enqueueVisitor(`You feel a small object in my ${it.where}.`);
+              renderPS();
+              try{ textInput?.focus(); }catch{}
+            }
           } else {
-            enqueueVisitor("I don't think there's anything else in my pockets.");
+            enqueueVisitor("You already felt items in my pockets. Please deal with those first.");
           }
         }
       }catch(e){ enqueueVisitor("Okay."); }
