@@ -103,6 +103,7 @@
   const si_passPreview = $("#si_passPreview");
   const si_poc = $("#si_poc");
   const si_time = $("#si_time");
+  const si_outTime = $("#si_outTime");
   const si_loc = $("#si_loc");
   const si_sig = $("#si_sig");
   const btnSignInIssue = $("#btnSignInIssue");
@@ -142,7 +143,36 @@
     scenePopup.hidden = false;
     scenePopupTimer = setTimeout(()=>{ scenePopup.hidden = true; }, ms);
   }
-  const passNo = $("#passNo");
+  
+  function startMeetingSequence(source){
+    if (state.flags.meetingSequenceStarted) return;
+    state.flags.meetingSequenceStarted = true;
+    // Compute a simple timeline: appointment time -> +30 minutes
+    const appt = getMeetingTime(state);
+    const back = addMinutesHHMM(appt, 30) || "";
+    state.facts = state.facts || {};
+    state.facts.returnTime = back;
+    // Hide panels during transition popups
+    hideAllPanels();
+    syncPortraitVisibility();
+    // Popup: visitor goes to meeting
+    showScenePopup("Visitor goes to appointment", back ? `Gone for 30 minutes (${appt} → ${back})` : "Gone for 30 minutes", state.visitor?.photoSrc, 3000);
+    // After a few moments, visitor returns
+    setTimeout(()=>{
+      showScenePopup("A few moments later…", back ? `The visitor is now back at your sign-in office (${back}). Make sure he hands in his visitor pass.` : "The visitor is now back at your sign-in office. Make sure he hands in his visitor pass.", state.visitor?.photoSrc, 3000);
+    }, 3500);
+    setTimeout(()=>{
+      // Switch to checkout in sign-in office
+      state.stage = "si_checkout";
+      state.flags.siCheckoutActive = true;
+      state.flags.siView = "register";
+      // Prepare checkout field
+      if (si_outTime && !si_outTime.value && back) si_outTime.value = back;
+      showSignIn();
+      updateHint();
+    }, 6500);
+  }
+const passNo = $("#passNo");
   const passName = $("#passName");
   const passUntil = $("#passUntil");
   const btnPassReturn = $("#btnPassReturn");
@@ -381,7 +411,15 @@
     return pickArr(neutral);
   }
 
-  function getMeetingTime(state){
+  
+  function addMinutesHHMM(hhmm, mins){
+    if (!/^\d{2}:\d{2}$/.test(hhmm||"")) return "";
+    const [h,m]=hhmm.split(":").map(x=>parseInt(x,10));
+    const total=(h*60+m+mins)%(24*60);
+    const hh=pad(Math.floor(total/60)); const mm=pad(total%60);
+    return `${hh}:${mm}`;
+  }
+function getMeetingTime(state){
     if (state.facts.meetingTime && /^\d{2}:\d{2}$/.test(state.facts.meetingTime)) return state.facts.meetingTime;
     const now=new Date(); const dt=new Date(now.getTime()+randInt(15,25)*60*1000);
     const hhmm=`${pad2(dt.getHours())}:${pad2(dt.getMinutes())}`;
@@ -860,6 +898,7 @@ function showSignIn(){
       if (si_name) si_name.value = "";
       if (si_poc) si_poc.value = "";
       if (si_time) si_time.value = "";
+      if (si_outTime) si_outTime.value = "";
       if (si_loc) si_loc.value = "";
       if (si_company) si_company.value = "";
       state.flags.siFormInitialized = true;
@@ -876,6 +915,9 @@ function showSignIn(){
     state.pass.id = state.pass.id || ("VP-"+randInt(1000,9999));
     if (si_passPreview) si_passPreview.textContent = state.pass.id;
 
+
+    const isCheckout = !!state.flags.siCheckoutActive;
+    setSignInMode(isCheckout ? "checkout" : "entry");
     // Signature / rules step:
     // We use an explicit view state so the UI can transition:
     // register (3s) -> blank (3s) -> rules.
@@ -886,7 +928,19 @@ function showSignIn(){
 
     updateHint();
   }
-  function showPass(){
+  
+  function setSignInMode(mode){
+    // mode: "entry" | "checkout"
+    try{
+      if (signInPanel) signInPanel.dataset.mode = (mode==="checkout" ? "checkout" : "entry");
+    }catch(e){}
+    // Toggle which fields should be editable/expected
+    if (si_outTime){
+      si_outTime.disabled = (mode!=="checkout");
+      si_outTime.classList.toggle("missing", (mode==="checkout" && !si_outTime.value));
+    }
+  }
+function showPass(){
     hideAllPanels();
     const portraitRow = $("#portraitRow");
   // portrait visibility handled by syncPortraitVisibility()  // portrait visibility handled by syncPortraitVisibility()
@@ -2346,8 +2400,9 @@ function nextHint(){
     if (state.flags.siSigned && state.flags.siIssued && state.flags.siPassNoStated && rulesOk){
       state.flags.siComplete = true;
       updateChecklist();
-      showPass();
-      enqueueVisitor("Thank you.");
+      // After rules are completed, the guard should ask: "Any questions?"
+      state.flags.siAwaitingQuestions = true;
+      enqueueVisitor("Okay.");
       updateHint();
     }
   }
@@ -2745,7 +2800,7 @@ btnSend?.addEventListener("click", ()=>{
   btnPersonSearch?.addEventListener("click", ()=> handleStudent("Go to person search"));
   btnSignIn?.addEventListener("click", ()=> handleStudent("Go to sign-in office"));
   btnEndScenario?.addEventListener("click", ()=> endScenarioNow("endScenario"));
-  btnGoAppointment?.addEventListener("click", ()=> endScenarioNow("goAppointment"));
+  btnGoAppointment?.addEventListener("click", ()=> startMeetingSequence("button"));
   btnCloseSummary?.addEventListener("click", ()=>{ if(summaryModal) summaryModal.hidden=true; });
   btnDeny?.addEventListener("click", ()=> enqueueVisitor(phrase("shared","deny_why",state)));
 

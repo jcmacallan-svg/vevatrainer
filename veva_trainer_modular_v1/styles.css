@@ -783,3 +783,8 @@ body.hasPopup #portraitRow{display:none !important;}
 .psPillsRowLabel{ font-size: 12px; opacity: .75; margin: 6px 0; }
 .psItemPill.isSelected{ outline: 2px solid rgba(255,255,255,.25); }
 .psItemPill--inPocket{ border-style: dashed !important; opacity: .95; }
+
+
+/* Sign-in checkout field (hidden during entry) */
+#signInPanel[data-mode="entry"] .checkoutOnly{display:none;}
+#signInPanel[data-mode="checkout"] .checkoutOnly{display:block;}
