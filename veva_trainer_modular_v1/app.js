@@ -606,7 +606,7 @@ function getMeetingTime(state){
     // Defensive fallbacks for phrasing variants (local, so checklist keeps working even if VEVA_INTENTS is missing)
     if (/\b(hi|hello|good\s+(morning|afternoon|evening))\b/i.test(n) && /\bhelp\b/i.test(n)) return "greet";
     // Context-aware Sign-in shortcuts
-    if (state?.flowName === "Sign-in Office" || state?.stage === "sign_in" || state?.stage === "si_checkout"){
+    if (state?.flowName === "Sign-in" || state?.flowName === "Sign-in Office" || state?.stage === "sign_in" || state?.stage === "si_checkout"){
       if (/\b(any\s+questions\??|do\s+you\s+have\s+any\s+questions\??)\b/i.test(n)) return "si_any_questions";
       if (/\b(follow\s+my\s+colleague|this\s+way|lead\s+on|come\s+with\s+me)\b/i.test(n)) return "si_follow_colleague";
       if (/\b(assembly\s+(area|point)|green\s+sign|white\s+arrows)\b/i.test(n) && /\b(over\s+here|this\s+way|it\'?s)\b/i.test(n)) return "si_assembly_explain";
