@@ -134,6 +134,23 @@
 
   function showScenePopup(title, sub, imgSrc, ms=3000){
     if (!scenePopup) return;
+    // Ensure popup is not inside a hidden panel (can happen during transitions)
+    try{
+      if (scenePopup.parentElement && scenePopup.parentElement !== document.body){
+        // If any ancestor is hidden, move popup to <body>
+        let a = scenePopup.parentElement, hiddenAncestor = false;
+        while (a && a !== document.body){
+          if (a.hidden) { hiddenAncestor = true; break; }
+          a = a.parentElement;
+        }
+        if (hiddenAncestor) document.body.appendChild(scenePopup);
+      }
+      // Also force it visible above everything
+      scenePopup.style.position = "fixed";
+      scenePopup.style.inset = "0";
+      scenePopup.style.zIndex = "9999";
+      scenePopup.style.display = "";
+    }catch(e){}
     try{ if (scenePopupTimer) clearTimeout(scenePopupTimer); }catch{}
     if (scenePopupTitle) scenePopupTitle.textContent = title || "";
     if (scenePopupSub) scenePopupSub.textContent = sub || "";
@@ -156,10 +173,10 @@ function startMeetingSequence(source){
     state.facts = state.facts || {};
     state.facts.returnTime = back;
     state.facts.minutesGone = minutesGone;
-    // Hide panels during transition popups
-    hideAllPanels();
-    syncPortraitVisibility();
     // Popup: visitor goes to meeting
+    // (Do NOT hide panels before showing popup; popup may live inside a panel in some layouts.)
+    // Hide panels right after popup is shown to keep focus on transition.
+    setTimeout(()=>{ try{ hideAllPanels(); }catch(e){} try{ syncPortraitVisibility(); }catch(e){} }, 50);
     showScenePopup("Visitor goes to appointment", back ? `Gone for ${minutesGone} minutes (${appt} → ${back})` : "Gone for ${minutesGone} minutes", state.visitor?.photoSrc, 3000);
     // After a few moments, visitor returns
     setTimeout(()=>{
