@@ -1,6 +1,3 @@
-
-  // Helper: pick random element
-  function pickArr(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
 // app.js (core modular engine) - see README for overview
 // NOTE: This is a full working core. Keep patches modular; extend there first.
 
@@ -87,10 +84,10 @@
   const transitionText = $("#transitionText");
   const transitionBanner = $("#transitionBanner");
   // Scene popup (for transitions like gate -> PS -> sign-in)
-  const scenePopup = $("#scenePopup");
-  const scenePopupImg = $("#scenePopupImg");
-  const scenePopupTitle = $("#scenePopupTitle");
-  const scenePopupSub = $("#scenePopupSub");
+  let scenePopup = $("#scenePopup");
+  let scenePopupImg = $("#scenePopupImg");
+  let scenePopupTitle = $("#scenePopupTitle");
+  let scenePopupSub = $("#scenePopupSub");
   let scenePopupTimer = null;
   const psOutfit = $("#psOutfit");
   const psCards = $("#psCards");
@@ -136,39 +133,46 @@
   }
 
   function showScenePopup(title, sub, imgSrc, ms=3000){
-    if (!scenePopup) {
-      // Create popup on the fly if missing
+    // Ensure popup elements exist
+    if (!scenePopup){
       scenePopup = document.createElement("div");
       scenePopup.id = "scenePopup";
-      scenePopup.innerHTML = `<div class="scenePopupCard"><img id="scenePopupImg" alt="visitor"/><div class="scenePopupText"><div id="scenePopupTitle"></div><div id="scenePopupSub"></div></div></div>`;
+      scenePopup.innerHTML = `
+        <div class="scenePopupCard">
+          <img id="scenePopupImg" alt="visitor"/>
+          <div class="scenePopupText">
+            <div id="scenePopupTitle"></div>
+            <div id="scenePopupSub"></div>
+          </div>
+        </div>`;
       document.body.appendChild(scenePopup);
+      scenePopupImg = document.getElementById("scenePopupImg");
       scenePopupTitle = document.getElementById("scenePopupTitle");
       scenePopupSub = document.getElementById("scenePopupSub");
-      scenePopupImg = document.getElementById("scenePopupImg");
     }
-    // Ensure popup is not inside a hidden panel
+    // Force overlay visibility above panels
     try{
-      if (scenePopup.parentElement && scenePopup.parentElement !== document.body){
-        let a = scenePopup.parentElement, hiddenAncestor = false;
-        while (a && a !== document.body){ if (a.hidden) { hiddenAncestor = true; break; } a = a.parentElement; }
-        if (hiddenAncestor) document.body.appendChild(scenePopup);
-      }
+      if (scenePopup.parentElement !== document.body) document.body.appendChild(scenePopup);
       scenePopup.style.position = "fixed";
       scenePopup.style.inset = "0";
       scenePopup.style.zIndex = "9999";
+      scenePopup.style.display = "";
+      scenePopup.hidden = false;
     }catch(e){}
-    try{ if (scenePopupTimer) clearTimeout(scenePopupTimer); }catch{}
-    if (scenePopupTitle) scenePopupTitle.textContent = title || "";
-    if (scenePopupSub) scenePopupSub.textContent = sub || "";
-    if (scenePopupImg){
-      scenePopupImg.src = imgSrc || (state?.visitor?.photoSrc || TRANSPARENT_PX);
-    }
-    scenePopup.hidden = false;
-    scenePopupTimer = setTimeout(()=>{ scenePopup.hidden = true; }, ms);
+    try{ if (scenePopupTimer) clearTimeout(scenePopupTimer); }catch(e){}
+    try{ if (scenePopupTitle) scenePopupTitle.textContent = title || ""; }catch(e){}
+    try{ if (scenePopupSub) scenePopupSub.textContent = sub || ""; }catch(e){}
+    try{
+      if (scenePopupImg){
+        scenePopupImg.src = imgSrc || (state?.visitor?.photoSrc || TRANSPARENT_PX);
+      }
+    }catch(e){}
+    scenePopupTimer = setTimeout(()=>{ try{ scenePopup.hidden = true; }catch(e){} }, ms);
   }
   
   function startMeetingSequence(source){
-    if (state.flags.meetingSequenceStarted) return;
+    // Always allow start once per run; if state got stuck, reset the flag.
+    state.flags.meetingSequenceStarted = false;
     state.flags.meetingSequenceStarted = true;
     // Compute a simple timeline: appointment time -> +30..45 minutes
     const appt = getMeetingTime(state);
@@ -177,8 +181,9 @@
     state.facts = state.facts || {};
     state.facts.returnTime = back;
     state.facts.minutesGone = minutesGone;
-    // Popup: visitor goes to meeting
-    setTimeout(()=>{ try{ hideAllPanels(); }catch(e){} try{ syncPortraitVisibility(); }catch(e){} }, 50);
+    // Hide panels during transition popups
+    hideAllPanels();
+    syncPortraitVisibility();
     // Popup: visitor goes to meeting
     showScenePopup("Visitor goes to appointment", back ? `Gone for ${minutesGone} minutes (${appt} → ${back})` : "Gone for ${minutesGone} minutes", state.visitor?.photoSrc, 3000);
     // After a few moments, visitor returns
@@ -449,7 +454,7 @@ const passNo = $("#passNo");
     if (!/^\d{2}:\d{2}$/.test(hhmm||"")) return "";
     const [h,m]=hhmm.split(":").map(x=>parseInt(x,10));
     const total=(h*60+m+mins)%(24*60);
-    const hh=pad(Math.floor(total/60)); const mm=pad(total%60);
+    const hh=pad2(Math.floor(total/60)); const mm=pad2(total%60);
     return `${hh}:${mm}`;
   }
 function getMeetingTime(state){
@@ -721,7 +726,7 @@ function getMeetingTime(state){
     // Show typing dots for ~2–3s max (fast iteration; length adds but is capped)
     const t = String(text||"");
     typingVisitor = true;
-    try{ renderTyping(); }catch(e){}
+    renderTyping();
 
     // Base delay 2000–2600ms, plus a small length bonus, hard-capped at 3000ms.
     const base = 2000 + Math.floor(Math.random() * 601); // 2000..2600
@@ -730,16 +735,14 @@ function getMeetingTime(state){
 
     setTimeout(()=>{
       typingVisitor = false;
-      // Render visitor message; never let logging errors break the flow.
+      // remove any pending typing placeholder and render
       try{ addMsg("visitor", t); }catch(e){}
+      try{ window.VEVA_LOG?.({type:"visitor", stage: state?.stage, text: t}); }catch(e){}
       try{ speakVisitor(t); }catch(e){}
       try{ renderChat(); }catch(e){}
-      try{ window.VEVA_LOG?.({type:"visitor", stage: state?.stage, text: t}); }catch(e){}
       try{ if (typeof afterShown === "function") afterShown(); }catch(e){}
       try{ updateHint(); }catch(e){}
     }, delay);
-
-    return delay;
   }
 
 
@@ -2477,6 +2480,7 @@ function handleSI(intent, raw){
 
     // Any-questions step after base rules
     if (intent==="si_any_questions"){
+      if (state.flags.siQuestionsResolved){ enqueueVisitor("No further questions."); setTimeout(()=>startMeetingSequence("si_repeat_questions"), 2300); updateHint(); return; }
       state.flags.siAskedQuestions = true;
       state.flags.siAwaitingQuestions = false;
       updateChecklist();
@@ -2486,17 +2490,16 @@ function handleSI(intent, raw){
         state.flags.siVisitorQuestionAnswered = false;
         state.flags.siVisitorQuestion = "way";
         enqueueVisitor("Yes—can you show me the way?");
-            // Fallback: start meeting even if callback is skipped
-      const fallbackMeetingTimer = setTimeout(()=>{ try{ startMeetingSequence("si_no_questions"); }catch(e){} }, 2600);
-} else if (r < 0.80){
+      } else if (r < 0.80){
         state.flags.siVisitorQuestionAnswered = false;
         state.flags.siVisitorQuestion = "assembly";
         enqueueVisitor("Yes—where is the assembly area?");
       } else {
         state.flags.siVisitorQuestionAnswered = true;
         state.flags.siVisitorQuestion = "none";
-        enqueueVisitor("No, thank you.", ()=>{ try{ clearTimeout(fallbackMeetingTimer); }catch(e){}
-        setTimeout(()=>startMeetingSequence("si_no_questions"), 2200); });
+        state.flags.siQuestionsResolved = true;
+        state.flags.siQuestionsResolved = true;
+        enqueueVisitor("No, thank you.", ()=>{ setTimeout(()=>startMeetingSequence("si_no_questions"), 2300); });
       }
       updateHint();
       return;
@@ -2504,11 +2507,9 @@ function handleSI(intent, raw){
 
     // Answer route question
     if (intent==="si_follow_colleague"){
-      enqueueVisitor(pickArr(["Okay, I will follow your colleague.", "Alright—lead on.", "Okay."]), ()=>{ try{ clearTimeout(fallbackMeetingTimer); }catch(e){}
-        setTimeout(()=>startMeetingSequence("si_way"), 2200);       // Fallback: start meeting even if callback is skipped
-      const fallbackMeetingTimer = setTimeout(()=>{ try{ startMeetingSequence("si_way"); }catch(e){} }, 2600);
-});
       state.flags.siVisitorQuestionAnswered = true;
+      state.flags.siQuestionsResolved = true;
+      enqueueVisitor(pickArr(["Okay, I will follow your colleague.", "Alright—lead on.", "Okay."]), ()=>{ setTimeout(()=>startMeetingSequence("si_way"), 2300); });
       updateHint();
       updateChecklist();
       return;
@@ -2516,11 +2517,9 @@ function handleSI(intent, raw){
 
     // Answer assembly question (green sign with white arrows)
     if (intent==="si_assembly_explain"){
-      enqueueVisitor(pickArr(["Thank you.", "Understood—thank you.", "Okay, thanks."]), ()=>{ try{ clearTimeout(fallbackMeetingTimer); }catch(e){}
-        setTimeout(()=>startMeetingSequence("si_assembly"), 2200);       // Fallback: start meeting even if callback is skipped
-      const fallbackMeetingTimer = setTimeout(()=>{ try{ startMeetingSequence("si_assembly"); }catch(e){} }, 2600);
-});
       state.flags.siVisitorQuestionAnswered = true;
+      state.flags.siQuestionsResolved = true;
+      enqueueVisitor(pickArr(["Thank you.", "Understood—thank you.", "Okay, thanks."]), ()=>{ setTimeout(()=>startMeetingSequence("si_assembly"), 2300); });
       updateHint();
       updateChecklist();
       return;
