@@ -763,8 +763,12 @@ function showSignIn(){
     if (si_passPreview) si_passPreview.textContent = state.pass.id;
 
     // Signature / rules step:
+    // We use an explicit view state so the UI can transition:
+    // register (3s) -> blank (3s) -> rules.
     const signed = !!state.flags.siSigned;
-    setSignInView(signed ? "rules" : "register");
+    const view = state?.flags?.siView;
+    const mode = view ? view : (signed ? "rules" : "register");
+    setSignInView(mode);
 
     updateHint();
   }
@@ -1675,7 +1679,7 @@ function nextHint(){
       flowName:"Gate", stage:"gate_approach", misses:0, lastIntent:"", lastAsked:"",
       visitor:v,
       facts:{ name:"", purpose:"", appt:"yes", who:"", time:"", about:"", location:"", meetingTime:"", locationCode:"", purposeText:"", whoText:"", aboutText:"", whereText:"", company:"" },
-      flags:{ idChecked:false, reportedSupervisor:false, searchExplained:false, illegalDone:false, sentToPersonSearch:false, psSharpAsked:false, psRemoveOuter:false, psPositioned:false, psCleared:false, siIssued:false, siRuleVisible:false, siRuleShowOnRequest:false, siRuleReturnOnExit:false, siRuleAlarmAssembly:false, siRuleBaseCloses:false },
+      flags:{ idChecked:false, reportedSupervisor:false, searchExplained:false, illegalDone:false, sentToPersonSearch:false, psSharpAsked:false, psRemoveOuter:false, psPositioned:false, psCleared:false, siSigned:false, siView:"register", siIssued:false, siRuleVisible:false, siRuleShowOnRequest:false, siRuleReturnOnExit:false, siRuleAlarmAssembly:false, siRuleBaseCloses:false },
       ui:{ idVisible:false, supervisorVisible:false },
       ps:null, pass:null,
       evasiveFor: pick(["purpose","who_meeting","about_meeting","where_meeting","time_meeting"])
@@ -2274,6 +2278,8 @@ function handleSI(intent, raw){
     if (intent==="si_sign_in"){
       // Student initiates signing the register
       state.flags.siSigned = true;
+      // Keep the register visible briefly, then switch screens.
+      state.flags.siView = "register";
 
       // Fill only what has been asked at sign-in (values are set when the student asks the questions).
       // For safety, if fields are still empty, we can at least insert known values (name / time / location).
@@ -2293,8 +2299,8 @@ function handleSI(intent, raw){
       enqueueVisitor("Okay.");
 
       // After the signature is drawn, hide the register first (transition), then show base rules as a separate screen.
-      setTimeout(()=>{ try{ setSignInView("blank"); }catch(e){} }, 3000);
-      setTimeout(()=>{ try{ setSignInView("rules"); }catch(e){} }, 6000);
+      setTimeout(()=>{ try{ state.flags.siView = "blank"; setSignInView("blank"); }catch(e){} }, 3000);
+      setTimeout(()=>{ try{ state.flags.siView = "rules"; setSignInView("rules"); }catch(e){} }, 6000);
 updateHint();
       return;
     }
