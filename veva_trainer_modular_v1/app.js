@@ -174,9 +174,9 @@
     // Always allow start once per run; if state got stuck, reset the flag.
     state.flags.meetingSequenceStarted = false;
     state.flags.meetingSequenceStarted = true;
-    // Compute a simple timeline: appointment time -> +60..90 minutes
+    // Compute a simple timeline: appointment time -> +30..45 minutes
     const appt = getMeetingTime(state);
-    const minutesGone = randInt(60, 90);
+    const minutesGone = randInt(30, 45);
     const back = addMinutesHHMM(appt, minutesGone) || "";
     state.facts = state.facts || {};
     state.facts.returnTime = back;
@@ -185,23 +185,11 @@
     hideAllPanels();
     syncPortraitVisibility();
     // Popup: visitor goes to meeting
-    showScenePopup(
-      "Visitor moving",
-      back ? `Visitor is now walking to the appointment (${appt} → ${back}).` : "Visitor is now walking to the appointment.",
-      state.visitor?.photoSrc,
-      2500
-    );
+    showScenePopup("Visitor goes to appointment", back ? `Gone for ${minutesGone} minutes (${appt} → ${back})` : "Gone for ${minutesGone} minutes", state.visitor?.photoSrc, 3000);
     // After a few moments, visitor returns
     setTimeout(()=>{
-      showScenePopup(
-        `${minutesGone} minutes later…`,
-        back
-          ? `The visitor is now back at your sign-in office (${back}). Make sure he hands in his visitor pass (he will ask to hand it in).`
-          : "The visitor is now back at your sign-in office. Make sure he hands in his visitor pass (he will ask to hand it in).",
-        state.visitor?.photoSrc,
-        3000
-      );
-    }, 3000);
+      showScenePopup(`${minutesGone} minutes later…`, back ? `The visitor is now back at your sign-in office (${back}). Make sure he hands in his visitor pass (he will ask to hand it in).` : "The visitor is now back at your sign-in office. Make sure he hands in his visitor pass (he will ask to hand it in).", state.visitor?.photoSrc, 3000);
+    }, 3500);
     setTimeout(()=>{
       // Switch to checkout in sign-in office
       state.stage = "si_checkout";
@@ -214,7 +202,7 @@
       if (si_outTime) si_outTime.classList.add("missing");
       showSignIn();
       updateHint();
-    }, 6000);
+    }, 6500);
   }
 const passNo = $("#passNo");
   const passName = $("#passName");
@@ -647,7 +635,7 @@ function getMeetingTime(state){
     // Defensive fallbacks for phrasing variants (local, so checklist keeps working even if VEVA_INTENTS is missing)
     if (/\b(hi|hello|good\s+(morning|afternoon|evening))\b/i.test(n) && /\bhelp\b/i.test(n)) return "greet";
     // Context-aware Sign-in shortcuts
-    if (state?.flowName === "Sign-in" || state?.flowName === "Sign-in Office" || state?.stage === "sign_in" || state?.stage === "si_checkout"){
+    if (state?.flowName === "Sign-in" || state?.flowName === "Sign-in Office" || /^si_/.test(String(state?.stage||"")) || state?.stage === "sign_in" || state?.stage === "si_checkout"){
       if (/\b(any\s+questions\??|do\s+you\s+have\s+any\s+questions\??)\b/i.test(n)) return "si_any_questions";
       if (/\b(follow\s+my\s+colleague|this\s+way|lead\s+on|come\s+with\s+me)\b/i.test(n)) return "si_follow_colleague";
       if (/\b(assembly\s+(area|point)|green\s+sign|white\s+arrows)\b/i.test(n) && /\b(over\s+here|this\s+way|it\'?s)\b/i.test(n)) return "si_assembly_explain";
