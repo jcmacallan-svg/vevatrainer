@@ -620,8 +620,9 @@ function getMeetingTime(state){
 
     
     // Robust Gate patterns (always-on)
-    // Ask name (supports "state your full name" anywhere in the flow)
-    if (/\b(what\s*(is|'s)\s*your\s*name|your\s*name\s*please|please\s+(state|tell|give)\s+(me\s+)?your\s+(full\s+)?name|\b(state|tell|give)\s+(me\s+)?your\s+(full\s+)?name)\b/i.test(n)) return "ask_name";
+    // Ask name / full name ("full name" should return first+surname)
+    if (/\bfull\s+name\b/i.test(n) && /\bname\b/i.test(n)) return "ask_fullname";
+    if (/\b(what\s*(is|'s)\s*your\s*name|your\s*name\s*please|please\s+(state|tell|give)\s+(me\s+)?your\s+name|\b(state|tell|give)\s+(me\s+)?your\s+name)\b/i.test(n)) return "ask_name";
     if (/\b(surname|last\s*name|family\s*name)\b/i.test(n) && (/\bwhat\b/i.test(n) || /\byour\b/i.test(n))) return "ask_surname";
     if (/\b(purpose|reason)\b.*\b(visit|here)\b|\bwhy\s+are\s+you\s+here\b/i.test(n)) return "ask_purpose";
     if (/\bdo\s+you\s+have\s+an?\s+appointment\b|\bappointment\?\b/i.test(n)) return "ask_appt";
@@ -695,7 +696,8 @@ function getMeetingTime(state){
 
 
     // Gate: name (incl. "please state your full name")
-    if (/\b(what\s+is|may\s+i\s+have|can\s+i\s+have|please\s+(state|tell|give)|\b(state|tell|give))\s+(me\s+)?(your\s+)?(full\s+)?name\b/i.test(n)) return "ask_name";
+    if (/\bfull\s+name\b/i.test(n) && /\bname\b/i.test(n)) return "ask_fullname";
+    if (/\b(what\s+is|may\s+i\s+have|can\s+i\s+have|please\s+(state|tell|give)|\b(state|tell|give))\s+(me\s+)?(your\s+)?name\b/i.test(n)) return "ask_name";
     if (/\bsurname\b/i.test(n) && /\b(what\s+is|your)\b/i.test(n)) return "ask_surname";
 
     // Gate: purpose
@@ -2125,6 +2127,15 @@ function nextHint(){
       state.stage="gate_5wh";
     }
 
+    if (intent==="ask_fullname"){
+      state.flags.nameAsked = true;
+      updateChecklist();
+      state.facts.name = state.visitor.name;
+      const full = `${state.visitor.first} ${state.visitor.last}`.trim();
+      enqueueVisitor(`My name is ${full}.`);
+      updateHint();
+      return;
+    }
     if (intent==="ask_name"){
       state.flags.nameAsked = true;
       updateChecklist(); state.facts.name=state.visitor.name; enqueueVisitor(`My name is ${state.visitor.first}.`); updateHint(); return; }
