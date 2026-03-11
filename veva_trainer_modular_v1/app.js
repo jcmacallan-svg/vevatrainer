@@ -171,7 +171,8 @@ const si_rulesForm = $("#si_rulesForm");
       scenePopup.style.position = "fixed";
       scenePopup.style.inset = "0";
       scenePopup.style.zIndex = "9999";
-      scenePopup.style.display = "";
+            scenePopup.style.pointerEvents = "none";
+scenePopup.style.display = "";
       scenePopup.hidden = false;
     }catch(e){}
     try{ if (scenePopupTimer) clearTimeout(scenePopupTimer); }catch(e){}
@@ -989,6 +990,68 @@ personSearchPanel.hidden=false;
     }catch(e){}
   }
 
+
+  function syncSignatureBoxes(){
+    const signedIn = !!state?.flags?.siSigned;
+    const signedOut = !!state?.flags?.coSignedOut;
+
+    // Sign-in signature box (Time in)
+    try{
+      if (sigBox){
+        let hint = sigBox.querySelector?.(".sigHint");
+        if (!hint){
+          hint = document.createElement("div");
+          hint.className = "sigHint";
+          hint.textContent = "Sign here";
+          sigBox.prepend(hint);
+        }
+        const img = sigBox.querySelector?.("img.sigImg") || sigBox.querySelector?.("#sigImg");
+        if (signedIn){
+          if (hint) hint.style.display = "none";
+          if (!img){
+            const im = document.createElement("img");
+            im.className = "sigImg";
+            im.alt = "Signature";
+            im.src = "assets/signature.png";
+            sigBox.appendChild(im);
+          }
+        } else {
+          if (hint) hint.style.display = "";
+          if (img) img.remove();
+          sigBox.classList.remove("sigRun");
+        }
+      }
+    }catch(e){}
+
+    // Sign-out signature box (Time out)
+    try{
+      if (sigBoxOut){
+        let hint = sigBoxOut.querySelector?.(".sigHint");
+        if (!hint){
+          hint = document.createElement("div");
+          hint.className = "sigHint";
+          hint.textContent = "Sign here";
+          sigBoxOut.prepend(hint);
+        }
+        const img = sigBoxOut.querySelector?.("img.sigImg");
+        if (signedOut){
+          if (hint) hint.style.display = "none";
+          if (!img){
+            const im = document.createElement("img");
+            im.className = "sigImg";
+            im.alt = "Signature";
+            im.src = "assets/signature.png";
+            sigBoxOut.appendChild(im);
+          }
+        } else {
+          if (hint) hint.style.display = "";
+          if (img) img.remove();
+          sigBoxOut.classList.remove("sigRun");
+        }
+      }
+    }catch(e){}
+  }
+
 function showSignIn(){
     hideAllPanels();
     signInPanel.hidden=false;
@@ -1033,6 +1096,8 @@ function showSignIn(){
     const view = state?.flags?.siView;
     const mode = view ? view : (signed ? "rules" : "register");
     setSignInView(mode);
+
+    syncSignatureBoxes();
 
     updateHint();
   }
@@ -2046,6 +2111,7 @@ function nextHint(){
 
   function resetScenario(){
     currentMood = MOODS[randInt(0, MOODS.length-1)];
+    try{ if (btnEndScenario) btnEndScenario.disabled = false; }catch(e){}
     const v = makeRandomVisitor();
     v.contact = makeContact();
     state = {
@@ -2778,19 +2844,17 @@ function handleSI(intent, raw){
       try{
         if (targetSigBox){
           targetSigBox.classList.remove("sigRun"); void targetSigBox.offsetWidth; targetSigBox.classList.add("sigRun");
-          // If this is the sign-out box, inject the same signature image and hide the hint.
-          if (state.flags.siCheckoutActive){
-            const hint = targetSigBox.querySelector?.(".sigHint");
-            if (hint) hint.style.display = "none";
-            if (!targetSigBox.querySelector?.("img")){
-              const img = document.createElement("img");
-              img.className = "sigImg";
-              img.alt = "Signature";
-              img.src = "assets/signature.png";
-              targetSigBox.appendChild(img);
-            }
+          // Inject signature image and hide the hint (sign-in or sign-out).
+          const hint = targetSigBox.querySelector?.(".sigHint");
+          if (hint) hint.style.display = "none";
+          if (!targetSigBox.querySelector?.("img.sigImg")){
+            const img = document.createElement("img");
+            img.className = "sigImg";
+            img.alt = "Signature";
+            img.src = "assets/signature.png";
+            targetSigBox.appendChild(img);
           }
-        }
+}
       }catch(e){}
       if (si_sig) si_sig.value = "signed";
 
