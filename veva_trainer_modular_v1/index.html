@@ -245,8 +245,8 @@
               <div id="signInPanel" class="card" hidden>
                 <div class="cardTop">
                   <div>
-                    <div class="cardTitle">Sign-in Register</div>
-                    <div class="cardSub">Fill in the entry log.</div>
+                    <div class="cardTitle" id="si_cardTitle">Sign-in Register</div>
+                    <div class="cardSub" id="si_cardSub">Fill in the entry log.</div>
                   </div>
                   <div class="chips"><span class="chip chipPrimary">REGISTER</span></div>
                 </div>
@@ -285,27 +285,10 @@
                       <label>Time out <input id="si_outTime" type="text" placeholder="HH:MM" /></label>
                       <label class="sigLabel">Signature
                         <div id="sigBoxOut" class="sigBox" aria-label="Signature box (sign-out)">
-                          <img class="sigImg" src="assets/signature.png" alt="Signature" />
-<svg viewBox="0 0 620 160" class="sigSvg" aria-label="Signature" aria-hidden="true">
-                          <path class="sigPath" d="M40 110
-           C70 60, 110 150, 150 90
-           C175 55, 195 70, 210 95
-           C230 130, 260 60, 285 85
-           C310 110, 300 150, 340 120
-           C385 90, 380 50, 415 70
-           C445 88, 455 130, 420 132
-           C460 140, 490 105, 520 90
-           C545 78, 560 92, 580 70
-           C600 45, 610 55, 605 80
-           C598 115, 555 135, 500 125
-           C430 112, 345 118, 260 120
-           C190 122, 120 140, 60 132" />
-                        </svg>
+                          <div class="sigHint">Sign here</div>
                         </div>
                       </label>
                     </div>
-
-                    <label class="fullRow">Location <input id="si_loc" type="text" placeholder="Building / office" /></label>
                   </div>
                   <div id="si_rulesForm" class="rulesBox" hidden>
                     <div class="rulesTitle">Next: brief the visitor on base rules</div>

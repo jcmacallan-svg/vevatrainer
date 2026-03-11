@@ -228,6 +228,8 @@
       }
       showSignIn();
       updateHint();
+      // Visitor prompts for sign-out time (no checklist dependency)
+      try{ enqueueVisitor("What time are you going to leave?"); }catch(e){}
     }, 11500);
   }
 const passNo = $("#passNo");
@@ -937,8 +939,8 @@ personSearchPanel.hidden=false;
   
   function setSignInView(mode){
     // mode: "register" | "rules"
-    const titleEl = signInPanel ? signInPanel.querySelector(".cardTitle") : null;
-    const subEl = signInPanel ? signInPanel.querySelector(".cardSub") : null;
+    const titleEl = $("#si_cardTitle") || (signInPanel ? signInPanel.querySelector(".cardTitle") : null);
+    const subEl = $("#si_cardSub") || (signInPanel ? signInPanel.querySelector(".cardSub") : null);
     const chipEl = signInPanel ? signInPanel.querySelector(".chip") : null;
 
     const isRules = (mode==="rules");
@@ -959,14 +961,15 @@ personSearchPanel.hidden=false;
       si_rulesForm.hidden = !isRules;
       si_rulesForm.style.display = isRules ? "" : "none";
     }
-if (titleEl) titleEl.textContent = isRules ? "Wachtconsignes" : (isBlank ? "Processing…" : "Sign-in Register");
-    if (subEl) subEl.textContent = isRules ? "Base rules briefing" : (isBlank ? "Please wait…" : "Fill in the entry log.");
+    const isCheckout = !!state?.flags?.siCheckoutActive;
+    if (titleEl) titleEl.textContent = isRules ? "Wachtconsignes" : (isBlank ? "Processing…" : (isCheckout ? "Sign-out" : "Sign-in Register"));
+    if (subEl) subEl.textContent = isRules ? "Base rules briefing" : (isBlank ? "Please wait…" : (isCheckout ? "Fill in the exit log." : "Fill in the entry log."));
     if (chipEl) chipEl.textContent = isRules ? "RULES" : (isBlank ? "WAIT" : "REGISTER");
 
     // Make RULES behave like a separate screen (no scrolling past the register)
     try{
-      if (panelTitle) panelTitle.textContent = isRules ? "Base rules" : (isBlank ? "Please wait" : "Sign-in");
-      if (panelSub) panelSub.textContent = isRules ? "Rules briefing" : (isBlank ? "Preparing base rules…" : "Register + pass");
+      if (panelTitle) panelTitle.textContent = isRules ? "Base rules" : (isBlank ? "Please wait" : (isCheckout ? "Sign-out" : "Sign-in"));
+      if (panelSub) panelSub.textContent = isRules ? "Rules briefing" : (isBlank ? "Preparing base rules…" : (isCheckout ? "Exit register" : "Register + pass"));
       const body = signInPanel ? signInPanel.querySelector(".cardBody") : null;
       if (body) body.scrollTop = 0;
       if (signInPanel) signInPanel.scrollTop = 0;
@@ -977,8 +980,9 @@ function showSignIn(){
     hideAllPanels();
     signInPanel.hidden=false;
     syncPortraitVisibility();
-    if (panelTitle) panelTitle.textContent="Sign-in";
-    if (panelSub) panelSub.textContent="Register + pass";
+    const isCheckout = !!state?.flags?.siCheckoutActive;
+    if (panelTitle) panelTitle.textContent = isCheckout ? "Sign-out" : "Sign-in";
+    if (panelSub) panelSub.textContent = isCheckout ? "Exit register" : "Register + pass";
 
     // In sign-in office, hide the portrait guidance block to give the form full space
     const portraitRow = $("#portraitRow");
