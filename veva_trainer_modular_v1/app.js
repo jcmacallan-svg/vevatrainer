@@ -25,6 +25,7 @@
   const btnReturn = $("#btnReturn");
   const btnPersonSearch = $("#btnPersonSearch");
   const btnSignIn = $("#btnSignIn");
+	  const btnSideAppointment = $("#btnSideAppointment");
   const btnDeny = $("#btnDeny");
   const btnEndScenario = $("#btnEndScenario");
   const btnPhrases = $("#btnPhrases");
@@ -2927,6 +2928,14 @@ btnSend?.addEventListener("click", ()=>{
 
   btnPersonSearch?.addEventListener("click", ()=> handleStudent("Go to person search"));
   btnSignIn?.addEventListener("click", ()=> handleStudent("Go to sign-in office"));
+	  // Manual jump to the appointment/return (sign-out) phase
+	  btnSideAppointment?.addEventListener("click", ()=>{
+	    if (!state?.visitor){
+	      addMsg("system","Start a scenario first.","No active scenario");
+	      return;
+	    }
+	    startMeetingSequence("sidebar_button");
+	  });
   btnEndScenario?.addEventListener("click", ()=> endScenarioNow("endScenario"));
   btnGoAppointment?.addEventListener("click", ()=> startMeetingSequence("button"));
   btnCloseSummary?.addEventListener("click", ()=>{ if(summaryModal) summaryModal.hidden=true; });
