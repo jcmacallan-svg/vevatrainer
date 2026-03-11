@@ -4,7 +4,7 @@
   // - Outfit stays simple (cap/jacket/bag + style)
   // - Items: max 6 total
   // - ~20% chance of 1 illegal item
-  //   Illegal items (per your definition): knife, pistol, twelve-gun, joint, whiskey
+  //   Illegal items (per your definition): knife, pistol, twelve-gun, joint, whisky
   window.VEVA_PS_VISUALS = {
     makeOutfit(rng){
       rng = rng || Math.random;
@@ -43,7 +43,7 @@
         { name:"Gun", where:"waistband", kind:"illegal" },      // pistol
         { name:"Twelve gun", where:"bag", kind:"illegal" },     // shotgun-like; maps to gun.png unless you add a dedicated sprite
         { name:"Joint", where:"left pocket", kind:"illegal" },
-        { name:"Whiskey", where:"bag", kind:"illegal" }
+        { name:"Whisky", where:"bag", kind:"illegal" }
       ];
 
       function pickOne(arr){

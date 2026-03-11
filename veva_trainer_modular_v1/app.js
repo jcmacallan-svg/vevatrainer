@@ -99,7 +99,9 @@
   const si_name = $("#si_name");
   const si_company = $("#si_company");
   const sigBox = $("#sigBox");
-  const si_rulesForm = $("#si_rulesForm");
+  
+  const sigBoxOut = $("#sigBoxOut");
+const si_rulesForm = $("#si_rulesForm");
   const si_form = $("#si_form");
   const si_passPreview = $("#si_passPreview");
   const si_poc = $("#si_poc");
@@ -546,11 +548,20 @@ function getMeetingTime(state){
   function detectIntent(raw){
     const n = normalize(raw);
 
+    // End scenario on farewell phrases
+    if (/\b(bye|goodbye|farewell|see\s+you|have\s+a\s+good\s+day)\b/i.test(n)) return "end_farewell";
+
     // Context-aware Person Search shortcuts (avoid gate intents stealing PS commands)
     if (state?.flowName === "Person Search"){
+      // If the visitor asked whether they will get an item back, interpret a plain yes/no.
+      if (state?.ps?.awaitingReturnDecision){
+        if (/^\s*(yes|yeah|yep|sure|of\s+course|ok(ay)?)\b/i.test(n)) return "ps_return_yes";
+        if (/^\s*(no|nope|nah|negative)\b/i.test(n)) return "ps_return_no";
+      }
       if (/\bwhat\s+(is|'s)\s+(this|that)\b/i.test(n)) return "ps_what_is_this";
       if (/\b(i\s*(felt|feel)\s+something|you\s+have\s+something)\b/i.test(n) && /\b(pocket|pockets|waist|waistband|belt)\b/i.test(n)) return "ps_force_felt";
       if (/\b(take\s+(it|that)\s+out|remove\s+(it|that)|pull\s+(it|that)\s+out)\b/i.test(n) || ((/\b(place|put|set|lay)\b/i.test(n)) && /\b(table|tray)\b/i.test(n))) return "ps_take_out";
+      if (/\b(i\s+will\s+take\s+this|i\s+will\s+take\s+that|i\s+will\s+confiscate\s+this|i\s+will\s+confiscate\s+that|i\s+am\s+confiscating\b|i\s+have\s+to\s+confiscate\b|i\s+need\s+to\s+confiscate\b)\b/i.test(n)) return "ps_confiscate";
       if (/(\bdeny\b|\brefuse\b)[^.]{0,40}\b(entry|access)\b|\baccess\s+denied\b|\byou\s+cannot\s+enter\b/i.test(n)) return "ps_deny_entry";
       if (/\bwarning\b|\bthis\s+is\s+your\s+warning\b|\bnext\s+time\b|\bi\s+will\s+warn\b/i.test(n)) return "ps_warn_entry";
     }
@@ -860,7 +871,7 @@ function getMeetingTime(state){
 
     if (idScenario) idScenario.textContent = state.flowName || "Gate";
     if (idLevel) idLevel.textContent = String(session.difficulty||"standard").toUpperCase();
-    if (idName) idName.textContent=state.visitor.name;
+    if (idName) idName.textContent = (state.visitor.first || (state.visitor.name||"").split(/\s+/)[0] || "");
     if (idSurname) idSurname.textContent=state.visitor.last;
     if (idDob) idDob.textContent=state.visitor.dob;
     if (idNat) idNat.textContent=state.visitor.nat;
@@ -1103,8 +1114,17 @@ function showPass(){
         const pills = document.createElement("div");
         pills.className = "psPills";
 
+        // Never show the same item twice (dedupe by display name, case-insensitive).
+        const seenNames = new Set();
         (arr||[])
           .filter(it => it && it.name && !(/twelve\s*gun/i).test(String(it.name)))
+          .filter(it => {
+            const k = String(it.name).trim().toLowerCase();
+            if (!k) return false;
+            if (seenNames.has(k)) return false;
+            seenNames.add(k);
+            return true;
+          })
           .slice(0, 10)
           .forEach((it)=>{
             const btn = document.createElement("button");
@@ -1373,6 +1393,35 @@ function showPass(){
       : "Okay. I’ll take it out and place it carefully on the table.");
     renderPS();
     return true;
+  }
+
+  function psConfiscateSelected(){
+    if (!psIsActive()) return { ok:false, reason:"inactive" };
+    const ps = state.ps;
+    const id = ps.selectedId || ps.lastFoundOnTableId || ps.lastFeltId;
+    if (!id) return { ok:false, reason:"no_selection" };
+
+    // Try remove from table items first, else from pocket items.
+    let it = null;
+    let idx = (ps.items||[]).findIndex(x=>x?.id===id);
+    if (idx >= 0){
+      it = ps.items[idx];
+      ps.items.splice(idx,1);
+    } else {
+      idx = (ps.pocketItems||[]).findIndex(x=>x?.id===id);
+      if (idx >= 0){
+        it = ps.pocketItems[idx];
+        ps.pocketItems.splice(idx,1);
+      }
+    }
+    if (!it) return { ok:false, reason:"not_found" };
+
+    ps.confiscated = Array.isArray(ps.confiscated) ? ps.confiscated : [];
+    ps.confiscated.push({ ...it, confiscated:true });
+    ps.selectedId = null;
+    ps.lastConfiscatedId = it.id;
+    renderPS();
+    return { ok:true, item:it };
   }
 
   function psEmptyPockets(){
@@ -2433,6 +2482,38 @@ function nextHint(){
       return;
     }
 
+    // Confiscation flow: student takes the selected forbidden item.
+    if (state.flowName==="Person Search" && intent==="ps_confiscate"){
+      const res = (function(){ try{ return psConfiscateSelected(); }catch(e){ return {ok:false}; } })();
+      if (!res?.ok){
+        enqueueVisitor("Which item do you mean? Please tap the item first.");
+        updateHint();
+        return;
+      }
+
+      // Visitor asks whether they will get it back.
+      state.ps = state.ps || {};
+      state.ps.awaitingReturnDecision = true;
+      state.flags = state.flags || {};
+      state.flags.psReactedFound = true; // confiscation counts as reacting to a found item
+      updateChecklist();
+
+      const nm = String(res.item?.actualName || res.item?.name || "it");
+      enqueueVisitor(`Okay… Are you going to give it back?`);
+      updateHint();
+      return;
+    }
+
+    // Student answers yes/no to "do I get it back?"
+    if (state.flowName==="Person Search" && (intent==="ps_return_yes" || intent==="ps_return_no")){
+      if (state?.ps?.awaitingReturnDecision){
+        state.ps.awaitingReturnDecision = false;
+        enqueueVisitor(intent==="ps_return_yes" ? "Okay. Thank you." : "Understood." );
+        updateHint();
+        return;
+      }
+    }
+
     if (state.flowName==="Person Search" && (intent==="ps_warn_entry" || intent==="ps_deny_entry")){
       state.flags = state.flags || {};
       const fl = state.flags;
@@ -2681,8 +2762,25 @@ function handleSI(intent, raw){
       if (si_time && !si_time.value) si_time.value = getMeetingTime(state);
       if (si_loc && !si_loc.value) si_loc.value = state.facts.locationCode ? `Building ${state.facts.locationCode}` : (state.facts.location||"");
 
-      // Animate signature inside the signature box
-      if (sigBox){ sigBox.classList.remove("sigRun"); void sigBox.offsetWidth; sigBox.classList.add("sigRun"); }
+      // Animate signature inside the appropriate signature box
+      const targetSigBox = (state.flags.siCheckoutActive ? sigBoxOut : sigBox);
+      try{
+        if (targetSigBox){
+          targetSigBox.classList.remove("sigRun"); void targetSigBox.offsetWidth; targetSigBox.classList.add("sigRun");
+          // If this is the sign-out box, inject the same signature image and hide the hint.
+          if (state.flags.siCheckoutActive){
+            const hint = targetSigBox.querySelector?.(".sigHint");
+            if (hint) hint.style.display = "none";
+            if (!targetSigBox.querySelector?.("img")){
+              const img = document.createElement("img");
+              img.className = "sigImg";
+              img.alt = "Signature";
+              img.src = "assets/signature.png";
+              targetSigBox.appendChild(img);
+            }
+          }
+        }
+      }catch(e){}
       if (si_sig) si_sig.value = "signed";
 
       // Mark checklist immediately.
@@ -2800,6 +2898,12 @@ updateHint();
 
     const intent=detectIntent(txt);
     setDebug(`Intent: ${intent} · Stage: ${state.stage}`);
+
+    if (intent==="end_farewell"){
+      // User ends the interaction with a farewell
+      endScenarioNow("farewell");
+      return;
+    }
 
     if (intent==="deny"){ enqueueVisitor(phrase("shared","deny_why",state)); return; }
 

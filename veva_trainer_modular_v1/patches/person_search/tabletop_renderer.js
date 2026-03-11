@@ -85,7 +85,7 @@
     "Joint":"assets/items/joint.png",
     "Knife":"assets/items/knife.png",
     "Gun":"assets/items/gun.png",
-    "Whiskey":"assets/items/whiskey.png",
+    "Whisky":"assets/items/whisky.png",
     // aliases / variants
     "Small pocket knife":"assets/items/knife.png",
     "Pistol":"assets/items/gun.png"
