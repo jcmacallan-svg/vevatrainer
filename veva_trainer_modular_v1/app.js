@@ -1011,8 +1011,7 @@ function showSignIn(){
     state.pass.id = state.pass.id || ("VP-"+randInt(1000,9999));
     if (si_passPreview) si_passPreview.textContent = state.pass.id;
 
-
-    const isCheckout = !!state.flags.siCheckoutActive;
+    // Use the isCheckout computed earlier in this function.
     setSignInMode(isCheckout ? "checkout" : "entry");
     // Signature / rules step:
     // We use an explicit view state so the UI can transition:
