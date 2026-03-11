@@ -109,6 +109,18 @@
   const si_sig = $("#si_sig");
   const btnSignInIssue = $("#btnSignInIssue");
 
+  // Normalize labels (some older cached HTML used "Time" / "Departure time")
+  try{
+    const timeLabel = si_time?.closest?.("label");
+    if (timeLabel && timeLabel.firstChild && timeLabel.firstChild.nodeType===3){
+      timeLabel.firstChild.textContent = "Time in ";
+    }
+    const outLabel = si_outTime?.closest?.("label");
+    if (outLabel && outLabel.firstChild && outLabel.firstChild.nodeType===3){
+      outLabel.firstChild.textContent = "Time out ";
+    }
+  }catch(e){}
+
   const passPanel = $("#passPanel");
 
   // Central portrait (photo + mood strip) visibility controller.
@@ -175,9 +187,9 @@
     // Always allow start once per run; if state got stuck, reset the flag.
     state.flags.meetingSequenceStarted = false;
     state.flags.meetingSequenceStarted = true;
-    // Compute a simple timeline: appointment time -> +30..45 minutes
+    // Compute a simple timeline: how long the visitor is away
     const appt = getMeetingTime(state);
-    const minutesGone = randInt(30, 45);
+    const minutesGone = randInt(10, 25);
     const back = addMinutesHHMM(appt, minutesGone) || "";
     state.facts = state.facts || {};
     state.facts.returnTime = back;
@@ -185,25 +197,38 @@
     // Hide panels during transition popups
     hideAllPanels();
     syncPortraitVisibility();
-    // Popup: visitor goes to meeting
-    showScenePopup("Visitor goes to appointment", back ? `Gone for ${minutesGone} minutes (${appt} → ${back})` : "Gone for ${minutesGone} minutes", state.visitor?.photoSrc, 3000);
-    // After a few moments, visitor returns
+    // Popup 1: visitor goes to appointment (no time shown)
+    showScenePopup(
+      "Visitor goes to appointment",
+      "Visitor is now going to the appointment.",
+      state.visitor?.photoSrc,
+      4000
+    );
+    // Popup 2: how long later
     setTimeout(()=>{
-      showScenePopup(`${minutesGone} minutes later…`, back ? `The visitor is now back at your sign-in office (${back}). Make sure he hands in his visitor pass (he will ask to hand it in).` : "The visitor is now back at your sign-in office. Make sure he hands in his visitor pass (he will ask to hand it in).", state.visitor?.photoSrc, 3000);
-    }, 3500);
+      showScenePopup(
+        `${minutesGone} minutes later…`,
+        "The visitor is now back at your sign-in office. Make sure he hands in his visitor pass (he will ask to hand it in).",
+        state.visitor?.photoSrc,
+        7000
+      );
+    }, 4200);
+
+    // After the second popup has disappeared, show the registry for sign-out.
     setTimeout(()=>{
       // Switch to checkout in sign-in office
       state.stage = "si_checkout";
       state.flags.siCheckoutActive = true;
       state.flags.siView = "register";
-      // Prepare checkout field
-      if (si_outTime && !si_outTime.value && back) si_outTime.value = back;
-      // Student should confirm / fill departure time manually
+      // Student should fill departure time (time out) manually
       state.flags.coOutTimeSet = false;
-      if (si_outTime) si_outTime.classList.add("missing");
+      if (si_outTime){
+        si_outTime.value = "";
+        si_outTime.classList.add("missing");
+      }
       showSignIn();
       updateHint();
-    }, 6500);
+    }, 11500);
   }
 const passNo = $("#passNo");
   const passName = $("#passName");
@@ -212,6 +237,19 @@ const passNo = $("#passNo");
 
   const hintBand = $("#hintBand");
   const hintBandText = $("#hintBandText");
+
+  // Make the END SCENARIO hint bar clickable (so students can finish via the big bar)
+  try{
+    if (hintBand){
+      hintBand.style.cursor = "pointer";
+      hintBand.addEventListener("click", ()=>{
+        const t = (hintBandText?.textContent||"").trim().toUpperCase();
+        if (t === "END SCENARIO" && !state?.flags?.ended){
+          endScenarioNow("endScenario_hintBand");
+        }
+      });
+    }
+  }catch(e){}
 
   // Checklist (optional panel)
   const checklistEls = {
@@ -681,6 +719,9 @@ function getMeetingTime(state){
     // Transitions
     if (/\b(go\s+to|proceed\s+to|walk\s+to|send\s+(him|her|the\s+visitor)\s+to)\b.*\b(person\s+search|search\s+area)\b/i.test(n)) return "go_person_search";
     if (/\b(go\s+to|proceed\s+to|walk\s+to)\b.*\b(sign\s*-?in|sign\s*in\s+office|reception|sign\s*in\s+desk)\b/i.test(n)) return "go_sign_in";
+
+    // Sign-in: allow the visitor to go to the appointment
+    if (/\b(go\s+to\s+your\s+(appointment|meeting)|you\s+can\s+go\s+to\s+your\s+(appointment|meeting)|you\s+(are|re)\s+(okay|ok)\s+to\s+go)\b/i.test(raw)) return "si_go_appointment";
 
 
 
@@ -2513,6 +2554,16 @@ function handleSI(intent, raw){
       enqueueVisitor(pickArr(["Okay, I will follow your colleague.", "Alright—lead on.", "Okay."]), ()=>{ setTimeout(()=>startMeetingSequence("si_way"), 2300); });
       updateHint();
       updateChecklist();
+      return;
+    }
+
+    // Student allows the visitor to go to the appointment (typed or spoken)
+    if (intent==="si_go_appointment"){
+      // Keep chat minimal; the transition popups will guide the student.
+      enqueueVisitor(pickArr(["Okay. Thank you.", "Alright. See you later.", "Okay."]), ()=>{
+        setTimeout(()=>startMeetingSequence("si_go_appointment"), 600);
+      });
+      updateHint();
       return;
     }
 
