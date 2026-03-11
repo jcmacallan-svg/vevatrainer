@@ -15,7 +15,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 .scenePopupSub{margin-top:4px;font-size:14px;color:rgba(229,231,235,.85);line-height:1.35;}
 .topPills{position:fixed;top:10px;left:10px;right:10px;display:flex;gap:10px;z-index:50;pointer-events:none;}
 .pill{pointer-events:auto;background:rgba(22,27,34,.9);border:1px solid var(--border);padding:8px 12px;border-radius:999px;color:var(--text);font-size:13px;box-shadow:var(--shadow);}
-.app{height:100vh;display:flex;padding-top:54px;}
+.app{height:100vh;display:flex;padding-top:12px;}
 .sidebar{width:300px;min-width:260px;background:var(--panel);border-right:1px solid var(--border);padding:16px;display:flex;flex-direction:column;gap:10px;}
 .brand{padding:10px 10px 14px;border-bottom:1px solid var(--border);margin-bottom:8px;}
 .brandTitle{font-weight:800;letter-spacing:.2px;}
@@ -32,7 +32,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
   display:grid;
   /* Two columns on top (chat + checklist), bottom panel spans full width */
   grid-template-columns: 1fr auto;
-  grid-template-rows: 1fr auto auto auto;
+  grid-template-rows: auto auto 1fr auto;
   gap:12px;
   width:100%;
   min-height:0;
@@ -71,7 +71,8 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
   flex-direction:column;
 
   /* keep overall page stable */
-  max-height:45vh;
+  max-height:none;
+  height:100%;
   overflow:auto;
 }
 
@@ -791,3 +792,14 @@ body.hasPopup #portraitRow{display:none !important;}
 /* Sign-in checkout field (hidden during entry) */
 #signInPanel[data-mode="entry"] .checkoutOnly{display:none;}
 #signInPanel[data-mode="checkout"] .checkoutOnly{display:block;}
+
+
+/* Sign-in register compact layout (v2) */
+.superGridV2{grid-template-columns: repeat(3, minmax(0, 1fr));}
+.superGridV2 label{min-width:0;}
+.superGridV2 input,.superGridV2 select{padding:8px 10px;}
+.superGridV2 .fullRow{grid-column:1 / -1;}
+/* Keep signature boxes visible and not too tall */
+.superGridV2 .sigBox{min-height:120px;}
+
+#signInPanel[data-mode="checkout"] .row2.checkoutOnly{display:grid;}
