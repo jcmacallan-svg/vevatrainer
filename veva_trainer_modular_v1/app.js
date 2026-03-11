@@ -174,9 +174,9 @@
     // Always allow start once per run; if state got stuck, reset the flag.
     state.flags.meetingSequenceStarted = false;
     state.flags.meetingSequenceStarted = true;
-    // Compute a simple timeline: appointment time -> +30..45 minutes
+    // Compute a simple timeline: appointment time -> +60..90 minutes
     const appt = getMeetingTime(state);
-    const minutesGone = randInt(30, 45);
+    const minutesGone = randInt(60, 90);
     const back = addMinutesHHMM(appt, minutesGone) || "";
     state.facts = state.facts || {};
     state.facts.returnTime = back;
@@ -185,11 +185,23 @@
     hideAllPanels();
     syncPortraitVisibility();
     // Popup: visitor goes to meeting
-    showScenePopup("Visitor goes to appointment", back ? `Gone for ${minutesGone} minutes (${appt} → ${back})` : "Gone for ${minutesGone} minutes", state.visitor?.photoSrc, 3000);
+    showScenePopup(
+      "Visitor moving",
+      back ? `Visitor is now walking to the appointment (${appt} → ${back}).` : "Visitor is now walking to the appointment.",
+      state.visitor?.photoSrc,
+      2500
+    );
     // After a few moments, visitor returns
     setTimeout(()=>{
-      showScenePopup(`${minutesGone} minutes later…`, back ? `The visitor is now back at your sign-in office (${back}). Make sure he hands in his visitor pass (he will ask to hand it in).` : "The visitor is now back at your sign-in office. Make sure he hands in his visitor pass (he will ask to hand it in).", state.visitor?.photoSrc, 3000);
-    }, 3500);
+      showScenePopup(
+        `${minutesGone} minutes later…`,
+        back
+          ? `The visitor is now back at your sign-in office (${back}). Make sure he hands in his visitor pass (he will ask to hand it in).`
+          : "The visitor is now back at your sign-in office. Make sure he hands in his visitor pass (he will ask to hand it in).",
+        state.visitor?.photoSrc,
+        3000
+      );
+    }, 3000);
     setTimeout(()=>{
       // Switch to checkout in sign-in office
       state.stage = "si_checkout";
@@ -202,7 +214,7 @@
       if (si_outTime) si_outTime.classList.add("missing");
       showSignIn();
       updateHint();
-    }, 6500);
+    }, 6000);
   }
 const passNo = $("#passNo");
   const passName = $("#passName");
