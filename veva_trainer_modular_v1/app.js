@@ -941,16 +941,30 @@ if (state.stage.startsWith("si_")) showSignIn();
   function showPersonSearch(){
     hideAllPanels();
     // Keep portrait row visible during Person Search
-personSearchPanel.hidden=false;
+    personSearchPanel.hidden=false;
     syncPortraitVisibility();
     if (panelTitle) panelTitle.textContent="Person Search";
     if (panelSub) panelSub.textContent="Search procedure";
     renderPS();
     updateHint();
-  
+    psAttentionPulse();
     syncPortraitVisibility();
   }
-  
+ 
+
+  function psAttentionPulse(){
+    // Draw attention to the lower PS panel where table/pockets appear.
+    try{
+      const el = psItemsText || personSearchPanel;
+      if (!el) return;
+      el.classList.remove("psPulse");
+      // restart animation
+      void el.offsetWidth;
+      el.classList.add("psPulse");
+      setTimeout(()=>{ try{ el.classList.remove("psPulse"); }catch(e){} }, 1100);
+    }catch(e){}
+  }
+ 
   function setSignInView(mode){
     // mode: "register" | "rules"
     const titleEl = $("#si_cardTitle") || (signInPanel ? signInPanel.querySelector(".cardTitle") : null);
@@ -1151,9 +1165,13 @@ function showPass(){
     const itemsText = items.length ? items.join(", ") : "none";
 
     if (psOutfit){
+      const noTableYet = (!ps.didEmptyOnce && !ps.isPlacing && !(Array.isArray(ps.items) && ps.items.length));
+      const tableLine = noTableYet
+        ? "No items are on the table yet. Ask the visitor to empty their pockets to place items on the table."
+        : `You see the following items on the table: <b>${itemsText}</b>.`;
       psOutfit.innerHTML =
         `<div class="psLine">The visitor is wearing a <b>${style}</b> outfit with <b>${capTxt}</b>, <b>${jacketTxt}</b>, <b>${bagTxt}</b>.</div>` +
-        `<div class="psLine">You see the following items on the table: <b>${itemsText}</b>.</div>`;
+        `<div class="psLine">${tableLine}</div>`;
     }
 
     // Interactive item pills (tap to select, then type your question)
@@ -1211,8 +1229,14 @@ function showPass(){
         return row;
       };
 
-      const tableItems = Array.isArray(ps.items) ? ps.items : [];
-      const pocketItems = Array.isArray(ps.pocketItems) ? ps.pocketItems : [];
+      let tableItems = Array.isArray(ps.items) ? ps.items : [];
+      let pocketItems = Array.isArray(ps.pocketItems) ? ps.pocketItems : [];
+
+      // Do not show any items until the student asks the visitor to empty their pockets.
+      if (!ps.didEmptyOnce && !ps.isPlacing){
+        tableItems = [];
+        pocketItems = [];
+      }
 
       if (tableItems.length) wrap.appendChild(makeRow("On the table", tableItems, false));
       if (pocketItems.length) wrap.appendChild(makeRow("Felt in pockets (not yet removed)", pocketItems, true));
@@ -1552,11 +1576,31 @@ function showPass(){
 
     if (toMove.length){
       ps.items = Array.isArray(ps.items) ? ps.items : [];
-      toMove.forEach(it=>{ it.inPocket=false; ps.items.push(it); });
-      ps.lastFoundOnTableId = toMove[toMove.length-1].id;
+      // Place items one-by-one to make the action clear.
+      ps.placeQueue = toMove.slice();
+      ps.isPlacing = true;
       enqueueVisitor("Okay. I’ll empty my pockets and place the items on the table.");
+      ps.didEmptyOnce = true;
+      psAttentionPulse();
+      const placeNext = ()=>{
+        if (!ps.placeQueue || !ps.placeQueue.length){
+          ps.isPlacing = false;
+          renderPS();
+          return;
+        }
+        const it = ps.placeQueue.shift();
+        try{ it.inPocket = false; }catch(e){}
+        ps.items.push(it);
+        ps.lastFoundOnTableId = it.id;
+        renderPS();
+        setTimeout(placeNext, 650);
+      };
+      setTimeout(placeNext, 400);
     } else {
+      ps.didEmptyOnce = true;
+      ps.isPlacing = false;
       enqueueVisitor("Okay. My pockets are empty.");
+      psAttentionPulse();
     }
 
     renderPS();
@@ -2163,14 +2207,18 @@ function nextHint(){
     const sharpItem = pick([null,null,null,"small pocket knife","needle","razor blade"]); // ~40% chance
     state.ps={
       outfit,
-      items:(itemsObj.items||[]).map((it)=>({...(it||{}), id:(it&&it.id)||uid("psItem"), inPocket:false})),
-      pocketItems:[],
+      // Do NOT show anything on the table yet. Items start in pockets and are revealed only after "empty your pockets".
+      items:[],
+      pocketItems:(itemsObj.items||[]).map((it)=>({...(it||{}), id:(it&&it.id)||uid("psItem"), inPocket:true})),
       lastFeltId:null,
       selectedId:null,
       leftBehindId:null,
       leftBehindResolved:false,
       hasIllegal:itemsObj.hasIllegal,
-      sharpItem
+      sharpItem,
+      didEmptyOnce:false,
+      isPlacing:false,
+      placeQueue:[]
     };
     if (portraitMood) portraitMood.textContent="Person Search";
     if (portraitDesc) portraitDesc.textContent="Give clear instructions. If you find something, ask them to take it out.";
@@ -2411,7 +2459,7 @@ function nextHint(){
             renderPS();
           }
         }catch(e){}
-        enqueueVisitor("Okay. Please tell me to take it out and place it on the table.");
+        showHint("Tell him to take it out and place it on the table.");
         state.ps.sharpItem = null;
       } else {
         enqueueVisitor("No, I don't have any sharp objects on me.");

@@ -813,3 +813,16 @@ body.hasPopup #portraitRow{display:none !important;}
 .superGridV2 .sigBox{min-height:60px;}
 
 #signInPanel[data-mode="checkout"] .row2.checkoutOnly{display:grid;}
+
+
+/* Person Search: draw attention to the table/pockets area */
+@keyframes psPulseBG {
+  0% { filter: brightness(1.0); }
+  25% { filter: brightness(1.25); }
+  50% { filter: brightness(0.95); }
+  75% { filter: brightness(1.20); }
+  100% { filter: brightness(1.0); }
+}
+.psPulse{
+  animation: psPulseBG 1.1s ease-in-out 1;
+}
