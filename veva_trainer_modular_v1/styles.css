@@ -648,14 +648,13 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,B
 #passPanel .cardBody{max-height:320px; overflow-y:auto;}
 
 /* Sign-in: missing required fields */
-#si_company.missing{ border:2px solid #d12d2d !important; box-shadow:none; }
 
 /* Signature box */
 .sigLabel{ display:block; }
 #si_sig{ display:none; }
 .sigBox{
   width:100%;
-  height:72px;
+  height: 26px;
   border:2px solid rgba(255,255,255,0.25);
   border-radius:12px;
   background:rgba(0,0,0,0.12);
@@ -811,6 +810,6 @@ body.hasPopup #portraitRow{display:none !important;}
 .superGridV2 input,.superGridV2 select{padding:8px 10px;}
 .superGridV2 .fullRow{grid-column:1 / -1;}
 /* Keep signature boxes visible and not too tall */
-.superGridV2 .sigBox{min-height:120px;}
+.superGridV2 .sigBox{min-height:60px;}
 
 #signInPanel[data-mode="checkout"] .row2.checkoutOnly{display:grid;}

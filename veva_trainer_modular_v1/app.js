@@ -1076,11 +1076,8 @@ function showSignIn(){
       state.flags.siFormInitialized = true;
     }
 
-    // Missing company should stand out in the form during sign-in.
-    if (si_company){
-      const missing = !si_company.value;
-      si_company.classList.toggle("missing", missing);
-    }
+    // Company should not be highlighted as missing in sign-in.
+    try{ si_company && si_company.classList.remove("missing"); }catch(e){}
 
     // Prepare pass number preview (student must state it later)
     state.pass = state.pass || {};
@@ -2207,7 +2204,14 @@ function nextHint(){
       updateChecklist(); state.facts.name=state.visitor.name; enqueueVisitor(`My name is ${state.visitor.first}.`); updateHint(); return; }
     if (intent==="ask_surname"){
       state.flags.nameAsked = true;
-      updateChecklist(); enqueueVisitor(`My surname is ${state.visitor.last}.`); updateHint(); return; }
+      const last = (state.visitor?.last || "—").trim();
+      const first = (state.visitor?.first || "").trim();
+      const full = [first, last].filter(Boolean).join(" ").trim() || last;
+      if (si_name) si_name.value = full;
+      enqueueVisitor(`My surname is ${last}.`);
+      updateHint();
+      return;
+    }
     if (intent==="purpose"){
       state.flags.purposeAsked = true;
       updateChecklist();
@@ -2738,13 +2742,14 @@ function handleSI(intent, raw){
       return;
     }
 
-    // In the sign-in office, asking for the visitor's name should return the *full* name
-    // and auto-fill it into the sign-in register.
+    // In the sign-in office:
+// - "What is your name?" -> visitor gives FIRST name (and we may prefill the form with first name only)
+// - Once surname is asked/given, we auto-upgrade the register Name field to "First Last".
     if (intent==="ask_name"){
       state.flags.nameAsked = true;
-      const fullName = [state.visitor?.first, state.visitor?.last].filter(Boolean).join(" ").trim() || (state.visitor?.name || "—");
-      if (si_name) si_name.value = fullName;
-      enqueueVisitor(`My name is ${fullName}.`);
+      const first = (state.visitor?.first || state.visitor?.name || "—").trim();
+      if (si_name) si_name.value = first;
+      enqueueVisitor(`My name is ${first}.`);
       updateHint();
       return;
     }
@@ -3195,10 +3200,7 @@ btnSend?.addEventListener("click", ()=>{
   });
 
   // Live highlight: company is the common remaining field at sign-in
-  si_company?.addEventListener("input", ()=>{
-    const missing = !(si_company.value||"").trim();
-    si_company.classList.toggle("missing", missing);
-  });
+  si_company?.addEventListener("input", ()=>{ try{ si_company.classList.remove("missing"); }catch(e){} });
 
   si_outTime?.addEventListener("input", ()=>{
     if (!state) return;
